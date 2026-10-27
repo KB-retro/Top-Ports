@@ -1,5 +1,18 @@
 package com.topports.app.ui.components
 
+import android.text.InputType
+import android.util.TypedValue
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
+import androidx.compose.foundation.text.KeyboardActionScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.widget.doAfterTextChanged
+import com.topports.app.R
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -174,6 +187,11 @@ private class StepsEasing(private val steps: Int) : androidx.compose.animation.c
     override fun transform(fraction: Float): Float = (fraction * steps).toInt() / steps.toFloat()
 }
 
+/**
+ * Campo de texto. Usa un EditText de Android con el teclado "sin pantalla completa":
+ * en horizontal el teclado del sistema se abría a pantalla completa con su propio cuadro,
+ * que no mostraba lo que se escribía. Así el teclado ocupa solo la parte de abajo.
+ */
 @Composable
 fun PixelTextField(
     value: String,
@@ -184,23 +202,66 @@ fun PixelTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
+    val currentOnChange by rememberUpdatedState(onValueChange)
+    val currentActions by rememberUpdatedState(keyboardActions)
+    val actionScope = remember {
+        object : KeyboardActionScope {
+            override fun defaultKeyboardAction(imeAction: ImeAction) = Unit
+        }
+    }
     Box(modifier.pixelFrame(Px.night, Px.white, shadow = Px.black)) {
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = PxText.body,
-            cursorBrush = SolidColor(Px.orange),
-            visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            decorationBox = { inner ->
-                if (value.isEmpty()) Text(placeholder, style = PxText.body.copy(color = Px.darkGrey))
-                inner()
+        AndroidView(
+            factory = { ctx ->
+                EditText(ctx).apply {
+                    background = null
+                    val pad = (8 * ctx.resources.displayMetrics.density).toInt()
+                    setPadding(pad + pad / 4, pad / 2, pad + pad / 4, pad / 2)
+                    typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
+                    setTextColor(Px.white.toArgb())
+                    setHintTextColor(Px.darkGrey.toArgb())
+                    hint = placeholder
+                    isSingleLine = true
+                    inputType = inputTypeFor(keyboardOptions.keyboardType, password)
+                    imeOptions = imeActionFor(keyboardOptions.imeAction) or
+                        EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
+                    setText(value)
+                    setSelection(text.length)
+                    doAfterTextChanged { currentOnChange(it?.toString() ?: "") }
+                    setOnEditorActionListener { _, _, _ ->
+                        val actions = currentActions
+                        val action = actions.onDone ?: actions.onGo ?: actions.onSearch ?: actions.onSend
+                        action?.invoke(actionScope)
+                        action != null
+                    }
+                }
             },
+            update = { field ->
+                if (field.text.toString() != value) {
+                    field.setText(value)
+                    field.setSelection(value.length)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+private fun inputTypeFor(type: KeyboardType, password: Boolean): Int = when (type) {
+    KeyboardType.Phone -> InputType.TYPE_CLASS_PHONE
+    KeyboardType.Number -> InputType.TYPE_CLASS_NUMBER
+    KeyboardType.NumberPassword -> InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+    KeyboardType.Password -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+    else -> if (password) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+    else InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+}
+
+private fun imeActionFor(action: ImeAction): Int = when (action) {
+    ImeAction.Go -> EditorInfo.IME_ACTION_GO
+    ImeAction.Search -> EditorInfo.IME_ACTION_SEARCH
+    ImeAction.Send -> EditorInfo.IME_ACTION_SEND
+    ImeAction.Next -> EditorInfo.IME_ACTION_NEXT
+    else -> EditorInfo.IME_ACTION_DONE
 }
 
 /** Etiqueta de color tipo cartucho: "APK", "7Z", "RAR"… */
