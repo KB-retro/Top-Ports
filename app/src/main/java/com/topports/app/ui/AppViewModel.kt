@@ -20,7 +20,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val files = graph.telegram.files
     val tasks = graph.tasks.tasks
 
-    var tab by mutableStateOf(Tab.STORE)
+    private var currentTab by mutableStateOf(Tab.STORE)
+    private val tabHistory = ArrayDeque<Tab>()
+
+    /** Pestaña visible. Cada cambio se recuerda para que "atrás" vuelva a la anterior. */
+    var tab: Tab
+        get() = currentTab
+        set(value) {
+            if (value == currentTab) return
+            tabHistory.addLast(currentTab)
+            if (tabHistory.size > 30) tabHistory.removeFirst()
+            currentTab = value
+        }
+
+    /** Vuelve a la pestaña anterior; false si no hay ninguna. */
+    fun goBackTab(): Boolean {
+        val previous = tabHistory.removeLastOrNull() ?: return false
+        currentTab = previous
+        return true
+    }
     var selectedGameId by mutableStateOf<Long?>(null)
     var browserDir by mutableStateOf<String?>(null)
     var search by mutableStateOf("")
@@ -56,7 +74,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun logOut() {
         selectedGameId = null
-        tab = Tab.STORE
+        tabHistory.clear()
+        currentTab = Tab.STORE
         authCall { graph.telegram.logOut() }
     }
 

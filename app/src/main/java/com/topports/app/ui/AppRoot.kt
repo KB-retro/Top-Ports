@@ -1,6 +1,13 @@
 package com.topports.app.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.os.SystemClock
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,7 +91,26 @@ private fun MainScreen(vm: AppViewModel) {
     var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.loadCatalogIfNeeded() }
-    BackHandler(enabled = vm.tab == Tab.STORE && vm.selectedGameId != null) { vm.selectedGameId = null }
+    // Atrás (o B): cerrar la ficha, volver a la pestaña anterior y, en la tienda, pedir
+    // una segunda pulsación antes de salir en lugar de minimizar la app de golpe.
+    val context = LocalContext.current
+    var lastExitPress by remember { mutableLongStateOf(0L) }
+    BackHandler {
+        when {
+            vm.tab == Tab.STORE && vm.selectedGameId != null -> vm.selectedGameId = null
+            vm.goBackTab() -> Unit
+            vm.tab != Tab.STORE -> vm.tab = Tab.STORE
+            else -> {
+                val now = SystemClock.uptimeMillis()
+                if (now - lastExitPress < 2000) {
+                    context.findActivity()?.moveTaskToBack(true)
+                } else {
+                    lastExitPress = now
+                    Toast.makeText(context, "Pulsa atrás otra vez para salir", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val content: @Composable (Modifier) -> Unit = { modifier ->
         Box(modifier) {
@@ -180,4 +206,13 @@ private fun MainScreen(vm: AppViewModel) {
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
 }
