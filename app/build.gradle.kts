@@ -28,8 +28,9 @@ android {
         applicationId = "com.topports.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // En CI se usa el número de ejecución para que cada APK sea una actualización del anterior.
+        versionCode = config("VERSION_CODE", "1").toInt()
+        versionName = "0.1." + config("VERSION_CODE", "0")
 
         // Credenciales de la app de Telegram: https://my.telegram.org → API development tools.
         buildConfigField("int", "TELEGRAM_API_ID", (config("TELEGRAM_API_ID").toIntOrNull() ?: 0).toString())
@@ -45,10 +46,24 @@ android {
         }
     }
 
+    // Clave fija: así Android acepta cada APK nuevo como actualización y conserva los datos.
+    val keystorePath = config("SIGNING_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystorePath.isNotBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storeType = "PKCS12"
+                storePassword = config("SIGNING_STORE_PASSWORD")
+                keyAlias = config("SIGNING_KEY_ALIAS", "topports")
+                keyPassword = config("SIGNING_KEY_PASSWORD").ifBlank { config("SIGNING_STORE_PASSWORD") }
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

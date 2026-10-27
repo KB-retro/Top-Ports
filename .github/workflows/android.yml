@@ -66,8 +66,21 @@ jobs:
       - name: Tests
         run: ./gradlew :core:test --stacktrace
 
+      - name: Clave de firma
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "SIGNING_KEYSTORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sin SIGNING_KEYSTORE_BASE64: el APK se firma con una clave de depuración temporal y no se podrá actualizar sin desinstalar."
+          fi
+
       - name: Compilar APK
         env:
+          VERSION_CODE: ${{ github.run_number }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
           TOPPORTS_CHANNEL_ID: ${{ secrets.TOPPORTS_CHANNEL_ID || vars.TOPPORTS_CHANNEL_ID }}

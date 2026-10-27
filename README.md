@@ -34,7 +34,15 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
    - `TOPPORTS_CHANNEL_USERNAME`: el @usuario del canal, si es público.
    - `TOPPORTS_CHANNEL_INVITE_LINK`: el enlace de invitación (`https://t.me/+…`), si es privado.
      Con él la app puede unir al usuario al canal automáticamente.
-4. Lanza el workflow (pestaña **Actions → Android → Run workflow**) y descarga el artefacto
+4. Clave de firma (para que cada APK nuevo se instale encima del anterior sin perder datos):
+   - `SIGNING_KEYSTORE_BASE64`: el archivo `.p12` de la clave en base64.
+   - `SIGNING_STORE_PASSWORD`: su contraseña.
+
+   Guarda una copia del `.p12` y de la contraseña: si se pierden, la siguiente versión
+   tendrá que instalarse desinstalando la anterior. Para crear una clave nueva:
+   `keytool -genkeypair -storetype PKCS12 -keystore topports.p12 -alias topports -keyalg RSA -keysize 4096 -validity 10000`
+   y luego `base64 -w0 topports.p12`.
+5. Lanza el workflow (pestaña **Actions → Android → Run workflow**) y descarga el artefacto
    **TopPorts-apk**.
 
 La primera ejecución compila TDLib desde el código fuente y tarda bastante (1–3 h). Después
