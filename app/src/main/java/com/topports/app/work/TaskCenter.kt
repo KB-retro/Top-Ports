@@ -139,7 +139,8 @@ class TaskCenter(
 
     // --- Instalar desde la tienda ---
 
-    fun installPackage(game: Game, pkg: GamePackage) {
+    /** [dest]: carpeta donde extraer o guardar (raíz de la memoria o /TopPorts/<juego>). */
+    fun installPackage(game: Game, pkg: GamePackage, dest: File) {
         launchTask(game.title) { taskId, password ->
             val parts = pkg.parts.map { part ->
                 val f = tg.refreshFile(part.id)
@@ -158,11 +159,10 @@ class TaskCenter(
                     finish(taskId, "OBB copiado en $dest", dest)
                 }
                 PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> {
-                    val dest = Storage.gameDir(context, game.title)
                     extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password)
                 }
                 PackageKind.OTHER -> {
-                    val dest = Storage.gameDir(context, game.title)
+                    dest.mkdirs()
                     parts.forEach { (name, file) -> copyWithProgress(taskId, file, File(dest, name)) }
                     finish(taskId, "Copiado en ${dest.path}", dest.path)
                 }
@@ -319,9 +319,9 @@ class TaskCenter(
     }
 
     private suspend fun extractAndInstall(taskId: Int, volumes: VolumeSet, dest: File, password: String?) {
-        extract(taskId, volumes, dest, password)
-        val paths = dest.walkTopDown().filter { it.isFile }.map { it.relativeTo(dest).invariantSeparatorsPath }.toList()
-        val plan = InstallPlanner.plan(paths)
+        // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
+        val extracted = extract(taskId, volumes, dest, password)
+        val plan = InstallPlanner.plan(extracted)
         val notes = mutableListOf<String>()
 
         for (obb in plan.obbs) {

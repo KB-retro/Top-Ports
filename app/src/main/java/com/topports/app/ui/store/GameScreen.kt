@@ -28,7 +28,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.content.Context
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,12 +54,30 @@ import com.topports.app.ui.components.pixelClickable
 import com.topports.app.ui.components.pixelFrame
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
+import com.topports.app.storage.Storage
+import com.topports.core.CatalogBuilder
 import com.topports.core.FileNames
 import com.topports.core.Game
 import com.topports.core.GamePackage
 import com.topports.core.PackageKind
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
+
+private val urlRegex = Regex("""https?://[^\s)]+""")
+
+/** Convierte las URLs del texto en enlaces pulsables. */
+private fun linkify(text: String): AnnotatedString = buildAnnotatedString {
+    var last = 0
+    for (match in urlRegex.findAll(text)) {
+        append(text.substring(last, match.range.first))
+        withLink(LinkAnnotation.Url(match.value, TextLinkStyles(SpanStyle(color = Px.blue, textDecoration = TextDecoration.Underline)))) {
+            append(match.value)
+        }
+        last = match.range.last + 1
+    }
+    append(text.substring(last))
+}
 
 @Composable
 fun GameScreen(vm: AppViewModel, gameId: Long) {
@@ -109,7 +135,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         if (game.description.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark) {
-                Text(game.description, style = PxText.body)
+                Text(linkify(game.description), style = PxText.body)
             }
         }
 
@@ -121,8 +147,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
-                "Al instalar, los archivos comprimidos se extraen en /TopPorts/${FileNames.safeFolderName(game.title)}, " +
-                    "los APK se instalan y los OBB se copian a Android/obb.",
+                "Los APK se instalan directamente. Los comprimidos se extraen donde elijas " +
+                    "(raíz de la memoria o /TopPorts) y los OBB se copian a Android/obb.",
                 style = PxText.small,
             )
         }
@@ -143,6 +169,7 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
     val info = vm.graph.tasks.downloadInfo(pkg, files)
     val (tag, color) = kindTag(pkg.name, pkg.kind)
     var confirmDelete by remember { mutableStateOf(false) }
+    var chooseDest by remember { mutableStateOf(false) }
 
     PixelPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -178,9 +205,11 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
                             PackageKind.OTHER -> "Guardar"
                         }
                         PixelButton(action, onClick = {
-                            vm.graph.tasks.installPackage(game, pkg)
-                            Toast.makeText(context, "Mira el progreso en TAREAS", Toast.LENGTH_SHORT).show()
-                            vm.tab = Tab.TASKS
+                            if (pkg.kind == PackageKind.APK || pkg.kind == PackageKind.OBB) {
+                                startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
+                            } else {
+                                chooseDest = true
+                            }
                         }, color = Px.green, small = true)
                     }
                     info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true)
@@ -192,6 +221,10 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
                 }
             }
         }
+    }
+
+    if (chooseDest) {
+        DestinationDialog(vm, game, pkg, onDismiss = { chooseDest = false })
     }
 
     if (confirmDelete) {
@@ -208,7 +241,51 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
     }
 }
 
-private fun download(vm: AppViewModel, context: android.content.Context, pkg: GamePackage) {
+private fun startInstall(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, dest: File) {
+    vm.graph.tasks.installPackage(game, pkg, dest)
+    Toast.makeText(context, "Mira el progreso en TAREAS", Toast.LENGTH_SHORT).show()
+    vm.tab = Tab.TASKS
+}
+
+/** Dónde extraer/guardar: raíz de la memoria interna o /TopPorts/<juego>. */
+@Composable
+private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val wantsRoot = pkg.kind != PackageKind.OTHER && CatalogBuilder.wantsStorageRoot(game.description)
+    val hasAccess = Storage.hasAllFilesAccess(context)
+    val gameDir = "/TopPorts/${FileNames.safeFolderName(game.title)}"
+    val verb = if (pkg.kind == PackageKind.OTHER) "guardar" else "extraer"
+    PixelDialog("¿Dónde $verb?", onDismiss = onDismiss) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (wantsRoot) {
+                Text("Las instrucciones del post piden la raíz de la memoria interna.", style = PxText.body.copy(color = Px.yellow))
+            }
+            if (!hasAccess) {
+                Text("Para usar la raíz o /TopPorts, da permiso de acceso a todos los archivos.", style = PxText.small)
+                PixelButton("Dar permiso", onClick = {
+                    runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
+                }, color = Px.yellow, small = true, modifier = Modifier.fillMaxWidth())
+            }
+            val rootButton: @Composable () -> Unit = {
+                PixelButton("Raíz de la memoria", onClick = {
+                    onDismiss()
+                    startInstall(vm, context, game, pkg, Storage.externalRoot)
+                }, color = if (wantsRoot) Px.green else Px.blue, enabled = hasAccess, small = true, modifier = Modifier.fillMaxWidth())
+            }
+            val folderButton: @Composable () -> Unit = {
+                PixelButton(gameDir, onClick = {
+                    onDismiss()
+                    startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
+                }, color = if (wantsRoot) Px.blue else Px.green, small = true, modifier = Modifier.fillMaxWidth())
+            }
+            // La opción recomendada va primero.
+            if (wantsRoot) { rootButton(); folderButton() } else { folderButton(); rootButton() }
+            PixelButton("Cancelar", onClick = onDismiss, color = Px.grey, small = true, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+private fun download(vm: AppViewModel, context: Context, pkg: GamePackage) {
     vm.graph.tasks.download(pkg) { error ->
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()

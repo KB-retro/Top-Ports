@@ -33,6 +33,43 @@ class CatalogBuilderTest {
         assertEquals(PackageKind.APK, hl.packages[0].kind)
     }
 
+    /** Posts reales del canal: foto con descripción + álbum de archivos o archivos sueltos. */
+    @Test
+    fun realChannelPosts() {
+        val mb = 1024L * 1024
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(
+                    10, 1000,
+                    text = "Super Mario Sunshine\n\nControles:\nFísicos y táctiles.\n\nIdioma:\nMulti- Castellano 🇪🇸",
+                    photo = photo(1),
+                ),
+                ChannelMessage(11, 1000, document = doc(20, "Mareshine-2.0.0.apk", 12 * mb)),
+                ChannelMessage(12, 1001, document = doc(21, "Super Mario Sunshine (USA).iso", 1392 * mb)),
+                ChannelMessage(13, 1001, document = doc(22, "Super Mario Sunshine (Europe).iso", 1392 * mb)),
+                ChannelMessage(
+                    20, 9000,
+                    text = "Dynasty Warriors 5\n\nInstalar apk, descomprimir el archivo comprimido en la raiz de la memoria interna, y abrir la aplicación.",
+                    photo = photo(2),
+                ),
+                ChannelMessage(21, 9001, albumId = 99, document = doc(30, "DW5-Android-v1.5.apk", 19 * mb)),
+                ChannelMessage(22, 9001, albumId = 99, document = doc(31, "DW5.zip.001", 3900 * mb)),
+                ChannelMessage(23, 9001, albumId = 99, document = doc(32, "DW5.zip.002", 383 * mb)),
+            ),
+        )
+        assertEquals(listOf("Dynasty Warriors 5", "Super Mario Sunshine"), games.map { it.title })
+
+        val dw5 = games[0]
+        assertEquals(listOf(PackageKind.APK, PackageKind.ARCHIVE), dw5.packages.map { it.kind })
+        assertEquals("DW5.zip", dw5.packages[1].name)
+        assertEquals(listOf(31, 32), dw5.packages[1].parts.map { it.id })
+        assertTrue(CatalogBuilder.wantsStorageRoot(dw5.description))
+
+        val mario = games[1]
+        assertEquals(listOf(PackageKind.APK, PackageKind.OTHER, PackageKind.OTHER), mario.packages.map { it.kind })
+        assertEquals(false, CatalogBuilder.wantsStorageRoot(mario.description))
+    }
+
     @Test
     fun albumStaysTogether() {
         val games = CatalogBuilder.build(

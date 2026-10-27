@@ -112,6 +112,14 @@ object CatalogBuilder {
         }
     }
 
+    private val rootHint = Regex("""ra[ií]z|memoria interna|almacenamiento interno|internal storage""", RegexOption.IGNORE_CASE)
+
+    /**
+     * ¿Las instrucciones piden descomprimir en la raíz de la memoria interna?
+     * ("descomprimir el archivo comprimido en la raiz de la memoria interna")
+     */
+    fun wantsStorageRoot(description: String): Boolean = rootHint.containsMatchIn(description)
+
     /** Quita marcas de formato y adornos típicos del título ("**Juego**", "🎮 Juego"). */
     fun cleanTitle(line: String): String =
         line.replace(Regex("""[*_`~#>|]"""), "")
