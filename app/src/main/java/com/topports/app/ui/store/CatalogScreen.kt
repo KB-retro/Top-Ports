@@ -18,7 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
@@ -86,16 +87,34 @@ fun CatalogScreen(vm: AppViewModel) {
     }
 
     // Con mando: al entrar (o al volver de una ficha) se selecciona la última carátula abierta.
-    val focus = remember { FocusRequester() }
+    val requesters = remember { HashMap<Long, FocusRequester>() }
+    fun requesterFor(id: Long) = requesters.getOrPut(id) { FocusRequester() }
     val targetId = vm.lastGameId?.takeIf { id -> games.any { it.id == id } } ?: games.firstOrNull()?.id
+
+    suspend fun focusGame(index: Int) {
+        val game = games.getOrNull(index) ?: return
+        val visible = vm.catalogGrid.layoutInfo.visibleItemsInfo.map { it.index }
+        if (index !in visible) vm.catalogGrid.scrollToItem(index)
+        delay(40)
+        runCatching { requesterFor(game.id).requestFocus() }
+    }
+
     // También al cerrar el teclado de búsqueda, para seguir con la cruceta en los resultados.
     LaunchedEffect(targetId != null, vm.searchOpen) {
         if (targetId == null || vm.searchOpen) return@LaunchedEffect
-        val index = games.indexOfFirst { it.id == targetId }
-        val visible = vm.catalogGrid.layoutInfo.visibleItemsInfo.map { it.index }
-        if (index >= 0 && index !in visible) vm.catalogGrid.scrollToItem(index)
-        delay(80)
-        runCatching { focus.requestFocus() }
+        delay(40)
+        focusGame(games.indexOfFirst { it.id == targetId })
+    }
+
+    // L1 / R1: una fila de juegos arriba o abajo, esté donde esté el foco.
+    LaunchedEffect(vm.catalogJump) {
+        val (rows, _) = vm.catalogJump ?: return@LaunchedEffect
+        if (games.isEmpty()) return@LaunchedEffect
+        val columns = (vm.catalogGrid.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 0) + 1
+        val current = vm.catalogFocusIndex
+        val target = if (current in games.indices) (current + rows * columns).coerceIn(0, games.lastIndex)
+        else vm.catalogGrid.firstVisibleItemIndex
+        focusGame(target)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -181,11 +200,13 @@ fun CatalogScreen(vm: AppViewModel) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(games, key = { it.id }) { game ->
+            itemsIndexed(games, key = { _, game -> game.id }) { index, game ->
                 GameCard(
                     game,
                     onClick = { vm.openGame(game.id) },
-                    modifier = if (game.id == targetId) Modifier.focusRequester(focus) else Modifier,
+                    modifier = Modifier
+                        .focusRequester(requesterFor(game.id))
+                        .onFocusChanged { if (it.isFocused) vm.catalogFocusIndex = index },
                 )
             }
         }

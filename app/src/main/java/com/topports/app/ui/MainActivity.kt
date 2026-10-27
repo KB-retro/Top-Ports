@@ -33,15 +33,25 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Mandos de consolas Android (Odin, Anbernic, Retroid…):
-     * A = aceptar, B = atrás, L1/R1 = cambiar de pestaña, Y = buscar, X = ordenar. La cruceta mueve el foco.
+     * A = aceptar, B = atrás, L1/R1 = fila arriba/abajo, L2/R2 = cambiar de pestaña, Y = buscar,
+     * X = ordenar. La cruceta mueve el foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
         when (event.keyCode) {
-            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
-                if (down) vm.cycleTab(if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1)
+            // L2 / R2: pestaña anterior / siguiente (L1/R1 se usan para moverse entre filas).
+            KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2 -> {
+                if (down) vm.cycleTab(if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L2) -1 else 1)
                 return true
             }
+            // L1 / R1 en la tienda: una fila de juegos arriba / abajo aunque el foco esté en el menú.
+            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 ->
+                if (vm.tab == Tab.STORE && vm.selectedGameId == null && !vm.searchOpen) {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        vm.jumpCatalogRows(if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1)
+                    }
+                    return true
+                }
             // Y en la tienda: abrir la búsqueda con el teclado del mando.
             KeyEvent.KEYCODE_BUTTON_Y -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
                 if (down) vm.searchOpen = true

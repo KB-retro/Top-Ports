@@ -5,13 +5,16 @@ import android.view.Window
 
 /**
  * Botones de los mandos de consolas Android (Odin, Anbernic, Retroid…):
- * A acepta (como el centro de la cruceta) y B vuelve atrás.
+ * A acepta (como el centro de la cruceta), B vuelve atrás y L1/R1 suben o bajan una fila.
  */
 object Gamepad {
     fun remap(event: KeyEvent): KeyEvent {
         val mapped = when (event.keyCode) {
             KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_DPAD_CENTER
             KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BACK
+            // L1 / R1: subir y bajar una fila (en la tienda, una fila de juegos).
+            KeyEvent.KEYCODE_BUTTON_L1 -> KeyEvent.KEYCODE_DPAD_UP
+            KeyEvent.KEYCODE_BUTTON_R1 -> KeyEvent.KEYCODE_DPAD_DOWN
             else -> return event
         }
         return KeyEvent(

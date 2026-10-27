@@ -68,6 +68,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Último juego abierto: al volver a la tienda, el mando vuelve a esa carátula. */
     var lastGameId by mutableStateOf<Long?>(null)
 
+    /** Carátula de la tienda seleccionada con el mando (índice en la lista visible). */
+    var catalogFocusIndex by mutableStateOf(-1)
+
+    /** Petición de L1/R1: filas a moverse (y un sello para repetir la misma petición). */
+    var catalogJump by mutableStateOf<Pair<Int, Long>?>(null)
+        private set
+
+    fun jumpCatalogRows(rows: Int) {
+        catalogJump = rows to System.nanoTime()
+    }
+
     /** Posición de la cuadrícula de la tienda (se conserva al entrar y salir de una ficha). */
     val catalogGrid = LazyGridState()
 
@@ -76,7 +87,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         selectedGameId = id
     }
 
-    /** L1 / R1 del mando: pestaña anterior / siguiente. */
+    /** L2 / R2 del mando: pestaña anterior / siguiente. */
     fun cycleTab(step: Int) {
         val tabs = Tab.entries
         tab = tabs[(tabs.indexOf(tab) + step + tabs.size) % tabs.size]
@@ -87,7 +98,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var authError by mutableStateOf<String?>(null)
         private set
 
-    fun submitPhone(phone: String) = authCall { graph.telegram.sendPhoneNumber(phone.filter { it.isDigit() || it == '+' }) }
+    fun submitPhone(phone: String) = authCall {
+        val clean = phone.filter { it.isDigit() || it == '+' }
+        // Sin prefijo internacional se asume España (+34).
+        graph.telegram.sendPhoneNumber(if (clean.startsWith("+")) clean else "+34$clean")
+    }
     fun submitCode(code: String) = authCall { graph.telegram.sendCode(code.trim()) }
     fun submitPassword(password: String) = authCall { graph.telegram.sendPassword(password) }
 

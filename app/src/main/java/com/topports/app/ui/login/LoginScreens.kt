@@ -116,7 +116,8 @@ private fun ErrorAndBusy(vm: AppViewModel) {
 
 @Composable
 private fun PhoneStep(vm: AppViewModel) {
-    var phone by rememberSaveable { mutableStateOf("+") }
+    // España por defecto: el usuario solo tiene que escribir su número.
+    var phone by rememberSaveable { mutableStateOf("+34 ") }
     LoginScaffold("Entra con tu Telegram") {
         Text("1. TU NÚMERO", style = PxText.label.copy(color = Px.yellow))
         Text(
@@ -136,7 +137,7 @@ private fun PhoneStep(vm: AppViewModel) {
         PixelButton(
             "Enviar código",
             onClick = { vm.submitPhone(phone) },
-            enabled = !vm.authBusy && phone.count { it.isDigit() } >= 6,
+            enabled = !vm.authBusy && phone.count { it.isDigit() } >= 9,
             modifier = Modifier.fillMaxWidth(),
         )
     }
