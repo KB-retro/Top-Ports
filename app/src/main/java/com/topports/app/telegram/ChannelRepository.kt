@@ -2,6 +2,7 @@ package com.topports.app.telegram
 
 import com.topports.app.BuildConfig
 import com.topports.core.CatalogBuilder
+import com.topports.core.ChannelLink
 import com.topports.core.ChannelMessage
 import com.topports.core.Game
 import com.topports.core.PhotoRef
@@ -117,13 +118,13 @@ class ChannelRepository(
             if (!more) break
         }
 
-        val username = BuildConfig.CHANNEL_USERNAME.removePrefix("@")
-        if (username.isNotBlank()) {
+        val username = channelUsername()
+        if (username != null) {
             attempt { tg.send(TdApi.SearchPublicChat(username)) }?.let { return it }
         }
 
-        val invite = BuildConfig.CHANNEL_INVITE_LINK
-        if (invite.isNotBlank()) {
+        val invite = (ChannelLink.parse(BuildConfig.CHANNEL_INVITE_LINK) as? ChannelLink.Invite)?.url
+        if (invite != null) {
             val info = attempt { tg.send(TdApi.CheckChatInviteLink(invite)) }
             if (info != null && info.chatId != 0L) {
                 attempt { tg.send(TdApi.GetChat(info.chatId)) }?.let { return it }
@@ -144,13 +145,21 @@ class ChannelRepository(
     companion object {
         const val MAX_MESSAGES = 20_000
 
+        /**
+         * @usuario del canal público. Vale tanto TOPPORTS_CHANNEL_USERNAME como un enlace
+         * `t.me/usuario` puesto en TOPPORTS_CHANNEL_INVITE_LINK.
+         */
+        fun channelUsername(): String? =
+            listOf(BuildConfig.CHANNEL_USERNAME, BuildConfig.CHANNEL_INVITE_LINK)
+                .firstNotNullOfOrNull { (ChannelLink.parse(it) as? ChannelLink.Username)?.name }
+
         /** Enlace para abrir el canal (o un mensaje) en la app de Telegram. */
         fun telegramLink(messageId: Long? = null): String {
-            val username = BuildConfig.CHANNEL_USERNAME.removePrefix("@")
+            val username = channelUsername()
             // Los ids de mensaje de TDLib son el id de Telegram desplazado 20 bits.
             val post = messageId?.let { "/" + (it shr 20) } ?: ""
             return when {
-                username.isNotBlank() -> "https://t.me/$username$post"
+                username != null -> "https://t.me/$username$post"
                 messageId == null && BuildConfig.CHANNEL_INVITE_LINK.isNotBlank() -> BuildConfig.CHANNEL_INVITE_LINK
                 else -> "https://t.me/c/${BuildConfig.CHANNEL_ID}${post.ifEmpty { "/1" }}"
             }
