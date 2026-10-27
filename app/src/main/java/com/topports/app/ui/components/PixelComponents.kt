@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.SideEffect
@@ -102,6 +103,7 @@ fun PixelButton(
     textColor: Color = Px.black,
     enabled: Boolean = true,
     small: Boolean = false,
+    textStyle: TextStyle? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -125,7 +127,7 @@ fun PixelButton(
     ) {
         Text(
             text.uppercase(),
-            style = (if (small) PxText.tiny else PxText.label).copy(color = textColor),
+            style = (textStyle ?: if (small) PxText.tiny else PxText.label).copy(color = textColor),
             textAlign = TextAlign.Center,
         )
     }
@@ -231,9 +233,10 @@ fun BlinkingText(text: String, style: TextStyle = PxText.label, modifier: Modifi
 fun PixelDialog(
     title: String,
     onDismiss: () -> Unit,
+    wide: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
         // Los diálogos son otra ventana: también ahí A acepta y B cierra.
         val view = LocalView.current
         SideEffect {
@@ -244,7 +247,11 @@ fun PixelDialog(
                 }
             }
         }
-        PixelPanel(fill = Px.navy, border = Px.orange) {
+        PixelPanel(
+            modifier = if (wide) Modifier.fillMaxWidth(0.94f) else Modifier,
+            fill = Px.navy,
+            border = Px.orange,
+        ) {
             Column {
                 Text(title.uppercase(), style = PxText.heading.copy(color = Px.orange))
                 Spacer(Modifier.height(12.dp))

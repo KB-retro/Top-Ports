@@ -51,6 +51,7 @@ import com.topports.app.ui.login.TopPortsLogo
 import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
 import com.topports.app.ui.tasks.TasksScreen
+import com.topports.app.ui.updates.UpdatesScreen
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
@@ -88,6 +89,7 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
 @Composable
 private fun MainScreen(vm: AppViewModel) {
     val tasks by vm.tasks.collectAsStateWithLifecycle()
+    val updates by vm.updates.collectAsStateWithLifecycle()
     var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.loadCatalogIfNeeded() }
@@ -119,21 +121,31 @@ private fun MainScreen(vm: AppViewModel) {
                     val id = vm.selectedGameId
                     if (id == null) CatalogScreen(vm) else GameScreen(vm, id)
                 }
+                Tab.UPDATES -> UpdatesScreen(vm)
                 Tab.FILES -> FileBrowserScreen(vm)
                 Tab.TASKS -> TasksScreen(vm)
             }
         }
     }
     val tabButton: @Composable (Tab, Modifier) -> Unit = { tab, modifier ->
-        val running = if (tab == Tab.TASKS) tasks.count { it.running } else 0
+        val running = when (tab) {
+            Tab.TASKS -> tasks.count { it.running }
+            Tab.UPDATES -> updates.size
+            else -> 0
+        }
         PixelButton(
             text = if (running > 0) "${tab.label} $running" else tab.label,
             onClick = {
                 if (vm.tab == tab && tab == Tab.STORE) vm.selectedGameId = null
                 vm.tab = tab
             },
-            color = if (vm.tab == tab) Px.orange else Px.navyDark,
-            textColor = if (vm.tab == tab) Px.black else Px.grey,
+            // Con actualizaciones pendientes, la pestaña se marca en verde.
+            color = when {
+                vm.tab == tab -> Px.orange
+                tab == Tab.UPDATES && running > 0 -> Px.green
+                else -> Px.navyDark
+            },
+            textColor = if (vm.tab == tab || (tab == Tab.UPDATES && running > 0)) Px.black else Px.grey,
             small = true,
             modifier = modifier,
         )

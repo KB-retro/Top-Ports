@@ -13,6 +13,8 @@ import com.topports.core.FileNames
 import com.topports.core.Game
 import com.topports.core.GamePackage
 import com.topports.core.InstallPlanner
+import com.topports.core.InstallRecord
+import com.topports.app.updates.InstallRegistry
 import com.topports.core.PackageKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +69,7 @@ class TaskCenter(
     private val context: Context,
     private val tg: TelegramClient,
     private val scope: CoroutineScope,
+    private val installs: InstallRegistry,
 ) {
     private val extractor = ArchiveExtractor()
     private val ids = AtomicInteger(1)
@@ -151,6 +154,7 @@ class TaskCenter(
                 PackageKind.APK -> {
                     val source = if (parts.size == 1) ApkInstaller.fromFile(parts[0].second)
                     else ApkInstaller.fromParts(pkg.name, FileNames.sortVolumes(parts) { it.first }.map { it.second })
+                    if (parts.size == 1) remember(parts[0].second, game, pkg)
                     installApks(taskId, listOf(source))
                     finish(taskId, "Instalación lanzada. Acepta el aviso de Android.")
                 }
@@ -159,7 +163,7 @@ class TaskCenter(
                     finish(taskId, "OBB copiado en $dest", dest)
                 }
                 PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> {
-                    extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password)
+                    extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password, game, pkg)
                 }
                 PackageKind.OTHER -> {
                     dest.mkdirs()
@@ -318,7 +322,20 @@ class TaskCenter(
         )
     }
 
-    private suspend fun extractAndInstall(taskId: Int, volumes: VolumeSet, dest: File, password: String?) {
+    /** Anota de qué archivo del canal sale un APK, para avisar luego de sus actualizaciones. */
+    private fun remember(apk: File, game: Game, pkg: GamePackage) {
+        val packageName = installs.packageNameOf(context, apk) ?: return
+        installs.record(InstallRecord(packageName, pkg.name, pkg.parts.first().id, game.id))
+    }
+
+    private suspend fun extractAndInstall(
+        taskId: Int,
+        volumes: VolumeSet,
+        dest: File,
+        password: String?,
+        game: Game? = null,
+        pkg: GamePackage? = null,
+    ) {
         // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
         val extracted = extract(taskId, volumes, dest, password)
         val plan = InstallPlanner.plan(extracted)
@@ -342,6 +359,7 @@ class TaskCenter(
         }
 
         if (plan.apks.isNotEmpty()) {
+            if (game != null && pkg != null) plan.apks.forEach { remember(File(dest, it), game, pkg) }
             if (plan.isSplitApk) {
                 installApks(taskId, plan.apks.map { ApkInstaller.fromFile(File(dest, it)) })
             } else {

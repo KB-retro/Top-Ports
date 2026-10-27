@@ -3,6 +3,8 @@ package com.topports.app
 import android.app.Application
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.telegram.TelegramClient
+import com.topports.app.updates.InstallRegistry
+import com.topports.app.updates.UpdateService
 import com.topports.app.work.TaskCenter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +15,9 @@ class AppGraph(app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val telegram = TelegramClient(app)
     val channel = ChannelRepository(telegram, scope)
-    val tasks = TaskCenter(app, telegram, scope)
+    val installs = InstallRegistry(app)
+    val tasks = TaskCenter(app, telegram, scope, installs)
+    val updates = UpdateService(app, installs, channel, scope)
 }
 
 class TopPortsApp : Application() {

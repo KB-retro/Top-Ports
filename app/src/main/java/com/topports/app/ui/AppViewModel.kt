@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.topports.app.TopPortsApp
 import kotlinx.coroutines.launch
 
-enum class Tab(val label: String) { STORE("Tienda"), FILES("Archivos"), TASKS("Tareas") }
+enum class Tab(val label: String) { STORE("Tienda"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas") }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -19,6 +19,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val catalog = graph.channel.state
     val files = graph.telegram.files
     val tasks = graph.tasks.tasks
+    val updates = graph.updates.updates
 
     private var currentTab by mutableStateOf(Tab.STORE)
     private val tabHistory = ArrayDeque<Tab>()

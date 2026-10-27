@@ -1,6 +1,8 @@
 package com.topports.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,12 +15,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import kotlinx.coroutines.delay
 
 private val keyRows = listOf("1234567890", "QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM-:.")
+
+/** Teclas grandes, cómodas en pantallas pequeñas como la de la RG477M. */
+private val KEY_HEIGHT = 52.dp
+private val keyText = PxText.heading.copy(fontSize = 15.sp)
 
 /**
  * Teclado en pantalla para el mando: se recorre con la cruceta y se escribe con A.
@@ -36,17 +44,18 @@ fun PixelKeyboardDialog(
         delay(120)
         runCatching { firstKey.requestFocus() }
     }
-    PixelDialog(title, onDismiss = onDone) {
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    PixelDialog(title, onDismiss = onDone, wide = true) {
+        // Con scroll por si la pantalla es baja (consolas en horizontal).
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.fillMaxWidth().pixelFrame(Px.night, Px.white, shadow = null).padding(8.dp)) {
                 Text(
                     if (value.isEmpty()) "escribe con la cruceta y A…" else "$value▌",
-                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white),
+                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white, fontSize = 26.sp),
                     maxLines = 1,
                 )
             }
             keyRows.forEachIndexed { r, row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     row.forEachIndexed { i, c ->
                         val focus = if (r == 1 && i == 0) Modifier.focusRequester(firstKey) else Modifier
                         PixelButton(
@@ -54,17 +63,18 @@ fun PixelKeyboardDialog(
                             onClick = { onValueChange(value + c.lowercaseChar()) },
                             color = Px.navyDark,
                             textColor = Px.white,
-                            small = true,
-                            modifier = Modifier.weight(1f).then(focus),
+                            textStyle = keyText,
+                            modifier = Modifier.weight(1f).height(KEY_HEIGHT).then(focus),
                         )
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                PixelButton("Espacio", onClick = { onValueChange("$value ") }, color = Px.grey, small = true, modifier = Modifier.weight(3f))
-                PixelButton("Borrar", onClick = { onValueChange(value.dropLast(1)) }, color = Px.yellow, small = true, modifier = Modifier.weight(2f))
-                PixelButton("Limpiar", onClick = { onValueChange("") }, color = Px.red, textColor = Px.white, small = true, modifier = Modifier.weight(2f))
-                PixelButton("OK", onClick = onDone, color = Px.green, small = true, modifier = Modifier.weight(2f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val m = Modifier.height(KEY_HEIGHT)
+                PixelButton("Espacio", onClick = { onValueChange("$value ") }, color = Px.grey, modifier = m.weight(3f))
+                PixelButton("Borrar", onClick = { onValueChange(value.dropLast(1)) }, color = Px.yellow, modifier = m.weight(2f))
+                PixelButton("Limpiar", onClick = { onValueChange("") }, color = Px.red, textColor = Px.white, modifier = m.weight(2f))
+                PixelButton("OK", onClick = onDone, color = Px.green, modifier = m.weight(2f))
             }
         }
     }

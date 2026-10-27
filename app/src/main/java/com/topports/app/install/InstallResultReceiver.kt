@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.widget.Toast
 import androidx.core.content.IntentCompat
+import com.topports.app.TopPortsApp
 
 class InstallResultReceiver : BroadcastReceiver() {
 
@@ -15,8 +16,10 @@ class InstallResultReceiver : BroadcastReceiver() {
                 val confirm = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
                 confirm?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { context.startActivity(it) }
             }
-            PackageInstaller.STATUS_SUCCESS ->
+            PackageInstaller.STATUS_SUCCESS -> {
                 Toast.makeText(context, "¡Instalado!", Toast.LENGTH_SHORT).show()
+                (context.applicationContext as? TopPortsApp)?.graph?.updates?.refresh()
+            }
             PackageInstaller.STATUS_FAILURE_ABORTED ->
                 Toast.makeText(context, "Instalación cancelada", Toast.LENGTH_SHORT).show()
             else -> {
