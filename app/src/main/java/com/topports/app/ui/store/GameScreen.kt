@@ -1,6 +1,23 @@
 package com.topports.app.ui.store
 
 import android.content.Intent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import com.topports.app.ui.components.pixelFrame
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -139,6 +156,11 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             Spacer(Modifier.height(12.dp))
         }
     }
+    // Scroll de la columna con la descripción y su zona visible, para desplazarla con el mando.
+    val infoScroll = rememberScrollState()
+    var viewport by remember { mutableStateOf(Rect.Zero) }
+    val trackViewport = Modifier.onGloballyPositioned { viewport = it.boundsInWindow() }
+
     val info: @Composable () -> Unit = {
         Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
         Spacer(Modifier.height(6.dp))
@@ -149,9 +171,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         )
         if (game.description.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
-            PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark) {
-                Text(linkify(game.description), style = PxText.body)
-            }
+            DescriptionPanel(game.description, infoScroll, viewport)
         }
     }
     val downloads: @Composable () -> Unit = {
@@ -180,7 +200,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         if (maxWidth > maxHeight && maxWidth >= 560.dp) {
             // Horizontal (consolas): ficha a la izquierda, archivos y acciones a la derecha.
             Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column(Modifier.weight(0.48f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                Column(Modifier.weight(0.48f).fillMaxHeight().then(trackViewport).verticalScroll(infoScroll)) {
                     topBar()
                     Spacer(Modifier.height(12.dp))
                     gallery()
@@ -191,7 +211,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+            Column(Modifier.fillMaxSize().then(trackViewport).verticalScroll(infoScroll).padding(12.dp)) {
                 topBar()
                 Spacer(Modifier.height(12.dp))
                 gallery()
@@ -207,6 +227,50 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             TdImage(fileId, Modifier.fillMaxWidth().height(260.dp), contentScale = ContentScale.Fit)
             DialogButtons { PixelButton("Cerrar", onClick = { zoomed = null }, small = true) }
         }
+    }
+}
+
+/**
+ * Descripción seleccionable con el mando: con ella marcada, arriba/abajo (o L1/R1)
+ * desplazan el texto poco a poco en vez de saltar al siguiente botón. Cuando el texto
+ * ya se ve entero por ese lado, la cruceta pasa al siguiente elemento como siempre.
+ */
+@Composable
+private fun DescriptionPanel(text: String, scroll: ScrollState, viewport: Rect) {
+    val scope = rememberCoroutineScope()
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    val step = with(LocalDensity.current) { 110.dp.toPx() }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { bounds = it.boundsInWindow() }
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val down = when (event.key) {
+                    Key.DirectionDown -> true
+                    Key.DirectionUp -> false
+                    else -> return@onPreviewKeyEvent false
+                }
+                // ¿Queda texto por ver en esa dirección?
+                val hidden = if (down) bounds.bottom - viewport.bottom else viewport.top - bounds.top
+                if (hidden <= 1f) return@onPreviewKeyEvent false
+                val delta = minOf(step, hidden)
+                scope.launch {
+                    scroll.animateScrollBy(if (down) delta else -delta, tween(160, easing = LinearEasing))
+                }
+                true
+            }
+            .focusable(interactionSource = interaction)
+            .pixelFrame(
+                fill = Px.navyDark,
+                border = if (focused) Px.yellow else Px.white,
+                shadow = if (focused) Px.yellow else Px.black,
+            )
+            .padding(10.dp),
+    ) {
+        Text(linkify(text), style = PxText.body)
     }
 }
 
