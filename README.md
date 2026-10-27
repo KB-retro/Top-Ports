@@ -1,9 +1,5 @@
 # Top Ports
 
-Tienda de ports de juegos para Android con estética retro pixel art. Lee el canal de
-Telegram de ports, muestra cada juego en una ficha y permite descargarlo, extraerlo e
-instalarlo sin salir de la app.
-
 ## Qué hace
 
 - **Inicio de sesión con Telegram** (TDLib): cada usuario entra con su propia cuenta, así
