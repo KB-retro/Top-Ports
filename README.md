@@ -30,7 +30,7 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
 2. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**:
    - `TELEGRAM_API_ID`
    - `TELEGRAM_API_HASH`
-3. Opcional, en la pestaña **Variables** del mismo sitio:
+3. Opcional, como secreto o como variable (vale cualquiera de las dos pestañas):
    - `TOPPORTS_CHANNEL_USERNAME`: el @usuario del canal, si es público.
    - `TOPPORTS_CHANNEL_INVITE_LINK`: el enlace de invitación (`https://t.me/+…`), si es privado.
      Con él la app puede unir al usuario al canal automáticamente.

@@ -70,9 +70,9 @@ jobs:
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-          TOPPORTS_CHANNEL_ID: ${{ vars.TOPPORTS_CHANNEL_ID }}
-          TOPPORTS_CHANNEL_USERNAME: ${{ vars.TOPPORTS_CHANNEL_USERNAME }}
-          TOPPORTS_CHANNEL_INVITE_LINK: ${{ vars.TOPPORTS_CHANNEL_INVITE_LINK }}
+          TOPPORTS_CHANNEL_ID: ${{ secrets.TOPPORTS_CHANNEL_ID || vars.TOPPORTS_CHANNEL_ID }}
+          TOPPORTS_CHANNEL_USERNAME: ${{ secrets.TOPPORTS_CHANNEL_USERNAME || vars.TOPPORTS_CHANNEL_USERNAME }}
+          TOPPORTS_CHANNEL_INVITE_LINK: ${{ secrets.TOPPORTS_CHANNEL_INVITE_LINK || vars.TOPPORTS_CHANNEL_INVITE_LINK }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - uses: actions/upload-artifact@v4
