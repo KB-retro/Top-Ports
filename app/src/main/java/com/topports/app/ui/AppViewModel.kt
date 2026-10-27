@@ -25,6 +25,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var browserDir by mutableStateOf<String?>(null)
     var search by mutableStateOf("")
 
+    /** Teclado de búsqueda abierto (botón BUSCAR o Y del mando). */
+    var searchOpen by mutableStateOf(false)
+
     /** Último juego abierto: al volver a la tienda, el mando vuelve a esa carátula. */
     var lastGameId by mutableStateOf<Long?>(null)
 

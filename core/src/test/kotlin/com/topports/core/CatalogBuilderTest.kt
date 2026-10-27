@@ -91,6 +91,29 @@ class CatalogBuilderTest {
         assertEquals(listOf("Configuración y rendimiento"), mk.videos.map { it.caption })
     }
 
+    /** Post con secciones de configuración del mando y mods antes de los archivos. */
+    @Test
+    fun controllerAndModsSectionsStayInSameGame() {
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(1, 1000, text = "GTA San Andreas Definitive\n\nPort nativo", photo = photo(1)),
+                ChannelMessage(2, 1060, text = "Configuración del mando:\nA saltar, B correr", photo = photo(2)),
+                ChannelMessage(3, 1120, text = "Mods incluidos:\n- Texturas HD"),
+                ChannelMessage(4, 1180, document = doc(70, "GTASA.apk")),
+                ChannelMessage(5, 1181, document = doc(71, "GTASA-data.zip")),
+                // Otro juego después: sí es una ficha nueva.
+                ChannelMessage(6, 1300, text = "Bully", photo = photo(3)),
+                ChannelMessage(7, 1310, document = doc(72, "Bully.apk")),
+            ),
+        )
+        assertEquals(listOf("Bully", "GTA San Andreas Definitive"), games.map { it.title })
+        val gta = games[1]
+        assertEquals(2, gta.images.size)
+        assertEquals(2, gta.packages.size)
+        assertTrue(gta.description.contains("Configuración del mando"))
+        assertTrue(gta.description.contains("Mods incluidos"))
+    }
+
     @Test
     fun albumStaysTogether() {
         val games = CatalogBuilder.build(

@@ -9,7 +9,9 @@ package com.topports.core
  *  - un archivo sin texto se añade a la ficha en curso;
  *  - un archivo que es otra parte de un paquete ya visto (`.7z.002`, `.part2.rar`)
  *    se añade aunque tenga texto ("Parte 2");
- *  - un texto o una foto empiezan ficha nueva si la actual ya tiene archivos;
+ *  - un texto o una foto empiezan ficha nueva si la actual ya tiene archivos; si aún no
+ *    los tiene y llegan en menos de [SAME_POST_SECONDS] son más partes del mismo post
+ *    ("Configuración del mando", "Mods"…) y se añaden a la descripción;
  *  - un vídeo (tutorial de instalación, "Configuración y rendimiento") se añade a la ficha
  *    en curso si aún no tiene archivos o si llega poco después; su texto es el título del
  *    vídeo, no el de un juego nuevo;
@@ -19,6 +21,9 @@ package com.topports.core
 object CatalogBuilder {
 
     const val MAX_GAP_SECONDS = 6 * 60 * 60
+
+    /** Textos e imágenes seguidos sin archivos todavía: mismo post si llegan dentro de este margen. */
+    const val SAME_POST_SECONDS = 30 * 60
 
     /** Un vídeo tras los archivos aún pertenece al juego si llega dentro de este margen. */
     const val VIDEO_GAP_SECONDS = 15 * 60
@@ -72,7 +77,8 @@ object CatalogBuilder {
                 // Archivo con texto justo después de una descripción sin archivos.
                 m.document != null && cur.docs.isEmpty() -> false
                 m.text.isBlank() && m.photo != null -> cur.docs.isNotEmpty()
-                m.text.isNotBlank() -> cur.docs.isNotEmpty() || cur.hasText()
+                m.text.isNotBlank() -> cur.docs.isNotEmpty() ||
+                    (cur.hasText() && m.date - cur.lastDate > SAME_POST_SECONDS)
                 else -> false
             }
             if (startsNew) {

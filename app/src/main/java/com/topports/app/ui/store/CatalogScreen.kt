@@ -43,7 +43,7 @@ import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
-import com.topports.app.ui.components.PixelTextField
+import com.topports.app.ui.components.PixelKeyboardDialog
 import com.topports.app.ui.components.pixelCard
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
@@ -66,8 +66,9 @@ fun CatalogScreen(vm: AppViewModel) {
     // Con mando: al entrar (o al volver de una ficha) se selecciona la última carátula abierta.
     val focus = remember { FocusRequester() }
     val targetId = vm.lastGameId?.takeIf { id -> games.any { it.id == id } } ?: games.firstOrNull()?.id
-    LaunchedEffect(targetId != null) {
-        if (targetId == null) return@LaunchedEffect
+    // También al cerrar el teclado de búsqueda, para seguir con la cruceta en los resultados.
+    LaunchedEffect(targetId != null, vm.searchOpen) {
+        if (targetId == null || vm.searchOpen) return@LaunchedEffect
         val index = games.indexOfFirst { it.id == targetId }
         val visible = vm.catalogGrid.layoutInfo.visibleItemsInfo.map { it.index }
         if (index >= 0 && index !in visible) vm.catalogGrid.scrollToItem(index)
@@ -81,12 +82,18 @@ fun CatalogScreen(vm: AppViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PixelTextField(
-                value = vm.search,
-                onValueChange = { vm.search = it },
-                placeholder = "Buscar juego…",
+            // Botón en lugar de campo de texto: así mover el mando no abre el teclado de Android.
+            PixelButton(
+                if (vm.search.isBlank()) "Buscar (Y)" else "Buscar: ${vm.search}",
+                onClick = { vm.searchOpen = true },
+                color = Px.navyDark,
+                textColor = if (vm.search.isBlank()) Px.grey else Px.yellow,
+                small = true,
                 modifier = Modifier.weight(1f),
             )
+            if (vm.search.isNotBlank()) {
+                PixelButton("X", onClick = { vm.search = "" }, color = Px.red, textColor = Px.white, small = true)
+            }
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }
@@ -125,6 +132,15 @@ fun CatalogScreen(vm: AppViewModel) {
                     }
                 }
             }
+        }
+
+        if (vm.searchOpen) {
+            PixelKeyboardDialog(
+                title = "Buscar juego",
+                value = vm.search,
+                onValueChange = { vm.search = it },
+                onDone = { vm.searchOpen = false },
+            )
         }
 
         // Cuadrícula de carátulas: 2 columnas en un móvil en vertical, 3–5 en consolas en horizontal.

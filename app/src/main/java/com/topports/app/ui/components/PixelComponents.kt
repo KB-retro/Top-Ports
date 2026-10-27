@@ -47,6 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
+import com.topports.app.ui.GamepadWindowCallback
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 
@@ -230,6 +234,16 @@ fun PixelDialog(
     content: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
+        // Los diálogos son otra ventana: también ahí A acepta y B cierra.
+        val view = LocalView.current
+        SideEffect {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                val callback = window.callback
+                if (callback != null && callback !is GamepadWindowCallback) {
+                    window.callback = GamepadWindowCallback(callback)
+                }
+            }
+        }
         PixelPanel(fill = Px.navy, border = Px.orange) {
             Column {
                 Text(title.uppercase(), style = PxText.heading.copy(color = Px.orange))
