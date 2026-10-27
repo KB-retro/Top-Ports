@@ -65,6 +65,7 @@ import com.topports.core.Game
 import com.topports.core.GamePackage
 import com.topports.core.PackageKind
 import com.topports.core.VideoRef
+import com.topports.app.ui.video.VideoPlayerDialog
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
@@ -296,6 +297,7 @@ private fun VideoRow(vm: AppViewModel, video: VideoRef) {
     val scope = rememberCoroutineScope()
     val files by vm.files.collectAsStateWithLifecycle()
     var loading by remember { mutableStateOf(false) }
+    var playingPath by remember { mutableStateOf<String?>(null) }
     val file = files[video.fileId]
     PixelPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -320,25 +322,15 @@ private fun VideoRow(vm: AppViewModel, video: VideoRef) {
                         if (path == null) {
                             Toast.makeText(context, "No se pudo descargar el vídeo", Toast.LENGTH_SHORT).show()
                         } else {
-                            openVideo(context, File(path))
+                            playingPath = path
                         }
                     }
                 }, color = Px.pink, small = true, enabled = !loading)
             }
         }
     }
-}
-
-private fun openVideo(context: Context, file: File) {
-    runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "video/*")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-    }.onFailure {
-        Toast.makeText(context, "No hay reproductor de vídeo instalado", Toast.LENGTH_SHORT).show()
+    playingPath?.let { path ->
+        VideoPlayerDialog(File(path), video.caption, onClose = { playingPath = null })
     }
 }
 

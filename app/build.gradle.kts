@@ -122,5 +122,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Reproductor de vídeo integrado (tutoriales de instalación del canal).
+    implementation("androidx.media3:media3-exoplayer:1.6.1")
+    implementation("androidx.media3:media3-ui:1.6.1")
     implementation("com.github.omicronapps:7-Zip-JBinding-4Android:Release-16.02-2.03")
 }

@@ -229,6 +229,20 @@ fun BlinkingText(text: String, style: TextStyle = PxText.label, modifier: Modifi
     Text(text, style = style, modifier = modifier.alpha(if (visible > 0.5f) 1f else 0f))
 }
 
+/** Los diálogos son otra ventana: hay que enseñarles también que A acepta y B cierra. */
+@Composable
+fun DialogGamepadSupport() {
+    val view = LocalView.current
+    SideEffect {
+        (view.parent as? DialogWindowProvider)?.window?.let { window ->
+            val callback = window.callback
+            if (callback != null && callback !is GamepadWindowCallback) {
+                window.callback = GamepadWindowCallback(callback)
+            }
+        }
+    }
+}
+
 @Composable
 fun PixelDialog(
     title: String,
@@ -237,16 +251,7 @@ fun PixelDialog(
     content: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
-        // Los diálogos son otra ventana: también ahí A acepta y B cierra.
-        val view = LocalView.current
-        SideEffect {
-            (view.parent as? DialogWindowProvider)?.window?.let { window ->
-                val callback = window.callback
-                if (callback != null && callback !is GamepadWindowCallback) {
-                    window.callback = GamepadWindowCallback(callback)
-                }
-            }
-        }
+        DialogGamepadSupport()
         PixelPanel(
             modifier = if (wide) Modifier.fillMaxWidth(0.94f) else Modifier,
             fill = Px.navy,
