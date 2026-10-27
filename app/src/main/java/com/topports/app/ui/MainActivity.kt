@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Mandos de consolas Android (Odin, Anbernic, Retroid…):
-     * A = aceptar, B = atrás, L1/R1 = cambiar de pestaña, Y = buscar. La cruceta mueve el foco.
+     * A = aceptar, B = atrás, L1/R1 = cambiar de pestaña, Y = buscar, X = ordenar. La cruceta mueve el foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
@@ -45,6 +45,11 @@ class MainActivity : ComponentActivity() {
             // Y en la tienda: abrir la búsqueda con el teclado del mando.
             KeyEvent.KEYCODE_BUTTON_Y -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
                 if (down) vm.searchOpen = true
+                return true
+            }
+            // X en la tienda: cambiar el orden (más nuevos / A-Z).
+            KeyEvent.KEYCODE_BUTTON_X -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
+                if (down) vm.toggleSort()
                 return true
             }
         }

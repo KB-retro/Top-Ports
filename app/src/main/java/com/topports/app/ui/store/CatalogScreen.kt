@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,6 +41,9 @@ import coil.compose.AsyncImage
 import com.topports.app.TopPortsApp
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.ui.AppViewModel
+import com.topports.app.ui.SortMode
+import java.text.Collator
+import java.util.Locale
 import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
@@ -58,9 +63,26 @@ fun CatalogScreen(vm: AppViewModel) {
     val state by vm.catalog.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val query = vm.search.trim()
-    val games = remember(state.games, query) {
-        if (query.isEmpty()) state.games
+    val games = remember(state.games, query, vm.sortMode) {
+        val found = if (query.isEmpty()) state.games
         else state.games.filter { it.title.contains(query, true) || it.description.contains(query, true) }
+        when (vm.sortMode) {
+            SortMode.NEWEST -> found.sortedByDescending { it.id }
+            // Orden alfabético en español: ignora tildes y mayúsculas, la Ñ va tras la N.
+            SortMode.ALPHABETICAL -> {
+                val collator = Collator.getInstance(Locale("es", "ES")).apply { strength = Collator.PRIMARY }
+                found.sortedWith { a, b -> collator.compare(a.title, b.title) }
+            }
+        }
+    }
+
+    // Al cambiar el orden, volver al principio de la lista.
+    var shownSort by remember { mutableStateOf(vm.sortMode) }
+    LaunchedEffect(vm.sortMode) {
+        if (vm.sortMode != shownSort) {
+            shownSort = vm.sortMode
+            vm.catalogGrid.scrollToItem(0)
+        }
     }
 
     // Con mando: al entrar (o al volver de una ficha) se selecciona la última carátula abierta.
@@ -94,6 +116,13 @@ fun CatalogScreen(vm: AppViewModel) {
             if (vm.search.isNotBlank()) {
                 PixelButton("X", onClick = { vm.search = "" }, color = Px.red, textColor = Px.white, small = true)
             }
+            PixelButton(
+                "Orden: ${vm.sortMode.label} (X)",
+                onClick = { vm.toggleSort() },
+                color = Px.purple,
+                textColor = Px.white,
+                small = true,
+            )
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }

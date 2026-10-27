@@ -1,6 +1,7 @@
 package com.topports.app.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,9 @@ import com.topports.app.TopPortsApp
 import kotlinx.coroutines.launch
 
 enum class Tab(val label: String) { STORE("Tienda"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas") }
+
+/** Orden de la tienda. */
+enum class SortMode(val label: String) { NEWEST("Más nuevos"), ALPHABETICAL("A-Z") }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -43,6 +47,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var selectedGameId by mutableStateOf<Long?>(null)
     var browserDir by mutableStateOf<String?>(null)
     var search by mutableStateOf("")
+
+    private val prefs = app.getSharedPreferences("ui", Context.MODE_PRIVATE)
+
+    /** Orden de la tienda; se recuerda entre sesiones. */
+    var sortMode by mutableStateOf(
+        SortMode.entries.firstOrNull { it.name == prefs.getString("sort", null) } ?: SortMode.NEWEST,
+    )
+        private set
+
+    /** Botón ORDEN o X del mando: alterna entre más nuevos y A-Z. */
+    fun toggleSort() {
+        sortMode = if (sortMode == SortMode.NEWEST) SortMode.ALPHABETICAL else SortMode.NEWEST
+        prefs.edit().putString("sort", sortMode.name).apply()
+    }
 
     /** Teclado de búsqueda abierto (botón BUSCAR o Y del mando). */
     var searchOpen by mutableStateOf(false)
