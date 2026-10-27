@@ -25,8 +25,8 @@ import kotlinx.coroutines.delay
 private val keyRows = listOf("1234567890", "QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM-:.")
 
 /** Teclas grandes, cómodas en pantallas pequeñas como la de la RG477M. */
-private val KEY_HEIGHT = 52.dp
-private val keyText = PxText.heading.copy(fontSize = 15.sp)
+private val KEY_HEIGHT = 42.dp
+private val keyText = PxText.heading.copy(fontSize = 12.sp)
 
 /**
  * Teclado en pantalla para el mando: se recorre con la cruceta y se escribe con A.
@@ -44,18 +44,18 @@ fun PixelKeyboardDialog(
         delay(120)
         runCatching { firstKey.requestFocus() }
     }
-    PixelDialog(title, onDismiss = onDone, wide = true) {
+    PixelDialog(title, onDismiss = onDone, wide = true, widthFraction = 0.75f) {
         // Con scroll por si la pantalla es baja (consolas en horizontal).
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Box(Modifier.fillMaxWidth().pixelFrame(Px.night, Px.white, shadow = null).padding(8.dp)) {
                 Text(
                     if (value.isEmpty()) "escribe con la cruceta y A…" else "$value▌",
-                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white, fontSize = 26.sp),
+                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white, fontSize = 21.sp),
                     maxLines = 1,
                 )
             }
             keyRows.forEachIndexed { r, row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     row.forEachIndexed { i, c ->
                         val focus = if (r == 1 && i == 0) Modifier.focusRequester(firstKey) else Modifier
                         PixelButton(
@@ -69,7 +69,7 @@ fun PixelKeyboardDialog(
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 val m = Modifier.height(KEY_HEIGHT)
                 PixelButton("Espacio", onClick = { onValueChange("$value ") }, color = Px.grey, modifier = m.weight(3f))
                 PixelButton("Borrar", onClick = { onValueChange(value.dropLast(1)) }, color = Px.yellow, modifier = m.weight(2f))

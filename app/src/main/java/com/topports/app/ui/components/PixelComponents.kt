@@ -248,12 +248,14 @@ fun PixelDialog(
     title: String,
     onDismiss: () -> Unit,
     wide: Boolean = false,
+    /** Ancho de la ventana cuando [wide] (fracción de la pantalla). */
+    widthFraction: Float = 0.94f,
     content: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
         DialogGamepadSupport()
         PixelPanel(
-            modifier = if (wide) Modifier.fillMaxWidth(0.94f) else Modifier,
+            modifier = if (wide) Modifier.fillMaxWidth(widthFraction) else Modifier,
             fill = Px.navy,
             border = Px.orange,
         ) {
