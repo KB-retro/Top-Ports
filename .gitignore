@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+.kotlin/
+
+# TDLib compilado (lo genera scripts/build-tdlib.sh o el workflow de CI)
+/tdlib/

@@ -1,0 +1,81 @@
+name: Android
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  TDLIB_COMMIT: 4c6377aa7386c39217878a9a56d581922ad37ca4
+  TDLIB_ABIS: "arm64-v8a armeabi-v7a"
+
+jobs:
+  tdlib:
+    name: TDLib (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Caché de TDLib
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: tdlib
+          key: tdlib-${{ env.TDLIB_COMMIT }}-${{ hashFiles('scripts/build-tdlib.sh') }}
+
+      - name: Dependencias
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y gperf php-cli
+
+      - uses: actions/setup-java@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Compilar TDLib
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bash scripts/build-tdlib.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tdlib
+          path: tdlib
+
+  app:
+    name: APK
+    needs: tdlib
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tdlib
+          path: tdlib
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests
+        run: ./gradlew :core:test --stacktrace
+
+      - name: Compilar APK
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TOPPORTS_CHANNEL_ID: ${{ vars.TOPPORTS_CHANNEL_ID }}
+          TOPPORTS_CHANNEL_USERNAME: ${{ vars.TOPPORTS_CHANNEL_USERNAME }}
+          TOPPORTS_CHANNEL_INVITE_LINK: ${{ vars.TOPPORTS_CHANNEL_INVITE_LINK }}
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TopPorts-apk
+          path: app/build/outputs/apk/release/*.apk
