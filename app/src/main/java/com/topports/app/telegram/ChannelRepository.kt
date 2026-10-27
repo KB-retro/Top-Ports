@@ -7,6 +7,7 @@ import com.topports.core.ChannelMessage
 import com.topports.core.Game
 import com.topports.core.PhotoRef
 import com.topports.core.RemoteFile
+import com.topports.core.VideoRef
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -171,6 +172,7 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
     var text = ""
     var photo: PhotoRef? = null
     var document: RemoteFile? = null
+    var video: VideoRef? = null
     when (val c = content) {
         is TdApi.MessageText -> text = c.text.text
         is TdApi.MessagePhoto -> {
@@ -186,7 +188,15 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
                 size = if (file.size > 0) file.size else file.expectedSize,
             )
         }
-        is TdApi.MessageVideo -> text = c.caption.text
+        is TdApi.MessageVideo -> {
+            text = c.caption.text
+            video = VideoRef(
+                fileId = c.video.video.id,
+                thumbFileId = c.video.thumbnail?.file?.id,
+                durationSeconds = c.video.duration,
+                caption = c.caption.text.lines().firstOrNull { it.isNotBlank() }?.trim() ?: "Vídeo",
+            )
+        }
         is TdApi.MessageAnimation -> text = c.caption.text
         else -> return null
     }
@@ -197,6 +207,7 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
         text = text,
         photo = photo,
         document = document,
+        video = video,
     )
 }
 

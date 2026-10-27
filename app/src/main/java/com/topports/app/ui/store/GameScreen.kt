@@ -60,6 +60,10 @@ import com.topports.core.FileNames
 import com.topports.core.Game
 import com.topports.core.GamePackage
 import com.topports.core.PackageKind
+import com.topports.core.VideoRef
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -140,6 +144,15 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
 
         Spacer(Modifier.height(12.dp))
+        if (game.videos.isNotEmpty()) {
+            SectionTitle("Vídeos", Px.pink)
+            game.videos.forEach { video ->
+                VideoRow(vm, video)
+                Spacer(Modifier.height(10.dp))
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+
         SectionTitle("Archivos")
         game.packages.forEach { pkg ->
             PackageRow(vm, game, pkg)
@@ -238,6 +251,59 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
                 }, color = Px.red, textColor = Px.white, small = true)
             }
         }
+    }
+}
+
+/** Vídeo del post (tutorial): se descarga de Telegram y se abre con el reproductor del móvil. */
+@Composable
+private fun VideoRow(vm: AppViewModel, video: VideoRef) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val files by vm.files.collectAsStateWithLifecycle()
+    var loading by remember { mutableStateOf(false) }
+    val file = files[video.fileId]
+    PixelPanel(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 96.dp, height = 56.dp).background(Px.black)) {
+                video.thumbFileId?.let { TdImage(it, Modifier.fillMaxSize()) }
+                Text("▶", style = PxText.title.copy(color = Px.white), modifier = Modifier.align(Alignment.Center))
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(video.caption, style = PxText.body)
+                Text("%d:%02d".format(video.durationSeconds / 60, video.durationSeconds % 60), style = PxText.small)
+                if (loading && file != null) {
+                    val total = if (file.size > 0) file.size else file.expectedSize
+                    PixelProgress(if (total > 0) file.local.downloadedSize.toFloat() / total else null, Modifier.fillMaxWidth(), color = Px.pink)
+                }
+                PixelButton(if (loading) "Cargando…" else "Ver vídeo", onClick = {
+                    if (loading) return@PixelButton
+                    loading = true
+                    scope.launch {
+                        val path = runCatching { vm.graph.telegram.downloadNow(video.fileId, priority = 32) }.getOrNull()
+                        loading = false
+                        if (path == null) {
+                            Toast.makeText(context, "No se pudo descargar el vídeo", Toast.LENGTH_SHORT).show()
+                        } else {
+                            openVideo(context, File(path))
+                        }
+                    }
+                }, color = Px.pink, small = true, enabled = !loading)
+            }
+        }
+    }
+}
+
+private fun openVideo(context: Context, file: File) {
+    runCatching {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "video/*")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }.onFailure {
+        Toast.makeText(context, "No hay reproductor de vídeo instalado", Toast.LENGTH_SHORT).show()
     }
 }
 

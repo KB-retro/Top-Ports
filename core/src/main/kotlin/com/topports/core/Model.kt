@@ -13,6 +13,14 @@ data class PhotoRef(
     val fullFileId: Int,
 )
 
+/** Vídeo de un post (normalmente un tutorial de instalación o configuración). */
+data class VideoRef(
+    val fileId: Int,
+    val thumbFileId: Int?,
+    val durationSeconds: Int,
+    val caption: String,
+)
+
 /** Mensaje del canal reducido a lo que necesita el catálogo. */
 data class ChannelMessage(
     val id: Long,
@@ -21,6 +29,7 @@ data class ChannelMessage(
     val text: String = "",
     val photo: PhotoRef? = null,
     val document: RemoteFile? = null,
+    val video: VideoRef? = null,
 )
 
 enum class PackageKind {
@@ -60,6 +69,7 @@ data class Game(
     val images: List<PhotoRef>,
     val packages: List<GamePackage>,
     val messageIds: List<Long>,
+    val videos: List<VideoRef> = emptyList(),
 ) {
     val size: Long get() = packages.sumOf { it.size }
 }

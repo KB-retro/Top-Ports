@@ -10,6 +10,9 @@ package com.topports.core
  *  - un archivo que es otra parte de un paquete ya visto (`.7z.002`, `.part2.rar`)
  *    se añade aunque tenga texto ("Parte 2");
  *  - un texto o una foto empiezan ficha nueva si la actual ya tiene archivos;
+ *  - un vídeo (tutorial de instalación, "Configuración y rendimiento") se añade a la ficha
+ *    en curso si aún no tiene archivos o si llega poco después; su texto es el título del
+ *    vídeo, no el de un juego nuevo;
  *  - más de [MAX_GAP_SECONDS] entre mensajes siempre empieza ficha nueva.
  * Las fichas sin archivos (avisos, encuestas…) se descartan.
  */
@@ -17,11 +20,15 @@ object CatalogBuilder {
 
     const val MAX_GAP_SECONDS = 6 * 60 * 60
 
+    /** Un vídeo tras los archivos aún pertenece al juego si llega dentro de este margen. */
+    const val VIDEO_GAP_SECONDS = 15 * 60
+
     private class Draft(first: ChannelMessage) {
         val ids = mutableListOf<Long>()
         val texts = mutableListOf<String>()
         val photos = mutableListOf<PhotoRef>()
         val docs = mutableListOf<RemoteFile>()
+        val videos = mutableListOf<VideoRef>()
         val firstId = first.id
         val date = first.date
         var lastDate = first.date
@@ -29,8 +36,12 @@ object CatalogBuilder {
 
         fun add(m: ChannelMessage) {
             ids += m.id
+            m.video?.let { videos += it }
             // El pie de un archivo ("Parte 2", "Datos") solo cuenta si aún no hay descripción.
-            if (m.text.isNotBlank() && (m.document == null || texts.isEmpty())) texts += m.text.trim()
+            // El texto de un vídeo es su título y ya va en VideoRef.caption.
+            if (m.video == null && m.text.isNotBlank() && (m.document == null || texts.isEmpty())) {
+                texts += m.text.trim()
+            }
             m.photo?.let { photos += it }
             m.document?.let { docs += it }
             lastDate = m.date
@@ -55,6 +66,7 @@ object CatalogBuilder {
                 cur == null -> true
                 m.albumId != 0L && m.albumId == cur.lastAlbumId -> false
                 m.date - cur.lastDate > MAX_GAP_SECONDS -> true
+                m.video != null -> cur.docs.isNotEmpty() && m.date - cur.lastDate > VIDEO_GAP_SECONDS
                 m.document != null && cur.hasVolumeOf(m.document) -> false
                 m.document != null && m.text.isBlank() -> false
                 // Archivo con texto justo después de una descripción sin archivos.
@@ -92,6 +104,7 @@ object CatalogBuilder {
             images = photos.toList(),
             packages = packages,
             messageIds = ids.toList(),
+            videos = videos.toList(),
         )
     }
 

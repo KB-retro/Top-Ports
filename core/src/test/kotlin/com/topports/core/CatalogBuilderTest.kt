@@ -70,6 +70,27 @@ class CatalogBuilderTest {
         assertEquals(false, CatalogBuilder.wantsStorageRoot(mario.description))
     }
 
+    /** Post con vídeo de configuración entre la descripción y los archivos (Mortal Kombat 9). */
+    @Test
+    fun installVideoDoesNotStartNewGame() {
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(1, 1000, text = "Mortal Kombat Komplete Edition\n\nIdioma:\nMulti - Castellano", photo = photo(1)),
+                ChannelMessage(
+                    2, 1000, text = "Configuración y rendimiento",
+                    video = VideoRef(fileId = 50, thumbFileId = 51, durationSeconds = 260, caption = "Configuración y rendimiento"),
+                ),
+                ChannelMessage(3, 1001, document = doc(60, "MK9Recomp-snapdragon.apk")),
+                ChannelMessage(4, 1001, document = doc(61, "MK9Recomp-mali.apk")),
+            ),
+        )
+        val mk = games.single()
+        assertEquals("Mortal Kombat Komplete Edition", mk.title)
+        assertEquals("Idioma:\nMulti - Castellano", mk.description)
+        assertEquals(2, mk.packages.size)
+        assertEquals(listOf("Configuración y rendimiento"), mk.videos.map { it.caption })
+    }
+
     @Test
     fun albumStaysTogether() {
         val games = CatalogBuilder.build(

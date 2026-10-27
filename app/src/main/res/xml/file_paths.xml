@@ -2,4 +2,5 @@
 <paths>
     <external-path name="external" path="." />
     <external-files-path name="app_external" path="." />
+    <files-path name="telegram" path="tdlib-files/" />
 </paths>
