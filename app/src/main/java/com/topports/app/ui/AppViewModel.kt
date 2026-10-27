@@ -1,6 +1,7 @@
 package com.topports.app.ui
 
 import android.app.Application
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,6 +24,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var selectedGameId by mutableStateOf<Long?>(null)
     var browserDir by mutableStateOf<String?>(null)
     var search by mutableStateOf("")
+
+    /** Último juego abierto: al volver a la tienda, el mando vuelve a esa carátula. */
+    var lastGameId by mutableStateOf<Long?>(null)
+
+    /** Posición de la cuadrícula de la tienda (se conserva al entrar y salir de una ficha). */
+    val catalogGrid = LazyGridState()
+
+    fun openGame(id: Long) {
+        lastGameId = id
+        selectedGameId = id
+    }
+
+    /** L1 / R1 del mando: pestaña anterior / siguiente. */
+    fun cycleTab(step: Int) {
+        val tabs = Tab.entries
+        tab = tabs[(tabs.indexOf(tab) + step + tabs.size) % tabs.size]
+    }
 
     var authBusy by mutableStateOf(false)
         private set

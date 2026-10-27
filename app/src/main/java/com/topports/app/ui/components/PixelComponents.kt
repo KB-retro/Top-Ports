@@ -9,7 +9,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.composed
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,13 +101,20 @@ fun PixelButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    // Con mando o cruceta, el botón seleccionado se marca en amarillo.
+    val focused by interaction.collectIsFocusedAsState()
     val px = 3.dp
     Box(
         modifier
             .alpha(if (enabled) 1f else 0.4f)
             // Al pulsar, el botón "baja" y tapa su sombra.
             .offset(x = if (pressed) px else 0.dp, y = if (pressed) px else 0.dp)
-            .pixelFrame(fill = color, border = Px.black, shadow = if (pressed) null else Px.black, px = px)
+            .pixelFrame(
+                fill = color,
+                border = if (focused) Px.yellow else Px.black,
+                shadow = if (pressed) null else if (focused) Px.yellow else Px.black,
+                px = px,
+            )
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
             .padding(horizontal = if (small) 8.dp else 12.dp, vertical = if (small) 6.dp else 10.dp),
         contentAlignment = Alignment.Center,
@@ -250,3 +261,31 @@ fun SectionTitle(text: String, color: Color = Px.yellow, modifier: Modifier = Mo
 /** Clic sin efecto de onda (la onda no pega con el estilo pixel). */
 fun Modifier.pixelClickable(onClick: () -> Unit): Modifier =
     this.clickable(interactionSource = null, indication = null, onClick = onClick)
+
+/**
+ * Tarjeta o fila pulsable con marco de píxel. Al recorrerla con la cruceta del mando
+ * el marco y la sombra se vuelven amarillos, para saber siempre qué está seleccionado.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.pixelCard(
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    fill: Color = Px.navy,
+    border: Color = Px.white,
+    shadow: Color? = Px.black,
+): Modifier = composed {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    this
+        .pixelFrame(
+            fill = fill,
+            border = if (focused) Px.yellow else border,
+            shadow = if (focused) Px.yellow else shadow,
+        )
+        .combinedClickable(
+            interactionSource = interaction,
+            indication = null,
+            onLongClick = onLongClick,
+            onClick = onClick,
+        )
+}

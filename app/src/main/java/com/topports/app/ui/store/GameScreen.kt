@@ -6,6 +6,11 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,8 +55,7 @@ import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
 import com.topports.app.ui.components.SectionTitle
-import com.topports.app.ui.components.pixelClickable
-import com.topports.app.ui.components.pixelFrame
+import com.topports.app.ui.components.pixelCard
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.app.storage.Storage
@@ -95,10 +99,16 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     }
     val context = LocalContext.current
     var zoomed by remember { mutableStateOf<Int?>(null) }
+    // Con mando, al abrir la ficha queda seleccionado el botón del primer archivo.
+    val primaryFocus = remember { FocusRequester() }
 
-    LaunchedEffect(game.id) { game.packages.forEach { vm.graph.tasks.refresh(it) } }
+    LaunchedEffect(game.id) {
+        game.packages.forEach { vm.graph.tasks.refresh(it) }
+        delay(120)
+        runCatching { primaryFocus.requestFocus() }
+    }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+    val topBar: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PixelButton("< Volver", onClick = { vm.selectedGameId = null }, color = Px.grey, small = true)
             Spacer(Modifier.weight(1f))
@@ -111,16 +121,15 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 }
             }, color = Px.blue, small = true)
         }
-        Spacer(Modifier.height(12.dp))
-
+    }
+    val gallery: @Composable () -> Unit = {
         if (game.images.isNotEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(game.images) { image ->
                     Box(
                         Modifier
                             .size(width = 260.dp, height = 150.dp)
-                            .pixelFrame(Px.black, Px.white)
-                            .pixelClickable { zoomed = image.fullFileId },
+                            .pixelCard(onClick = { zoomed = image.fullFileId }, fill = Px.black),
                     ) {
                         TdImage(image.thumbFileId, Modifier.fillMaxSize())
                     }
@@ -128,7 +137,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             }
             Spacer(Modifier.height(12.dp))
         }
-
+    }
+    val info: @Composable () -> Unit = {
         Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
         Spacer(Modifier.height(6.dp))
         Text(
@@ -142,21 +152,19 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 Text(linkify(game.description), style = PxText.body)
             }
         }
-
-        Spacer(Modifier.height(12.dp))
+    }
+    val downloads: @Composable () -> Unit = {
+        SectionTitle("Archivos")
+        game.packages.forEachIndexed { index, pkg ->
+            PackageRow(vm, game, pkg, if (index == 0) primaryFocus else null)
+            Spacer(Modifier.height(10.dp))
+        }
         if (game.videos.isNotEmpty()) {
             SectionTitle("Vídeos", Px.pink)
             game.videos.forEach { video ->
                 VideoRow(vm, video)
                 Spacer(Modifier.height(10.dp))
             }
-            Spacer(Modifier.height(4.dp))
-        }
-
-        SectionTitle("Archivos")
-        game.packages.forEach { pkg ->
-            PackageRow(vm, game, pkg)
-            Spacer(Modifier.height(10.dp))
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
@@ -164,6 +172,32 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                     "(raíz de la memoria o /TopPorts) y los OBB se copian a Android/obb.",
                 style = PxText.small,
             )
+        }
+    }
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        if (maxWidth > maxHeight && maxWidth >= 560.dp) {
+            // Horizontal (consolas): ficha a la izquierda, archivos y acciones a la derecha.
+            Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.weight(0.48f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                    topBar()
+                    Spacer(Modifier.height(12.dp))
+                    gallery()
+                    info()
+                }
+                Column(Modifier.weight(0.52f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                    downloads()
+                }
+            }
+        } else {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+                topBar()
+                Spacer(Modifier.height(12.dp))
+                gallery()
+                info()
+                Spacer(Modifier.height(12.dp))
+                downloads()
+            }
         }
     }
 
@@ -176,13 +210,14 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 }
 
 @Composable
-private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
+private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: FocusRequester? = null) {
     val files by vm.files.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val info = vm.graph.tasks.downloadInfo(pkg, files)
     val (tag, color) = kindTag(pkg.name, pkg.kind)
     var confirmDelete by remember { mutableStateOf(false) }
     var chooseDest by remember { mutableStateOf(false) }
+    val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
 
     PixelPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -223,11 +258,11 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage) {
                             } else {
                                 chooseDest = true
                             }
-                        }, color = Px.green, small = true)
+                        }, color = Px.green, small = true, modifier = primary)
                     }
-                    info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true)
-                    info.started -> PixelButton("Continuar", onClick = { download(vm, context, pkg) }, small = true)
-                    else -> PixelButton("Descargar", onClick = { download(vm, context, pkg) }, small = true)
+                    info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true, modifier = primary)
+                    info.started -> PixelButton("Continuar", onClick = { download(vm, context, pkg) }, small = true, modifier = primary)
+                    else -> PixelButton("Descargar", onClick = { download(vm, context, pkg) }, small = true, modifier = primary)
                 }
                 if (info.started || info.complete) {
                     PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)

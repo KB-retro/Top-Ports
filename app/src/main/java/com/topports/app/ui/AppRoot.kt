@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +40,7 @@ import com.topports.app.ui.files.FileBrowserScreen
 import com.topports.app.ui.login.LoginFlow
 import com.topports.app.ui.login.MessageScreen
 import com.topports.app.ui.login.SplashScreen
+import com.topports.app.ui.login.TopPortsLogo
 import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
 import com.topports.app.ui.tasks.TasksScreen
@@ -83,27 +86,8 @@ private fun MainScreen(vm: AppViewModel) {
     LaunchedEffect(Unit) { vm.loadCatalogIfNeeded() }
     BackHandler(enabled = vm.tab == Tab.STORE && vm.selectedGameId != null) { vm.selectedGameId = null }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().background(Px.navy).padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                buildAnnotatedString {
-                    withStyle(SpanStyle(color = Px.orange)) { append("TOP") }
-                    withStyle(SpanStyle(color = Px.blue)) { append(" PORTS") }
-                },
-                style = PxText.title,
-                modifier = Modifier.weight(1f).pixelClickable {
-                    vm.tab = Tab.STORE
-                    vm.selectedGameId = null
-                },
-            )
-            PixelButton("Salir", onClick = { confirmLogout = true }, color = Px.darkGrey, textColor = Px.white, small = true)
-        }
-        Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
-
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+    val content: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier) {
             when (vm.tab) {
                 Tab.STORE -> {
                     val id = vm.selectedGameId
@@ -113,26 +97,72 @@ private fun MainScreen(vm: AppViewModel) {
                 Tab.TASKS -> TasksScreen(vm)
             }
         }
+    }
+    val tabButton: @Composable (Tab, Modifier) -> Unit = { tab, modifier ->
+        val running = if (tab == Tab.TASKS) tasks.count { it.running } else 0
+        PixelButton(
+            text = if (running > 0) "${tab.label} $running" else tab.label,
+            onClick = {
+                if (vm.tab == tab && tab == Tab.STORE) vm.selectedGameId = null
+                vm.tab = tab
+            },
+            color = if (vm.tab == tab) Px.orange else Px.navyDark,
+            textColor = if (vm.tab == tab) Px.black else Px.grey,
+            small = true,
+            modifier = modifier,
+        )
+    }
 
-        Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
-        Row(
-            Modifier.fillMaxWidth().background(Px.navy).padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Tab.entries.forEach { tab ->
-                val running = if (tab == Tab.TASKS) tasks.count { it.running } else 0
-                val label = if (running > 0) "${tab.label} $running" else tab.label
-                PixelButton(
-                    text = label,
-                    onClick = {
-                        if (vm.tab == tab && tab == Tab.STORE) vm.selectedGameId = null
-                        vm.tab = tab
-                    },
-                    color = if (vm.tab == tab) Px.orange else Px.navyDark,
-                    textColor = if (vm.tab == tab) Px.black else Px.grey,
-                    small = true,
-                    modifier = Modifier.weight(1f),
-                )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Consolas (Odin 2 Portal, RG477M…) y móviles en horizontal: menú lateral.
+        val landscape = maxWidth > maxHeight
+        if (landscape) {
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.fillMaxHeight().width(150.dp).background(Px.navy).padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    TopPortsLogo(size = 96.dp)
+                    Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
+                    Spacer(Modifier.weight(1f))
+                    Text("L1 / R1  PESTAÑA\nA  ACEPTAR\nB  ATRÁS", style = PxText.tiny.copy(color = Px.darkGrey))
+                    PixelButton(
+                        "Salir", onClick = { confirmLogout = true },
+                        color = Px.darkGrey, textColor = Px.white, small = true, modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
+                content(Modifier.weight(1f).fillMaxHeight())
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier.fillMaxWidth().background(Px.navy).padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(SpanStyle(color = Px.orange)) { append("TOP") }
+                            withStyle(SpanStyle(color = Px.blue)) { append(" PORTS") }
+                        },
+                        style = PxText.title,
+                        modifier = Modifier.weight(1f).pixelClickable {
+                            vm.tab = Tab.STORE
+                            vm.selectedGameId = null
+                        },
+                    )
+                    PixelButton("Salir", onClick = { confirmLogout = true }, color = Px.darkGrey, textColor = Px.white, small = true)
+                }
+                Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
+                content(Modifier.weight(1f).fillMaxWidth())
+                Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
+                Row(
+                    Modifier.fillMaxWidth().background(Px.navy).padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Tab.entries.forEach { tab -> tabButton(tab, Modifier.weight(1f)) }
+                }
             }
         }
     }

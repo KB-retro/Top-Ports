@@ -58,7 +58,12 @@ import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
 import com.topports.app.ui.components.PixelTextField
-import com.topports.app.ui.components.pixelFrame
+import com.topports.app.ui.components.pixelCard
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
@@ -221,8 +226,17 @@ fun FileBrowserScreen(vm: AppViewModel) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .pixelFrame(if (selected) Px.purple else Px.navy, if (selected) Px.yellow else Px.navyDark, shadow = null)
-                        .combinedClickable(
+                        // Mando: X o Y marcan/desmarcan el archivo (como mantener pulsado).
+                        .onPreviewKeyEvent { event ->
+                            val toggle = event.type == KeyEventType.KeyDown &&
+                                (event.key == Key.ButtonX || event.key == Key.ButtonY)
+                            if (toggle) selection = if (selected) selection - file else selection + file
+                            toggle
+                        }
+                        .pixelCard(
+                            fill = if (selected) Px.purple else Px.navy,
+                            border = if (selected) Px.pink else Px.navyDark,
+                            shadow = null,
                             onClick = {
                                 when {
                                     selection.isNotEmpty() ->
