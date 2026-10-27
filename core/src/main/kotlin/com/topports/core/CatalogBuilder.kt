@@ -3,30 +3,23 @@ package com.topports.core
 /**
  * Agrupa los mensajes del canal en fichas de juego.
  *
- * Un post típico es una foto (o álbum) con la descripción seguido de uno o varios
- * archivos. Reglas, recorriendo los mensajes del más antiguo al más nuevo:
+ * En el canal cada juego empieza con una foto (la carátula, con la descripción) y le
+ * siguen sus archivos. Reglas, recorriendo los mensajes del más antiguo al más nuevo:
+ *  - **solo una foto empieza un juego nuevo**, y solo si la ficha en curso ya tiene
+ *    archivos. Archivos (con o sin texto, aunque lleguen horas después), vídeos y textos
+ *    sin foto siempre van con el juego anterior;
  *  - los mensajes del mismo álbum van juntos;
- *  - un archivo sin texto se añade a la ficha en curso;
- *  - un archivo que es otra parte de un paquete ya visto (`.7z.002`, `.part2.rar`)
- *    se añade aunque tenga texto ("Parte 2");
- *  - un texto o una foto empiezan ficha nueva si la actual ya tiene archivos; si aún no
- *    los tiene y llegan en menos de [SAME_POST_SECONDS] son más partes del mismo post
- *    ("Configuración del mando", "Mods"…) y se añaden a la descripción;
- *  - un vídeo (tutorial de instalación, "Configuración y rendimiento") se añade a la ficha
- *    en curso si aún no tiene archivos o si llega poco después; su texto es el título del
- *    vídeo, no el de un juego nuevo;
- *  - más de [MAX_GAP_SECONDS] entre mensajes siempre empieza ficha nueva.
+ *  - antes de los archivos, fotos y textos que llegan en menos de [SAME_POST_SECONDS]
+ *    son más partes del mismo post ("Configuración del mando", "Mods"…) y se añaden a la
+ *    ficha; tras un aviso suelto sin archivos, una foto más tardía empieza otro juego;
+ *  - un texto suelto después de los archivos (avisos) no se añade a la descripción.
  * Las fichas sin archivos (avisos, encuestas…) se descartan.
  */
 object CatalogBuilder {
 
-    const val MAX_GAP_SECONDS = 6 * 60 * 60
-
     /** Textos e imágenes seguidos sin archivos todavía: mismo post si llegan dentro de este margen. */
     const val SAME_POST_SECONDS = 30 * 60
 
-    /** Un vídeo tras los archivos aún pertenece al juego si llega dentro de este margen. */
-    const val VIDEO_GAP_SECONDS = 15 * 60
 
     private class Draft(first: ChannelMessage) {
         val ids = mutableListOf<Long>()
@@ -70,16 +63,16 @@ object CatalogBuilder {
             val startsNew = when {
                 cur == null -> true
                 m.albumId != 0L && m.albumId == cur.lastAlbumId -> false
-                m.date - cur.lastDate > MAX_GAP_SECONDS -> true
-                m.video != null -> cur.docs.isNotEmpty() && m.date - cur.lastDate > VIDEO_GAP_SECONDS
-                m.document != null && cur.hasVolumeOf(m.document) -> false
-                m.document != null && m.text.isBlank() -> false
-                // Archivo con texto justo después de una descripción sin archivos.
-                m.document != null && cur.docs.isEmpty() -> false
-                m.text.isBlank() && m.photo != null -> cur.docs.isNotEmpty()
-                m.text.isNotBlank() -> cur.docs.isNotEmpty() ||
-                    (cur.hasText() && m.date - cur.lastDate > SAME_POST_SECONDS)
-                else -> false
+                // Sin foto no hay juego nuevo: archivos, vídeos y textos van con el anterior.
+                m.photo == null -> false
+                cur.docs.isNotEmpty() -> true
+                else -> cur.hasText() && m.date - cur.lastDate > SAME_POST_SECONDS
+            }
+            // Avisos de texto tras los archivos: no forman parte de la descripción del juego.
+            if (!startsNew && cur != null && cur.docs.isNotEmpty() &&
+                m.photo == null && m.document == null && m.video == null
+            ) {
+                continue
             }
             if (startsNew) {
                 current = Draft(m).also { drafts += it }

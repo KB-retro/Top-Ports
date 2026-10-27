@@ -114,6 +114,27 @@ class CatalogBuilderTest {
         assertTrue(gta.description.contains("Mods incluidos"))
     }
 
+    /** Sin foto no hay juego nuevo: archivos sueltos, con texto o muy posteriores van con el anterior. */
+    @Test
+    fun filesWithoutPhotoStayWithPreviousGame() {
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(1, 1000, text = "Resident Evil 4\n\nPort", photo = photo(1)),
+                ChannelMessage(2, 1010, document = doc(80, "RE4.apk")),
+                ChannelMessage(3, 1020, text = "Datos del juego", document = doc(81, "RE4-data.7z")),
+                ChannelMessage(4, 1030, text = "Recordad dar like"),
+                // Horas después, un parche sin foto: sigue siendo de Resident Evil 4.
+                ChannelMessage(5, 90_000, text = "Parche 1.1", document = doc(82, "RE4-patch.zip")),
+                ChannelMessage(6, 95_000, text = "Silent Hill 2", photo = photo(2)),
+                ChannelMessage(7, 95_010, document = doc(83, "SH2.apk")),
+            ),
+        )
+        assertEquals(listOf("Silent Hill 2", "Resident Evil 4"), games.map { it.title })
+        val re4 = games[1]
+        assertEquals(listOf("RE4.apk", "RE4-data.7z", "RE4-patch.zip"), re4.packages.map { it.name })
+        assertEquals("Port", re4.description)
+    }
+
     @Test
     fun albumStaysTogether() {
         val games = CatalogBuilder.build(
