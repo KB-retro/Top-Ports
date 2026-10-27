@@ -1,6 +1,6 @@
 package com.topports.app.ui.login
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,11 +23,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.topports.app.R
 import com.topports.app.ui.AppViewModel
 import com.topports.app.ui.components.BlinkingText
 import com.topports.app.ui.components.PixelButton
@@ -38,28 +40,14 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
 
-/** Logotipo en bloques: un mando de 8 bits dibujado con cuadrados. */
+/** Logo de Top Ports (escudo con el androide porteador). */
 @Composable
-fun PixelLogo(modifier: Modifier = Modifier, pixel: Int = 8) {
-    val art = listOf(
-        ".BBBBBBBBBB.",
-        "BBBBBBBBBBBB",
-        "BBDBBBBBBRBB",
-        "BDDDBBBBRBYB",
-        "BBDBBBBBBYBB",
-        "BBBBBBBBBBBB",
-        "BBB......BBB",
+fun TopPortsLogo(modifier: Modifier = Modifier, size: Dp = 220.dp) {
+    Image(
+        painter = painterResource(R.drawable.logo_topports),
+        contentDescription = "Top Ports",
+        modifier = modifier.size(size),
     )
-    val colors = mapOf('B' to Px.white, 'D' to Px.navy, 'R' to Px.red, 'Y' to Px.orange)
-    Column(modifier) {
-        art.forEach { row ->
-            Row {
-                row.forEach { c ->
-                    Box(Modifier.size(pixel.dp).background(colors[c] ?: Color.Transparent))
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -68,11 +56,9 @@ private fun LoginScaffold(subtitle: String, content: @Composable () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(24.dp))
-        PixelLogo()
-        Spacer(Modifier.height(20.dp))
-        Text("TOP PORTS", style = PxText.title.copy(color = Px.orange, fontSize = PxText.title.fontSize * 1.6f))
         Spacer(Modifier.height(8.dp))
+        TopPortsLogo()
+        Spacer(Modifier.height(4.dp))
         Text(subtitle.uppercase(), style = PxText.tiny.copy(color = Px.blue), textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         PixelPanel(Modifier.fillMaxWidth()) {
@@ -88,7 +74,7 @@ fun SplashScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        PixelLogo()
+        TopPortsLogo(size = 240.dp)
         Spacer(Modifier.height(24.dp))
         BlinkingText("Cargando…", style = PxText.label.copy(color = Px.yellow))
         Spacer(Modifier.height(16.dp))
