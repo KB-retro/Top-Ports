@@ -31,6 +31,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -250,10 +252,26 @@ fun CatalogScreen(vm: AppViewModel) {
         }
 
         // Cuadrícula de carátulas: 2 columnas en un móvil en vertical, 3–5 en consolas en horizontal.
+        // Con el mando, en la primera y la última fila se sube o baja del todo, igual que con el dedo
+        // (si no, la lista se queda a unos píxeles del borde y no se ve que se ha llegado al final).
+        val edgeScope = rememberCoroutineScope()
+        fun scrollToEdge(index: Int) {
+            val columns = (vm.catalogGrid.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 0) + 1
+            val lastRowStart = games.lastIndex - games.lastIndex % columns
+            val target = when {
+                index < columns -> 0
+                index >= lastRowStart -> games.lastIndex
+                else -> return
+            }
+            edgeScope.launch {
+                delay(30) // después del desplazamiento automático del foco
+                vm.catalogGrid.animateScrollToItem(target)
+            }
+        }
         LazyVerticalGrid(
             columns = GridCells.Adaptive(170.dp),
             state = vm.catalogGrid,
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 16.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             // Abajo en la última fila no salta al menú lateral; arriba sí sube a Buscar/Orden.
@@ -266,7 +284,12 @@ fun CatalogScreen(vm: AppViewModel) {
                     onClick = { vm.openGame(game.id) },
                     modifier = Modifier
                         .focusRequester(requesterFor(game.id))
-                        .onFocusChanged { if (it.isFocused) vm.catalogFocusIndex = index },
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                vm.catalogFocusIndex = index
+                                scrollToEdge(index)
+                            }
+                        },
                 )
             }
         }
