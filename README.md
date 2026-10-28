@@ -45,7 +45,8 @@
 - Cada usuario es responsable de lo que descarga e instala. Descarga solo contenido que tengas
   derecho a usar; si un port necesita los archivos de un juego, usa los de tu copia original.
 - Si eres titular de derechos y crees que algún contenido del canal los infringe, escribe con
-  el enlace a la publicación y se retirará (contacto en Ajustes → Aviso legal).
+  el enlace a la publicación y se retirará: abre una incidencia en
+  <https://github.com/KB-retro/Top-Ports/issues> (también desde Ajustes → Legal en la app).
 
 ## Cómo conseguir el APK
 
@@ -61,7 +62,8 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
    - `TOPPORTS_CHANNEL_INVITE_LINK`: el enlace de invitación (`https://t.me/+…`), si es privado.
      Con él la app puede unir al usuario al canal automáticamente.
    - `TOPPORTS_LEGAL_CONTACT`: contacto para reclamaciones de derechos (`@usuario` de Telegram,
-     email o enlace). Si no se pone, el botón de Ajustes → Aviso legal abre el canal.
+     email o enlace). Si no se pone, el botón de Ajustes → Aviso legal abre las incidencias
+     (issues) de este repositorio en GitHub.
 4. Clave de firma (para que cada APK nuevo se instale encima del anterior sin perder datos):
    - `SIGNING_KEYSTORE_BASE64`: el archivo `.p12` de la clave en base64.
    - `SIGNING_STORE_PASSWORD`: su contraseña.

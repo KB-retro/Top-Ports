@@ -1,7 +1,6 @@
 package com.topports.app.ui.settings
 
 import com.topports.app.BuildConfig
-import com.topports.app.telegram.ChannelRepository
 
 /** Aviso legal (Ajustes → Aviso legal). Debe coincidir con la sección del README. */
 val LEGAL_POINTS = listOf(
@@ -15,11 +14,14 @@ val LEGAL_POINTS = listOf(
         "con el enlace a la publicación y lo retiraremos.",
 )
 
-/** Contacto para reclamaciones: el configurado al compilar o, si no hay, el canal. */
+/** Incidencias del repositorio en GitHub: contacto por defecto (el canal es de solo lectura). */
+const val GITHUB_ISSUES = "https://github.com/KB-retro/Top-Ports/issues/new"
+
+/** Contacto para reclamaciones: el configurado al compilar o, si no hay, GitHub. */
 fun legalContactLink(): String {
     val contact = BuildConfig.LEGAL_CONTACT.trim()
     return when {
-        contact.isEmpty() -> ChannelRepository.telegramLink()
+        contact.isEmpty() -> GITHUB_ISSUES
         contact.startsWith("@") -> "https://t.me/${contact.drop(1)}"
         "@" in contact && !contact.startsWith("http") -> "mailto:$contact"
         else -> contact
