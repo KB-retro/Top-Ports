@@ -197,8 +197,9 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
-                "Los APK se instalan directamente. Los comprimidos se extraen donde elijas " +
-                    "(raíz de la memoria o /TopPorts) y los OBB se copian a Android/obb.",
+                "Las descargas se guardan en /TopPorts/<juego>. Los APK se instalan directamente, " +
+                    "los comprimidos se extraen donde elijas (raíz de la memoria o /TopPorts) y los " +
+                    "OBB se copian a Android/obb.",
                 style = PxText.small,
             )
         }
@@ -206,20 +207,23 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         if (maxWidth > maxHeight && maxWidth >= 560.dp) {
-            // Horizontal (consolas): ficha a la izquierda (la descripción ocupa el resto de la
-            // altura con su propio scroll), archivos y acciones a la derecha.
+            // Horizontal (consolas): a la izquierda capturas, título y archivos; a la derecha la
+            // descripción a toda altura, con su propio scroll (L1/R1).
             Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column(Modifier.weight(0.48f).fillMaxHeight()) {
+                Column(
+                    Modifier
+                        .weight(if (game.description.isNotBlank()) 0.46f else 1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                ) {
                     topBar()
                     Spacer(Modifier.height(10.dp))
                     gallery()
                     header()
-                    if (game.description.isNotBlank()) {
-                        DescriptionPanel(game.description, descScroll, Modifier.weight(1f).fillMaxWidth())
-                    }
-                }
-                Column(Modifier.weight(0.52f).fillMaxHeight().verticalScroll(rememberScrollState())) {
                     downloads()
+                }
+                if (game.description.isNotBlank()) {
+                    DescriptionPanel(game.description, descScroll, Modifier.weight(0.54f).fillMaxHeight())
                 }
             }
         } else {
