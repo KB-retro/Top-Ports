@@ -89,6 +89,102 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             pink = c(0xFF4C4C),
         ),
     ),
+
+    // Consola gris, cruceta y botones morados, y los colores de A/B/X/Y.
+    SNES(
+        "SNES",
+        PxPalette(
+            black = c(0x0C0B12), night = c(0x1B1A24), navy = c(0x3B3550), navyDark = c(0x2A2639),
+            purple = c(0x4F43AE), darkGreen = c(0x1E7A3C), brown = c(0x8A6E58), darkGrey = c(0x6E6A7C),
+            grey = c(0xC4C2CF), white = c(0xECEBF2), red = c(0xD72631), orange = c(0xA08CF0),
+            yellow = c(0xF2C230), green = c(0x2BA84A), blue = c(0x3A5FCD), lavender = c(0x8F86C9),
+            pink = c(0xE58FB4),
+        ),
+    ),
+
+    // Carcasa negra con el rojo y el dorado del logo de 16-BIT.
+    MEGA_DRIVE(
+        "Mega Drive",
+        PxPalette(
+            black = c(0x000000), night = c(0x0A0A0A), navy = c(0x1E1E22), navyDark = c(0x141416),
+            purple = c(0x6A2C8C), darkGreen = c(0x1F7A3A), brown = c(0x8C5A2B), darkGrey = c(0x555555),
+            grey = c(0xB5B5B5), white = c(0xF2F2F2), red = c(0xB3121A), orange = c(0xE3262A),
+            yellow = c(0xE8B923), green = c(0x36B04A), blue = c(0x2E6BD9), lavender = c(0x8A8FA0),
+            pink = c(0xFF6F7D),
+        ),
+    ),
+
+    // La paleta de 64 colores de la Master System (cada canal: 00, 55, AA o FF).
+    MASTER_SYSTEM(
+        "Master System",
+        PxPalette(
+            black = c(0x000000), night = c(0x000000), navy = c(0x0000AA), navyDark = c(0x000055),
+            purple = c(0xAA00AA), darkGreen = c(0x00AA00), brown = c(0xAA5500), darkGrey = c(0x555555),
+            grey = c(0xAAAAAA), white = c(0xFFFFFF), red = c(0xAA0000), orange = c(0xFF5500),
+            yellow = c(0xFFFF55), green = c(0x55FF55), blue = c(0x55AAFF), lavender = c(0xAAAAFF),
+            pink = c(0xFF55AA),
+        ),
+    ),
+
+    // Las cuatro tonalidades verdeazuladas de la pantalla de la Game Boy original (DMG-01).
+    GB_DMG(
+        "GB DMG",
+        PxPalette(
+            black = c(0x040C10), night = c(0x081820), navy = c(0x1F4038), navyDark = c(0x10281F),
+            purple = c(0x346856), darkGreen = c(0x346856), brown = c(0x346856), darkGrey = c(0x4E7F68),
+            grey = c(0x88C070), white = c(0xE0F8D0), red = c(0x346856), orange = c(0x88C070),
+            yellow = c(0xE0F8D0), green = c(0x88C070), blue = c(0x6FA88A), lavender = c(0x88C070),
+            pink = c(0xB8E0A0),
+        ),
+    ),
+
+    // El tema Gruvbox (oscuro) del menú de RetroArch.
+    GRUVBOX(
+        "Gruvbox",
+        PxPalette(
+            black = c(0x141617), night = c(0x1D2021), navy = c(0x3C3836), navyDark = c(0x282828),
+            purple = c(0xB16286), darkGreen = c(0x98971A), brown = c(0xD65D0E), darkGrey = c(0x665C54),
+            grey = c(0xA89984), white = c(0xEBDBB2), red = c(0xFB4934), orange = c(0xFE8019),
+            yellow = c(0xFABD2F), green = c(0xB8BB26), blue = c(0x83A598), lavender = c(0x8EC07C),
+            pink = c(0xD3869B),
+        ),
+    ),
+
+    // Consola blanca, espiral naranja (azul en Europa) y la VMU.
+    DREAMCAST(
+        "Dreamcast",
+        PxPalette(
+            black = c(0x05080B), night = c(0x101418), navy = c(0x2A3038), navyDark = c(0x1C2128),
+            purple = c(0x7A5CC0), darkGreen = c(0x22834A), brown = c(0xA0603A), darkGrey = c(0x66707A),
+            grey = c(0xC8CCD0), white = c(0xF4F4F4), red = c(0xE0312C), orange = c(0xF26522),
+            yellow = c(0xFFC20E), green = c(0x3DBE6A), blue = c(0x1E90D6), lavender = c(0x9AA5B8),
+            pink = c(0xFF7AA2),
+        ),
+    ),
+
+    // Consola gris y los colores de triángulo, círculo, cruz y cuadrado.
+    PSX(
+        "PSX",
+        PxPalette(
+            black = c(0x08090B), night = c(0x16171A), navy = c(0x34363C), navyDark = c(0x232428),
+            purple = c(0x8A5CC0), darkGreen = c(0x00865A), brown = c(0x8C6A4A), darkGrey = c(0x6A6C74),
+            grey = c(0xBDBDC4), white = c(0xEDEDF0), red = c(0xE2475B), orange = c(0x7EA6E0),
+            yellow = c(0xFFC20E), green = c(0x3EC6A0), blue = c(0x5B8FD8), lavender = c(0xA3A8C8),
+            pink = c(0xE68DC0),
+        ),
+    ),
+
+    // Madera, negro y el naranja del logo de Atari.
+    ATARI_2600(
+        "Atari 2600",
+        PxPalette(
+            black = c(0x000000), night = c(0x0E0B08), navy = c(0x3A2A1C), navyDark = c(0x24190F),
+            purple = c(0x8A4FA0), darkGreen = c(0x3E7A30), brown = c(0x7A5230), darkGrey = c(0x5C5048),
+            grey = c(0xC9B79C), white = c(0xF2E6D0), red = c(0xD23A26), orange = c(0xE8862A),
+            yellow = c(0xF2C641), green = c(0x5CA845), blue = c(0x4A8FD0), lavender = c(0xB39A7A),
+            pink = c(0xE07A5A),
+        ),
+    ),
     ;
 
     companion object {

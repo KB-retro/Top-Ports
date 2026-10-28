@@ -3,10 +3,8 @@ package com.topports.app.ui
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
-import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
-import kotlin.math.abs
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -45,10 +43,8 @@ class MainActivity : ComponentActivity() {
      * descripción de forma continua. El izquierdo sigue moviendo el foco como la cruceta.
      */
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if (event.isFromSource(InputDevice.SOURCE_JOYSTICK) && event.action == MotionEvent.ACTION_MOVE) {
-            val rz = event.getAxisValue(MotionEvent.AXIS_RZ)
-            val y = if (abs(rz) > 0.01f) rz else event.getAxisValue(MotionEvent.AXIS_RY)
-            val value = if (abs(y) < STICK_DEAD_ZONE) 0f else y
+        val value = Gamepad.rightStickY(event)
+        if (value != null) {
             if (vm.tab == Tab.STORE && vm.selectedGameId != null) {
                 vm.descriptionStick = value
                 if (value != 0f) return true
@@ -111,9 +107,5 @@ class MainActivity : ComponentActivity() {
             }
         }
         return super.dispatchKeyEvent(Gamepad.remap(event))
-    }
-
-    private companion object {
-        const val STICK_DEAD_ZONE = 0.2f
     }
 }
