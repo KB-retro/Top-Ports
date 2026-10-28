@@ -94,7 +94,6 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
 private fun MainScreen(vm: AppViewModel) {
     val tasks by vm.tasks.collectAsStateWithLifecycle()
     val updates by vm.updates.collectAsStateWithLifecycle()
-    var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.loadCatalogIfNeeded() }
     // Atrás (o B): cerrar la ficha, volver a la pestaña anterior y, en la tienda, pedir
@@ -171,10 +170,6 @@ private fun MainScreen(vm: AppViewModel) {
                     Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
                     Spacer(Modifier.weight(1f))
                     Text("L1/R1  FILA\nL2/R2  PESTAÑA\nA  ACEPTAR\nB  ATRÁS", style = PxText.tiny.copy(color = Px.darkGrey))
-                    PixelButton(
-                        "Salir", onClick = { confirmLogout = true },
-                        color = Px.darkGrey, textColor = Px.white, small = true, modifier = Modifier.fillMaxWidth(),
-                    )
                 }
                 Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxHeight())
@@ -196,7 +191,6 @@ private fun MainScreen(vm: AppViewModel) {
                             vm.selectedGameId = null
                         },
                     )
-                    PixelButton("Salir", onClick = { confirmLogout = true }, color = Px.darkGrey, textColor = Px.white, small = true)
                 }
                 Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxWidth())
@@ -208,20 +202,6 @@ private fun MainScreen(vm: AppViewModel) {
                 ) {
                     Tab.entries.forEach { tab -> tabButton(tab, Modifier) }
                 }
-            }
-        }
-    }
-
-    if (confirmLogout) {
-        PixelDialog("¿Cerrar sesión?", onDismiss = { confirmLogout = false }) {
-            Text("Se cerrará la sesión de Telegram en esta app. Las descargas a medias se perderán.", style = PxText.body)
-            DialogButtons {
-                PixelButton("No", onClick = { confirmLogout = false }, color = Px.grey, small = true)
-                Spacer(Modifier.width(4.dp))
-                PixelButton("Salir", onClick = {
-                    confirmLogout = false
-                    vm.logOut()
-                }, color = Px.red, textColor = Px.white, small = true)
             }
         }
     }
