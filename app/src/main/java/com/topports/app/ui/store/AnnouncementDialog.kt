@@ -2,13 +2,11 @@ package com.topports.app.ui.store
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.topports.app.ui.AppViewModel
 import com.topports.app.ui.components.DialogButtons
 import com.topports.app.ui.components.PixelButton
@@ -30,7 +28,8 @@ fun AnnouncementDialog(vm: AppViewModel, announcement: Announcement) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .heightIn(max = 380.dp)
+                // Lo que sobre tras el título y el botón: el botón siempre se ve entero.
+                .weight(1f, fill = false)
                 .pixelScrollbar(scroll)
                 .verticalScroll(scroll),
         ) {

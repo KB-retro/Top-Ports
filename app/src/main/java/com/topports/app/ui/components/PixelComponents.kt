@@ -45,6 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
@@ -315,12 +318,18 @@ fun PixelDialog(
     wide: Boolean = false,
     /** Ancho de la ventana cuando [wide] (fracción de la pantalla). */
     widthFraction: Float = 0.94f,
-    content: @Composable () -> Unit,
+    /**
+     * Contenido en columna. Un texto largo debe ir en `Modifier.weight(1f, fill = false)` con scroll:
+     * así ocupa lo que sobra y los botones de abajo siempre caben (consolas en horizontal).
+     */
+    content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Nunca más alta que la pantalla: si no, los botones del final se aplastan o desaparecen.
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.9f).dp
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
         DialogGamepadSupport()
         PixelPanel(
-            modifier = if (wide) Modifier.fillMaxWidth(widthFraction) else Modifier,
+            modifier = (if (wide) Modifier.fillMaxWidth(widthFraction) else Modifier).heightIn(max = maxHeight),
             fill = Px.navy,
             border = Px.orange,
         ) {

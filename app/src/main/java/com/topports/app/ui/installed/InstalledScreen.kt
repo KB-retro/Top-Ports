@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -150,19 +152,22 @@ fun InstalledScreen(vm: AppViewModel) {
         PixelDialog("Borrar datos", onDismiss = { if (!busy) cleaning = null }, wide = true, widthFraction = 0.7f) {
             Text(item.game.title.uppercase(), style = PxText.label.copy(color = Px.yellow))
             Spacer(Modifier.size(8.dp))
-            if (entries.isEmpty()) {
-                Text("No hay OBB, datos ni archivos extraídos de este juego.", style = PxText.body)
-            } else {
-                entries.forEach { e ->
-                    Text("• ${e.label} (${FileNames.formatSize(e.size)})", style = PxText.body)
-                    Text(e.file.path, style = PxText.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Con muchas carpetas la lista se desplaza y los botones siguen visibles.
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                if (entries.isEmpty()) {
+                    Text("No hay OBB, datos ni archivos extraídos de este juego.", style = PxText.body)
+                } else {
+                    entries.forEach { e ->
+                        Text("• ${e.label} (${FileNames.formatSize(e.size)})", style = PxText.body)
+                        Text(e.file.path, style = PxText.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
+                Text(
+                    "También se borran las descargas de Telegram de este juego (hasta ${FileNames.formatSize(downloaded)}). " +
+                        "La partida guardada dentro de la app solo se borra al desinstalarla.",
+                    style = PxText.small,
+                )
             }
-            Text(
-                "También se borran las descargas de Telegram de este juego (hasta ${FileNames.formatSize(downloaded)}). " +
-                    "La partida guardada dentro de la app solo se borra al desinstalarla.",
-                style = PxText.small,
-            )
             DialogButtons {
                 PixelButton("Cancelar", onClick = { cleaning = null }, color = Px.grey, small = true, enabled = !busy)
                 PixelButton(if (busy) "Borrando…" else "Borrar", enabled = !busy, onClick = {
