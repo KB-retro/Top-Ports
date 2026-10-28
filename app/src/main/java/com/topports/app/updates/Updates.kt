@@ -35,7 +35,7 @@ class InstallRegistry(context: Context) {
         prefs.edit().putString(record.packageName, json.toString()).apply()
     }
 
-    fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { !it.startsWith("extracted_") && !it.startsWith("saved_") }.mapNotNull { (pkg, value) ->
+    fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { key -> internalPrefixes.none { key.startsWith(it) } }.mapNotNull { (pkg, value) ->
         runCatching {
             val json = JSONObject(value as String)
             pkg to InstallRecord(pkg, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"))
@@ -68,6 +68,42 @@ class InstallRegistry(context: Context) {
     fun forgetSaved(pkgKey: String) {
         prefs.edit().remove("saved_$pkgKey").apply()
     }
+
+    /** Descarga que al terminar se mueve sola a la carpeta del juego. */
+    data class PendingSave(val pkgKey: String, val gameId: Long, val dir: String, val parts: List<Pair<Int, String>>)
+
+    // En memoria: se consulta con cada aviso de progreso de TDLib.
+    @Volatile
+    private var pending: List<PendingSave> = loadPending()
+
+    fun pendingSaves(): List<PendingSave> = pending
+
+    fun addPendingSave(save: PendingSave) {
+        val parts = org.json.JSONArray(save.parts.map { (id, name) -> JSONObject().put("id", id).put("name", name) })
+        val json = JSONObject().put("gameId", save.gameId).put("dir", save.dir).put("parts", parts)
+        prefs.edit().putString("pending_${save.pkgKey}", json.toString()).apply()
+        pending = pending.filter { it.pkgKey != save.pkgKey } + save
+    }
+
+    fun removePendingSave(pkgKey: String) {
+        prefs.edit().remove("pending_$pkgKey").apply()
+        pending = pending.filter { it.pkgKey != pkgKey }
+    }
+
+    private fun loadPending(): List<PendingSave> = prefs.all.filterKeys { it.startsWith("pending_") }.mapNotNull { (key, value) ->
+        runCatching {
+            val json = JSONObject(value as String)
+            val arr = json.getJSONArray("parts")
+            PendingSave(
+                key.removePrefix("pending_"),
+                json.getLong("gameId"),
+                json.getString("dir"),
+                List(arr.length()) { arr.getJSONObject(it).let { p -> p.getInt("id") to p.getString("name") } },
+            )
+        }.getOrNull()
+    }
+
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {

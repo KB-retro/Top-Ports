@@ -8,7 +8,7 @@
 - **Catálogo**: agrupa los posts del canal (foto o álbum + descripción + archivos) en fichas
   con buscador. Se actualiza solo cuando llegan posts nuevos.
 - **Descargas** de 2–4 GB en segundo plano, con pausa y reanudación, comprobación de espacio
-  y notificación de progreso.
+  y notificación de progreso. Al terminar, cada archivo pasa solo a `/TopPorts/<juego>`.
 - **Extractor integrado** (motor 7-Zip): ZIP, 7z, RAR4/RAR5, TAR… incluidos los
   multivolumen (`.7z.001`, `.zip.001`, `.part1.rar`) y los archivos con contraseña.
 - **Instalador**: APK sueltos, APK partidos (`.apk.001`), split APKs y XAPK/APKS. Los OBB se

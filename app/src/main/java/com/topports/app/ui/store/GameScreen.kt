@@ -324,8 +324,10 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
     // Elegir destino para guardar el archivo tal cual (sin extraer).
     var chooseSaveDest by remember { mutableStateOf(false) }
     // Dónde se guardó la última vez (si los archivos siguen ahí).
-    val savedDir = remember(info.complete, files) {
-        vm.graph.installs.savedDir(pkg.key)?.takeIf { dir -> pkg.parts.any { File(dir, it.name).exists() } }
+    val saving by vm.graph.tasks.saving.collectAsStateWithLifecycle()
+    val moving = pkg.key in saving
+    val savedDir = remember(info.complete, files, moving) {
+        if (vm.graph.tasks.savedFiles(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
     }
     val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
 
@@ -353,12 +355,15 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
                 )
             }
 
-            if (savedDir != null) {
-                Text("Guardado en $savedDir", style = PxText.small.copy(color = Px.green))
+            if (moving) {
+                Text("Pasando a /TopPorts…", style = PxText.small.copy(color = Px.yellow))
+            } else if (savedDir != null) {
+                Text("En $savedDir", style = PxText.small.copy(color = Px.green))
             }
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
+                    moving -> Unit
                     info.complete -> {
                         val action = when (pkg.kind) {
                             PackageKind.APK -> "Instalar"
@@ -374,15 +379,15 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
                             }
                         }, color = Px.green, small = true, modifier = primary)
                         // Hay ports cuyo lanzador carga el .zip/.7z directamente: guardarlo sin extraer.
-                        if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) {
+                        if (savedDir == null && (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE)) {
                             PixelButton("Guardar sin extraer", onClick = { chooseSaveDest = true }, color = Px.blue, small = true)
                         }
                     }
                     info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true, modifier = primary)
-                    info.started -> PixelButton("Continuar", onClick = { download(vm, context, pkg) }, small = true, modifier = primary)
-                    else -> PixelButton("Descargar", onClick = { download(vm, context, pkg) }, small = true, modifier = primary)
+                    info.started -> PixelButton("Continuar", onClick = { download(vm, context, game, pkg) }, small = true, modifier = primary)
+                    else -> PixelButton("Descargar", onClick = { download(vm, context, game, pkg) }, small = true, modifier = primary)
                 }
-                if (info.started || info.complete) {
+                if ((info.started || info.complete) && !moving) {
                     PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)
                 }
                 if (savedDir != null) {
@@ -501,8 +506,8 @@ private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, sa
     }
 }
 
-private fun download(vm: AppViewModel, context: Context, pkg: GamePackage) {
-    vm.graph.tasks.download(pkg) { error ->
+private fun download(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage) {
+    vm.graph.tasks.download(game, pkg) { error ->
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
         }

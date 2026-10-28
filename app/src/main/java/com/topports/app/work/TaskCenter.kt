@@ -85,9 +85,53 @@ class TaskCenter(
 
     val hasRunningTasks: Boolean get() = _tasks.value.any { it.running }
 
+    /** Paquetes que se están moviendo a su carpeta tras descargarse (clave [GamePackage.key]). */
+    private val _saving = MutableStateFlow<Set<String>>(emptySet())
+    val saving: StateFlow<Set<String>> = _saving.asStateFlow()
+
+    init {
+        // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
+        scope.launch { tg.files.collect { files -> movePendingDownloads(files) } }
+    }
+
+    private fun movePendingDownloads(files: Map<Int, TdApi.File>) {
+        for (p in installs.pendingSaves()) {
+            if (p.pkgKey in _saving.value) continue
+            if (!p.parts.all { (id, _) -> files[id]?.local?.isDownloadingCompleted == true }) continue
+            _saving.update { it + p.pkgKey }
+            launchTask("Guardando ${p.parts.first().second}") { taskId, _ ->
+                try {
+                    val parts = p.parts.map { (id, name) -> name to File(tg.refreshFile(id).local.path) }
+                    saveParts(taskId, p.gameId, p.pkgKey, p.parts.map { it.first }, parts, File(p.dir))
+                } finally {
+                    // Si falla, el archivo sigue en la caché y se puede guardar o extraer a mano.
+                    installs.removePendingSave(p.pkgKey)
+                    _saving.update { it - p.pkgKey }
+                }
+            }
+        }
+    }
+
+    /** Partes ya guardadas en la carpeta del juego (null si falta alguna o no se guardaron). */
+    fun savedFiles(pkg: GamePackage): List<Pair<String, File>>? {
+        val dir = installs.savedDir(pkg.key) ?: return null
+        val files = pkg.parts.map { it.name to File(dir, it.name) }
+        val ok = files.zip(pkg.parts).all { (pair, part) -> pair.second.isFile && pair.second.length() == part.size }
+        return files.takeIf { ok }
+    }
+
+    /** Archivos de un paquete en el móvil: en su carpeta si se guardaron, si no en la caché de Telegram. */
+    private suspend fun localParts(pkg: GamePackage): List<Pair<String, File>> =
+        savedFiles(pkg) ?: pkg.parts.map { part ->
+            val f = tg.refreshFile(part.id)
+            if (!f.local.isDownloadingCompleted) throw IOException("Falta descargar ${part.name}")
+            part.name to File(f.local.path)
+        }
+
     // --- Descargas ---
 
     fun downloadInfo(pkg: GamePackage, files: Map<Int, TdApi.File>): DownloadInfo {
+        if (savedFiles(pkg) != null) return DownloadInfo(pkg.size, pkg.size, active = false, complete = true)
         var downloaded = 0L
         var total = 0L
         var active = false
@@ -110,7 +154,7 @@ class TaskCenter(
         }
     }
 
-    fun download(pkg: GamePackage, onError: (String) -> Unit) {
+    fun download(game: Game, pkg: GamePackage, onError: (String) -> Unit) {
         scope.launch {
             try {
                 val files = pkg.parts.map { tg.refreshFile(it.id) }
@@ -119,10 +163,16 @@ class TaskCenter(
                     (size - f.local.downloadedSize).coerceAtLeast(0)
                 }
                 // Los archivos comprimidos necesitan además sitio para extraerse.
-                val extra = if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L
+                val extra = (if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L) +
+                    // Al pasarlo a /TopPorts se copia parte a parte: hace falta sitio para la mayor.
+                    pkg.parts.maxOf { it.size }
                 val free = Storage.freeBytes(context.filesDir)
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
 
+                val dir = Storage.gameDir(context, game.title)
+                installs.addPendingSave(
+                    InstallRegistry.PendingSave(pkg.key, game.id, dir.path, pkg.parts.map { it.id to it.name }),
+                )
                 _downloadNames.update { names -> names + pkg.parts.associate { it.id to it.name } }
                 pkg.parts.forEach { tg.startDownload(it.id) }
                 WorkService.start(context)
@@ -137,7 +187,12 @@ class TaskCenter(
     }
 
     fun deleteDownload(pkg: GamePackage) {
-        scope.launch { pkg.parts.forEach { tg.deleteFile(it.id) } }
+        installs.removePendingSave(pkg.key)
+        scope.launch {
+            pkg.parts.forEach { tg.deleteFile(it.id) }
+            withContext(Dispatchers.IO) { savedFiles(pkg)?.forEach { it.second.delete() } }
+            installs.forgetSaved(pkg.key)
+        }
     }
 
     // --- Instalar desde la tienda ---
@@ -145,11 +200,7 @@ class TaskCenter(
     /** [dest]: carpeta donde extraer o guardar (raíz de la memoria o /TopPorts/<juego>). */
     fun installPackage(game: Game, pkg: GamePackage, dest: File) {
         launchTask(game.title) { taskId, password ->
-            val parts = pkg.parts.map { part ->
-                val f = tg.refreshFile(part.id)
-                if (!f.local.isDownloadingCompleted) throw IOException("Falta descargar ${part.name}")
-                part.name to File(f.local.path)
-            }
+            val parts = localParts(pkg)
             when (pkg.kind) {
                 PackageKind.APK -> {
                     val source = if (parts.size == 1) ApkInstaller.fromFile(parts[0].second)
@@ -165,7 +216,7 @@ class TaskCenter(
                 PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> {
                     extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password, game, pkg)
                 }
-                PackageKind.OTHER -> saveParts(taskId, game, pkg, parts, dest)
+                PackageKind.OTHER -> saveParts(taskId, game.id, pkg.key, pkg.parts.map { it.id }, parts, dest)
             }
         }
     }
@@ -176,34 +227,42 @@ class TaskCenter(
      */
     fun savePackage(game: Game, pkg: GamePackage, dest: File) {
         launchTask(game.title) { taskId, _ ->
-            val parts = pkg.parts.map { part ->
-                val f = tg.refreshFile(part.id)
-                if (!f.local.isDownloadingCompleted) throw IOException("Falta descargar ${part.name}")
-                part.name to File(f.local.path)
-            }
-            saveParts(taskId, game, pkg, parts, dest)
+            saveParts(taskId, game.id, pkg.key, pkg.parts.map { it.id }, localParts(pkg), dest)
         }
     }
 
-    private suspend fun saveParts(taskId: Int, game: Game, pkg: GamePackage, parts: List<Pair<String, File>>, dest: File) {
+    /**
+     * Pone las partes en [dest] (moviéndolas si se puede, si no copiándolas) y borra la copia de la
+     * caché de Telegram para no ocupar el doble.
+     */
+    private suspend fun saveParts(
+        taskId: Int,
+        gameId: Long,
+        pkgKey: String,
+        fileIds: List<Int>,
+        parts: List<Pair<String, File>>,
+        dest: File,
+    ) {
         dest.mkdirs()
-        val needed = parts.sumOf { it.second.length() }
-        val free = Storage.freeBytes(dest)
-        if (needed > free) throw NotEnoughSpaceException(needed, free)
         val saved = parts.map { (name, file) ->
             val target = File(dest, name)
-            try {
-                copyWithProgress(taskId, file, target)
-            } catch (e: Exception) {
-                // No dejar un archivo a medias si se cancela o falla la copia.
-                target.delete()
-                throw e
+            if (file.canonicalPath != target.canonicalPath && !file.renameTo(target)) {
+                val free = Storage.freeBytes(dest)
+                if (file.length() > free) throw NotEnoughSpaceException(file.length(), free)
+                try {
+                    copyWithProgress(taskId, file, target)
+                } catch (e: Exception) {
+                    // No dejar un archivo a medias si se cancela o falla la copia.
+                    target.delete()
+                    throw e
+                }
+                file.delete()
             }
             target
         }
-        installs.recordExtracted(game.id, saved.filter { Storage.isSafeToDelete(it) }.map { it.path })
-        installs.recordSaved(pkg.key, dest.path)
-        pkg.parts.forEach { runCatching { tg.deleteFile(it.id) } }
+        installs.recordExtracted(gameId, saved.filter { Storage.isSafeToDelete(it) }.map { it.path })
+        installs.recordSaved(pkgKey, dest.path)
+        fileIds.forEach { runCatching { tg.deleteFile(it) } }
         val names = saved.joinToString("\n") { it.name }
         finish(taskId, "Guardado en ${dest.path}:\n$names", dest.path)
     }
