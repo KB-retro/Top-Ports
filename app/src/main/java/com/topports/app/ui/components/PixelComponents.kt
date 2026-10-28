@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -378,3 +379,21 @@ fun Modifier.pixelCard(
             onClick = onClick,
         )
 }
+
+/**
+ * Barra de desplazamiento pixel a la derecha de una zona con scroll. Va antes de
+ * `verticalScroll(scroll)` para dibujarse sobre el área visible.
+ */
+fun Modifier.pixelScrollbar(scroll: androidx.compose.foundation.ScrollState, color: Color = Px.blue): Modifier =
+    drawWithContent {
+        drawContent()
+        val max = scroll.maxValue
+        if (max <= 0 || max == Int.MAX_VALUE) return@drawWithContent
+        val w = 4.dp.toPx()
+        val x = size.width - w
+        val visible = size.height / (size.height + max)
+        val thumb = (size.height * visible).coerceAtLeast(16.dp.toPx())
+        val y = (size.height - thumb) * scroll.value / max
+        drawRect(Px.navyDark, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Size(w, size.height))
+        drawRect(color, androidx.compose.ui.geometry.Offset(x, y), androidx.compose.ui.geometry.Size(w, thumb))
+    }

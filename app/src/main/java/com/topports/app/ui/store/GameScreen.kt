@@ -48,6 +48,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.topports.app.ui.components.pixelScrollbar
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.withFrameNanos
 import kotlin.math.abs
@@ -199,16 +204,36 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         )
         Spacer(Modifier.height(10.dp))
     }
+    // Columna con los archivos: al seleccionar uno con el mando se ve entero, y con el último
+    // se baja hasta el final para que quede claro que no hay más.
+    val listScroll = rememberScrollState()
+    val revealScope = rememberCoroutineScope()
+    val revealMargin = with(LocalDensity.current) { 16.dp.toPx() }
+    fun reveal(top: Float, bottom: Float, last: Boolean) {
+        revealScope.launch {
+            delay(30) // después del desplazamiento automático del foco
+            val view = listScroll.viewportSize.toFloat()
+            val target = when {
+                last -> listScroll.maxValue.toFloat()
+                bottom + revealMargin > listScroll.value + view -> bottom + revealMargin - view
+                top - revealMargin < listScroll.value -> top - revealMargin
+                else -> return@launch
+            }
+            listScroll.animateScrollTo(target.toInt().coerceIn(0, listScroll.maxValue))
+        }
+    }
+
     val downloads: @Composable () -> Unit = {
-        SectionTitle("Archivos")
+        SectionTitle("Archivos (${game.packages.size})")
         game.packages.forEachIndexed { index, pkg ->
-            PackageRow(vm, game, pkg, if (index == 0) primaryFocus else null)
+            val last = index == game.packages.lastIndex && game.videos.isEmpty()
+            PackageRow(vm, game, pkg, if (index == 0) primaryFocus else null) { top, bottom -> reveal(top, bottom, last) }
             Spacer(Modifier.height(10.dp))
         }
         if (game.videos.isNotEmpty()) {
             SectionTitle("Vídeos", Px.pink)
-            game.videos.forEach { video ->
-                VideoRow(vm, video)
+            game.videos.forEachIndexed { index, video ->
+                VideoRow(vm, video) { top, bottom -> reveal(top, bottom, index == game.videos.lastIndex) }
                 Spacer(Modifier.height(10.dp))
             }
         }
@@ -220,6 +245,13 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 style = PxText.small,
             )
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "— FIN —",
+            style = PxText.tiny.copy(color = Px.darkGrey),
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+        )
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -231,7 +263,9 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                     Modifier
                         .weight(if (game.description.isNotBlank()) 0.46f else 1f)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
+                        .pixelScrollbar(listScroll)
+                        .verticalScroll(listScroll)
+                        .padding(end = 10.dp),
                 ) {
                     topBar()
                     Spacer(Modifier.height(10.dp))
@@ -244,7 +278,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+            Column(Modifier.fillMaxSize().pixelScrollbar(listScroll).verticalScroll(listScroll).padding(12.dp)) {
                 topBar()
                 Spacer(Modifier.height(12.dp))
                 gallery()
@@ -335,7 +369,13 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifi
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: FocusRequester? = null) {
+private fun PackageRow(
+    vm: AppViewModel,
+    game: Game,
+    pkg: GamePackage,
+    focus: FocusRequester? = null,
+    onFocused: (top: Float, bottom: Float) -> Unit = { _, _ -> },
+) {
     val files by vm.files.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val info = vm.graph.tasks.downloadInfo(pkg, files)
@@ -351,8 +391,14 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
         if (vm.graph.tasks.savedFiles(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
     }
     val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
+    var bounds by remember { mutableStateOf(0f to 0f) }
 
-    PixelPanel(Modifier.fillMaxWidth()) {
+    PixelPanel(
+        Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { bounds = it.positionInParent().y to it.positionInParent().y + it.size.height }
+            .onFocusChanged { if (it.hasFocus) onFocused(bounds.first, bounds.second) },
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PixelTag(tag, color)
@@ -383,30 +429,37 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
             }
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                when {
-                    moving -> Unit
-                    info.complete -> {
-                        val action = when (pkg.kind) {
-                            PackageKind.APK -> "Instalar"
-                            PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> "Extraer e instalar"
-                            PackageKind.OBB -> "Copiar OBB"
-                            PackageKind.OTHER -> "Guardar"
+                // Un único botón principal que cambia de texto (Descargar → Pausar → Instalar…):
+                // así el mando no pierde la selección al cambiar el estado.
+                val (label, mainColor) = when {
+                    moving -> "Moviendo…" to Px.grey
+                    info.complete -> when (pkg.kind) {
+                        PackageKind.APK -> "Instalar"
+                        PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> "Extraer e instalar"
+                        PackageKind.OBB -> "Copiar OBB"
+                        PackageKind.OTHER -> "Guardar"
+                    } to Px.green
+                    info.active -> "Pausar" to Px.yellow
+                    info.started -> "Continuar" to Px.orange
+                    else -> "Descargar" to Px.orange
+                }
+                PixelButton(label, onClick = {
+                    when {
+                        moving -> Unit
+                        info.complete -> if (pkg.kind == PackageKind.APK || pkg.kind == PackageKind.OBB) {
+                            startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
+                        } else {
+                            chooseDest = true
                         }
-                        PixelButton(action, onClick = {
-                            if (pkg.kind == PackageKind.APK || pkg.kind == PackageKind.OBB) {
-                                startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
-                            } else {
-                                chooseDest = true
-                            }
-                        }, color = Px.green, small = true, modifier = primary)
-                        // Hay ports cuyo lanzador carga el .zip/.7z directamente: guardarlo sin extraer.
-                        if (savedDir == null && (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE)) {
-                            PixelButton("Guardar sin extraer", onClick = { chooseSaveDest = true }, color = Px.blue, small = true)
-                        }
+                        info.active -> vm.graph.tasks.pause(pkg)
+                        else -> download(vm, context, game, pkg)
                     }
-                    info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true, modifier = primary)
-                    info.started -> PixelButton("Continuar", onClick = { download(vm, context, game, pkg) }, small = true, modifier = primary)
-                    else -> PixelButton("Descargar", onClick = { download(vm, context, game, pkg) }, small = true, modifier = primary)
+                }, color = mainColor, small = true, modifier = primary)
+                // Hay ports cuyo lanzador carga el .zip/.7z directamente: guardarlo sin extraer.
+                if (info.complete && !moving && savedDir == null &&
+                    (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE)
+                ) {
+                    PixelButton("Guardar sin extraer", onClick = { chooseSaveDest = true }, color = Px.blue, small = true)
                 }
                 if ((info.started || info.complete) && !moving) {
                     PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)
@@ -441,14 +494,20 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
 
 /** Vídeo del post (tutorial): se descarga de Telegram y se abre con el reproductor del móvil. */
 @Composable
-private fun VideoRow(vm: AppViewModel, video: VideoRef) {
+private fun VideoRow(vm: AppViewModel, video: VideoRef, onFocused: (top: Float, bottom: Float) -> Unit = { _, _ -> }) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val files by vm.files.collectAsStateWithLifecycle()
     var loading by remember { mutableStateOf(false) }
     var playingPath by remember { mutableStateOf<String?>(null) }
     val file = files[video.fileId]
-    PixelPanel(Modifier.fillMaxWidth()) {
+    var bounds by remember { mutableStateOf(0f to 0f) }
+    PixelPanel(
+        Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { bounds = it.positionInParent().y to it.positionInParent().y + it.size.height }
+            .onFocusChanged { if (it.hasFocus) onFocused(bounds.first, bounds.second) },
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(width = 96.dp, height = 56.dp).background(Px.black)) {
                 video.thumbFileId?.let { TdImage(it, Modifier.fillMaxSize()) }
