@@ -161,7 +161,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                             .size(width = 260.dp, height = 150.dp)
                             .pixelCard(onClick = { zoomed = image.fullFileId }, fill = Px.black),
                     ) {
-                        CoverImage(image.thumbFileId, Modifier.fillMaxSize())
+                        TdImage(image.thumbFileId, Modifier.fillMaxSize())
                     }
                 }
             }
