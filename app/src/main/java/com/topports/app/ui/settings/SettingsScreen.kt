@@ -237,7 +237,7 @@ fun SettingsScreen(vm: AppViewModel) {
                     }
                     Text(
                         "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} inicio · " +
-                            "L1/R1 fila o texto · L2/R2 pestaña · Y buscar · X ordenar",
+                            "L1/R1 fila o texto · stick derecho texto · L2/R2 pestaña · Y buscar · X ordenar · SELECT sistema",
                         style = PxText.small,
                     )
                 }

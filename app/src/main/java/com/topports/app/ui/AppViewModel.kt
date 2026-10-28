@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -112,6 +113,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun scrollDescription(dir: Int) {
         descriptionJump = dir to System.nanoTime()
     }
+
+    /** Joystick derecho con un juego abierto: -1 arriba … 1 abajo (0 = suelto). */
+    var descriptionStick by mutableFloatStateOf(0f)
 
     /** Posición de la cuadrícula de la tienda (se conserva al entrar y salir de una ficha). */
     val catalogGrid = LazyGridState()

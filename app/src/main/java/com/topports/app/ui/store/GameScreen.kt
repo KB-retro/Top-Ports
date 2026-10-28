@@ -48,6 +48,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.withFrameNanos
+import kotlin.math.abs
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -163,6 +166,20 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     // La descripción tiene su propio desplazamiento: L1/R1 (o la cruceta sobre ella) la mueven.
     val descScroll = rememberScrollState()
     val pageStep = with(LocalDensity.current) { 140.dp.toPx() }
+    // Joystick derecho: desplazamiento continuo, más rápido cuanto más se empuja.
+    val stickSpeed = with(LocalDensity.current) { 900.dp.toPx() }
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            withFrameNanos { now ->
+                val dt = if (last == 0L) 0f else (now - last) / 1_000_000_000f
+                last = now
+                val v = vm.descriptionStick
+                if (v != 0f) descScroll.dispatchRawDelta(v * abs(v) * stickSpeed * dt)
+            }
+        }
+    }
+    DisposableEffect(Unit) { onDispose { vm.descriptionStick = 0f } }
     LaunchedEffect(vm.descriptionJump) {
         val (dir, _) = vm.descriptionJump ?: return@LaunchedEffect
         descScroll.animateScrollBy(dir * pageStep, tween(180, easing = LinearEasing))
@@ -307,7 +324,7 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifi
             }
             if (scroll.canScrollForward) {
                 Text(
-                    "▼ MÁS (R1)",
+                    "▼ MÁS (R1 / STICK)",
                     style = PxText.tiny.copy(color = Px.yellow),
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 6.dp),
                 )
