@@ -213,7 +213,7 @@ private fun MainScreen(vm: AppViewModel) {
     // Aviso de novedades del canal: una vez por aviso nuevo (o a mano desde Ajustes → Versión).
     catalogState.announcement?.let { announcement ->
         if (announcement.id > vm.seenAnnouncementId || vm.announcementOpen) {
-            AnnouncementDialog(vm, announcement, catalogState.games)
+            AnnouncementDialog(vm, announcement)
         }
     }
 }
