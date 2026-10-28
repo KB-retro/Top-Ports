@@ -45,6 +45,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImagePainter
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.Image
 import com.topports.app.TopPortsApp
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.ui.AppViewModel
@@ -262,7 +268,7 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Px.black)) {
             val image = game.images.firstOrNull()
             if (image != null) {
-                TdImage(image.thumbFileId, Modifier.fillMaxSize())
+                CoverImage(image.thumbFileId, Modifier.fillMaxSize())
             } else {
                 Text("?", style = PxText.title.copy(color = Px.darkGrey), modifier = Modifier.align(Alignment.Center))
             }
@@ -347,6 +353,39 @@ fun kindTag(name: String, kind: PackageKind): Pair<String, Color> = when (kind) 
 }
 
 /** Imagen de Telegram: se descarga con TDLib y se muestra con Coil. */
+/**
+ * Carátula en un hueco horizontal. Las imágenes apaisadas lo llenan (recortando poco); las
+ * verticales o cuadradas se ven enteras sobre una copia ampliada y oscurecida de sí mismas
+ * (desenfocada en Android 12+), así todas las tarjetas quedan iguales sin cortar la carátula.
+ */
+@Composable
+fun CoverImage(fileId: Int, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val path by produceState<String?>(null, fileId) {
+        val graph = (context.applicationContext as TopPortsApp).graph
+        value = runCatching { graph.telegram.downloadNow(fileId) }.getOrNull()
+    }
+    Box(modifier.background(Px.navyDark).clipToBounds()) {
+        val current = path ?: return@Box
+        val painter = rememberAsyncImagePainter(File(current))
+        val size = (painter.state as? AsyncImagePainter.State.Success)?.painter?.intrinsicSize
+        val ratio = size?.takeIf { it.height > 0f }?.let { it.width / it.height }
+        val fills = ratio != null && ratio >= 1.45f
+        if (!fills) {
+            Image(
+                painter, null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize().blur(14.dp).alpha(0.4f),
+            )
+        }
+        Image(
+            painter, null,
+            contentScale = if (fills) ContentScale.Crop else ContentScale.Fit,
+            modifier = Modifier.matchParentSize(),
+        )
+    }
+}
+
 @Composable
 fun TdImage(fileId: Int, modifier: Modifier = Modifier, contentScale: ContentScale = ContentScale.Crop) {
     val context = LocalContext.current

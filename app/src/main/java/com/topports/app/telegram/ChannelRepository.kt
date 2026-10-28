@@ -214,6 +214,7 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
 private fun TdApi.Photo.toRef(): PhotoRef? {
     val sorted = sizes.sortedBy { it.width }
     if (sorted.isEmpty()) return null
-    val thumb = sorted.firstOrNull { it.width >= 320 } ?: sorted.last()
+    // ~800 px: nítida en las tarjetas grandes de la tienda sin bajar la foto original.
+    val thumb = sorted.firstOrNull { it.width >= 600 } ?: sorted.last()
     return PhotoRef(thumbFileId = thumb.photo.id, fullFileId = sorted.last().photo.id)
 }

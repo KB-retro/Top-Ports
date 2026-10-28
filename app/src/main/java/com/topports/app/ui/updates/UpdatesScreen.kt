@@ -28,7 +28,7 @@ import com.topports.app.ui.Tab
 import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.SectionTitle
-import com.topports.app.ui.store.TdImage
+import com.topports.app.ui.store.CoverImage
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
@@ -67,7 +67,7 @@ fun UpdatesScreen(vm: AppViewModel) {
             PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(width = 96.dp, height = 54.dp).background(Px.black)) {
-                        update.game.images.firstOrNull()?.let { TdImage(it.thumbFileId, Modifier.fillMaxSize()) }
+                        update.game.images.firstOrNull()?.let { CoverImage(it.thumbFileId, Modifier.fillMaxSize()) }
                     }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
