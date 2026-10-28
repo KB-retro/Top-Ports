@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.topports.app.BuildConfig
+import com.topports.app.storage.Storage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -71,11 +72,44 @@ class TelegramClient(private val context: Context) {
         }
     }
 
+    /** Carpeta donde TDLib guarda las descargas (y la caché de imágenes). */
+    @Volatile
+    var filesDir: File = File(context.filesDir, "tdlib-files")
+        private set
+
+    /**
+     * Con permiso de archivos, las descargas van a /TopPorts/.telegram, en la misma memoria que las
+     * carpetas de los juegos: al terminar, el archivo se mueve (renombrar) sin copiarlo ni escribirlo
+     * otra vez. Sin permiso, a la carpeta privada de la app.
+     */
+    private fun chooseFilesDir(): File {
+        if (Storage.hasAllFilesAccess(context)) {
+            val dir = File(Storage.externalRoot, "TopPorts/.telegram")
+            if (dir.isDirectory || dir.mkdirs()) {
+                // Que la galería no muestre las carátulas y vídeos de la caché.
+                runCatching { File(dir, ".nomedia").createNewFile() }
+                return dir
+            }
+        }
+        return File(context.filesDir, "tdlib-files")
+    }
+
+    /**
+     * Tras dar el permiso de archivos: reinicia TDLib (la sesión se conserva) para que las
+     * descargas vayan ya a /TopPorts/.telegram. No se hace con descargas en marcha.
+     */
+    fun applyStorageLocation() {
+        if (_authState.value !is TdApi.AuthorizationStateReady) return
+        if (chooseFilesDir() == filesDir) return
+        if (_files.value.values.any { it.local.isDownloadingActive }) return
+        client?.send(TdApi.Close(), Client.ResultHandler { })
+    }
+
     private fun sendParameters() {
         val params = TdApi.SetTdlibParameters().apply {
             useTestDc = false
             databaseDirectory = File(context.filesDir, "tdlib").absolutePath
-            filesDirectory = File(context.filesDir, "tdlib-files").absolutePath
+            filesDirectory = chooseFilesDir().also { filesDir = it }.absolutePath
             databaseEncryptionKey = ByteArray(0)
             useFileDatabase = true
             useChatInfoDatabase = true

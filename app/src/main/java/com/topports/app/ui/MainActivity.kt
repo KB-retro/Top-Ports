@@ -37,6 +37,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Al volver de dar el permiso de archivos, las descargas pasan a /TopPorts/.telegram.
+        vm.graph.telegram.applyStorageLocation()
+    }
+
     /**
      * Mandos de consolas Android (Odin, Anbernic, Retroid…):
      * A = aceptar, B = atrás, L1/R1 = fila arriba/abajo, L2/R2 = cambiar de pestaña, Y = buscar,

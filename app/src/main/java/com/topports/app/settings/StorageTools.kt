@@ -9,11 +9,15 @@ import java.io.File
 /** Espacio que ocupa la app y limpieza de caché y restos de descargas. */
 class StorageTools(private val context: Context, private val tg: TelegramClient) {
 
-    private val tdFiles get() = File(context.filesDir, "tdlib-files")
+    private val tdFiles get() = tg.filesDir
+
+    /** Carpeta privada que usaba TDLib antes de tener permiso de archivos (puede quedar caché). */
+    private val tdFilesDirs get() = listOf(File(context.filesDir, "tdlib-files"), tg.filesDir).distinct()
 
     /** Carpetas de TDLib con imágenes y vídeos que se pueden volver a descargar. */
-    private val cacheDirs get() = listOf("photos", "thumbnails", "videos", "profile_photos", "animations")
-        .map { File(tdFiles, it) } + context.cacheDir
+    private val cacheDirs get() = tdFilesDirs.flatMap { dir ->
+        listOf("photos", "thumbnails", "videos", "profile_photos", "animations").map { File(dir, it) }
+    } + context.cacheDir
 
     data class Usage(val downloads: Long, val cache: Long, val partial: Long)
 
@@ -24,7 +28,7 @@ class StorageTools(private val context: Context, private val tg: TelegramClient)
 
     suspend fun usage(): Usage = withContext(Dispatchers.IO) {
         Usage(
-            downloads = sizeOf(File(tdFiles, "documents")),
+            downloads = tdFilesDirs.sumOf { sizeOf(File(it, "documents")) },
             cache = cacheDirs.sumOf { sizeOf(it) },
             partial = sizeOf(File(tdFiles, "temp")),
         )
@@ -64,7 +68,7 @@ class StorageTools(private val context: Context, private val tg: TelegramClient)
         tg.files.value.values.filter { it.local.isDownloadingCompleted || it.local.downloadedSize > 0 }
             .forEach { tg.deleteFile(it.id) }
         return withContext(Dispatchers.IO) {
-            clearContents(File(tdFiles, "documents")) + clearContents(File(tdFiles, "temp"))
+            tdFilesDirs.sumOf { clearContents(File(it, "documents")) + clearContents(File(it, "temp")) }
         }
     }
 

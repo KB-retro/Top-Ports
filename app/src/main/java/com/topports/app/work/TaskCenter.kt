@@ -163,10 +163,12 @@ class TaskCenter(
                     (size - f.local.downloadedSize).coerceAtLeast(0)
                 }
                 // Los archivos comprimidos necesitan además sitio para extraerse.
+                // Si TDLib descarga en la memoria privada, al pasarlo a /TopPorts se copia parte a
+                // parte: hace falta sitio para la mayor. En /TopPorts/.telegram solo se renombra.
+                val copyNeeded = tg.filesDir.startsWith(context.filesDir)
                 val extra = (if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L) +
-                    // Al pasarlo a /TopPorts se copia parte a parte: hace falta sitio para la mayor.
-                    pkg.parts.maxOf { it.size }
-                val free = Storage.freeBytes(context.filesDir)
+                    (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
+                val free = Storage.freeBytes(tg.filesDir)
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
 
                 val dir = Storage.gameDir(context, game.title)
