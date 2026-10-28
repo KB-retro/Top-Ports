@@ -181,6 +181,25 @@ class CatalogBuilderTest {
     }
 
     @Test
+    fun updatedTracksLaterFilesNoticesAndEdits() {
+        val day = 86_400
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(1, 100, text = "Juego A", photo = photo(1)),
+                ChannelMessage(2, 110, document = doc(5, "a-v1.apk")),
+                ChannelMessage(3, 200, text = "Juego B", photo = photo(2), editDate = 5 * day),
+                ChannelMessage(4, 210, document = doc(6, "b.apk")),
+                // Aviso suelto días después: cuenta como actividad de B.
+                ChannelMessage(5, 3 * day, text = "Actualizado a v1.1"),
+            ),
+        )
+        val (b, a) = games
+        assertEquals(110, a.updated)
+        assertEquals(5 * day, b.updated)
+        assertEquals(200, b.date)
+    }
+
+    @Test
     fun fileOnlyPostUsesFileNameAsTitle() {
         val games = CatalogBuilder.build(listOf(ChannelMessage(1, 100, document = doc(1, "Doom 3.zip"))))
         assertEquals("Doom 3", games.single().title)

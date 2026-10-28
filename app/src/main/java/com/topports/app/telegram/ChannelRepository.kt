@@ -209,6 +209,7 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
     return ChannelMessage(
         id = id,
         date = date,
+        editDate = editDate,
         albumId = mediaAlbumId,
         text = text,
         photo = photo,

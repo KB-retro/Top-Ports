@@ -30,6 +30,8 @@ data class ChannelMessage(
     val photo: PhotoRef? = null,
     val document: RemoteFile? = null,
     val video: VideoRef? = null,
+    /** Última edición del mensaje en Telegram (0 si no se ha editado). */
+    val editDate: Int = 0,
 )
 
 enum class PackageKind {
@@ -72,6 +74,11 @@ data class Game(
     val videos: List<VideoRef> = emptyList(),
     /** Etiquetas del post sin la almohadilla y en mayúsculas ("N64", "X360"). */
     val tags: List<String> = emptyList(),
+    /**
+     * Última actividad del juego: archivos o avisos añadidos después y ediciones del post
+     * (p. ej. al cambiar el APK por una versión nueva). Igual a [date] si no ha cambiado.
+     */
+    val updated: Int = date,
 ) {
     val size: Long get() = packages.sumOf { it.size }
 }

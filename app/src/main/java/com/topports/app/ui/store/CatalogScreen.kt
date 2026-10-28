@@ -92,6 +92,8 @@ fun CatalogScreen(vm: AppViewModel) {
         val collator = Collator.getInstance(Locale("es", "ES")).apply { strength = Collator.PRIMARY }
         when (vm.sortMode) {
             SortMode.NEWEST -> found.sortedByDescending { it.id }
+            // Última actividad: archivos añadidos después, avisos y ediciones del post.
+            SortMode.UPDATED -> found.sortedWith(compareByDescending<Game> { it.updated }.thenByDescending { it.id })
             SortMode.ALPHABETICAL -> found.sortedWith { a, b -> collator.compare(a.title, b.title) }
             // Agrupados por su primera etiqueta; los que no tienen ninguna, al final.
             SortMode.SYSTEM -> found.sortedWith(
@@ -320,6 +322,7 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
                 Text("?", style = PxText.title.copy(color = Px.darkGrey), modifier = Modifier.align(Alignment.Center))
             }
             if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
+            if (recentlyUpdated(game)) PixelTag("ACTUALIZADO", Px.yellow, Modifier.align(Alignment.TopStart).padding(4.dp))
         }
         Spacer(Modifier.height(6.dp))
         // Etiquetas de sistema junto al título; la fila ocupa siempre lo mismo para que las
@@ -343,6 +346,12 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
             Text(FileNames.formatSize(game.size), style = PxText.small, maxLines = 1)
         }
     }
+}
+
+/** Actualizado (no solo publicado) en las dos últimas semanas. */
+fun recentlyUpdated(game: Game): Boolean {
+    val now = System.currentTimeMillis() / 1000
+    return game.updated - game.date > 86_400 && now - game.updated < 14 * 86_400
 }
 
 /** Etiqueta de sistema ("#N64"), con un color fijo para cada sistema. */

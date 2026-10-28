@@ -55,6 +55,12 @@ class TelegramClient(private val context: Context) {
             is TdApi.UpdateAuthorizationState -> onAuthorizationState(update.authorizationState)
             is TdApi.UpdateFile -> rememberFile(update.file)
             is TdApi.UpdateNewMessage -> _newMessages.tryEmit(update.message)
+            // Post editado (texto o archivo cambiado): se vuelve a leer y se trata como nuevo,
+            // así el catálogo se entera de las actualizaciones al momento.
+            is TdApi.UpdateMessageEdited -> client?.send(
+                TdApi.GetMessage(update.chatId, update.messageId),
+                Client.ResultHandler { result -> if (result is TdApi.Message) _newMessages.tryEmit(result) },
+            )
         }
     }
 
