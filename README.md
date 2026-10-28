@@ -81,6 +81,13 @@ queda en caché y cada build tarda unos minutos.
 > El canal configurado por defecto es `4399047221` (chat `-1004399047221`). Se cambia con la
 > variable `TOPPORTS_CHANNEL_ID`.
 
+## Actualizar la app desde la propia app
+
+Sube al canal el APK que genera Actions **sin cambiarle el nombre** (`TopPorts-0.1.N.apk`).
+La app lo reconoce por el nombre, no lo muestra como un juego y, si es más nuevo que la versión
+instalada, marca la pestaña **Ajustes** y ofrece **Ajustes → Versión → Actualizar**. Se instala
+encima sin perder nada porque todas las versiones van firmadas con la misma clave.
+
 ## Compilar en local
 
 ```bash

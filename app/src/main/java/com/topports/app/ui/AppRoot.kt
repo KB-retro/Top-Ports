@@ -94,6 +94,7 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
 private fun MainScreen(vm: AppViewModel) {
     val tasks by vm.tasks.collectAsStateWithLifecycle()
     val updates by vm.updates.collectAsStateWithLifecycle()
+    val catalogState by vm.catalog.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { vm.loadCatalogIfNeeded() }
     // Atrás (o B): cerrar la ficha, volver a la pestaña anterior y, en la tienda, pedir
@@ -136,6 +137,8 @@ private fun MainScreen(vm: AppViewModel) {
         val running = when (tab) {
             Tab.TASKS -> tasks.count { it.running }
             Tab.UPDATES -> updates.size
+            // Versión nueva de la propia app: se avisa en Ajustes.
+            Tab.SETTINGS -> if (catalogState.appUpdate != null) 1 else 0
             else -> 0
         }
         PixelButton(
@@ -147,10 +150,10 @@ private fun MainScreen(vm: AppViewModel) {
             // Con actualizaciones pendientes, la pestaña se marca en verde.
             color = when {
                 vm.tab == tab -> Px.orange
-                tab == Tab.UPDATES && running > 0 -> Px.green
+                (tab == Tab.UPDATES || tab == Tab.SETTINGS) && running > 0 -> Px.green
                 else -> Px.navyDark
             },
-            textColor = if (vm.tab == tab || (tab == Tab.UPDATES && running > 0)) Px.black else Px.grey,
+            textColor = if (vm.tab == tab || ((tab == Tab.UPDATES || tab == Tab.SETTINGS) && running > 0)) Px.black else Px.grey,
             small = true,
             modifier = modifier,
         )

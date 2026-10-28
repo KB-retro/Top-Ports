@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import com.topports.core.AppRelease
+import com.topports.core.SelfUpdate
 
 data class CatalogState(
     val games: List<Game> = emptyList(),
@@ -25,6 +27,8 @@ data class CatalogState(
     val channelTitle: String = "",
     val chatId: Long = 0,
     val error: String? = null,
+    /** APK de Top Ports más nuevo que el instalado, si se ha publicado en el canal. */
+    val appUpdate: AppRelease? = null,
 )
 
 class ChannelNotAccessibleException : Exception(
@@ -101,8 +105,10 @@ class ChannelRepository(
 
     private fun publish() {
         val snapshot = synchronized(messages) { messages.values.toList() }
-        val games = CatalogBuilder.build(snapshot)
-        _state.update { it.copy(games = games, scannedMessages = snapshot.size) }
+        // Los APK de la propia tienda no son juegos: se ofrecen en Ajustes como actualización.
+        val games = CatalogBuilder.build(snapshot.filterNot(SelfUpdate::isAppRelease))
+        val appUpdate = SelfUpdate.newest(snapshot, BuildConfig.VERSION_NAME)
+        _state.update { it.copy(games = games, scannedMessages = snapshot.size, appUpdate = appUpdate) }
     }
 
     private suspend fun resolveChat(): TdApi.Chat {

@@ -20,7 +20,7 @@ enum class Tab(val label: String) {
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Tema"), GAMEPAD("Mando"),
+    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Tema"), GAMEPAD("Mando"),
     ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
 }
 
@@ -86,7 +86,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Sección abierta en Ajustes (se conserva al cambiar de pestaña). */
-    var settingsSection by mutableStateOf(SettingsSection.PERMISSIONS)
+    var settingsSection by mutableStateOf(SettingsSection.VERSION)
 
     /** Intercambiar A y B (mandos con distribución Nintendo). */
     var swapAB by mutableStateOf(Gamepad.swapAB)

@@ -110,16 +110,53 @@ fun SettingsScreen(vm: AppViewModel) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsSection.entries.forEach { section ->
                     val selected = vm.settingsSection == section
+                    // Con una versión nueva de la app, la sección Versión se marca en verde.
+                    val highlight = section == SettingsSection.VERSION && catalog.appUpdate != null
                     PixelButton(
-                        section.label,
+                        if (highlight) "${section.label} nueva" else section.label,
                         onClick = { vm.settingsSection = section },
-                        color = if (selected) Px.orange else Px.navyDark,
-                        textColor = if (selected) Px.black else Px.grey,
+                        color = when {
+                            selected -> Px.orange
+                            highlight -> Px.green
+                            else -> Px.navyDark
+                        },
+                        textColor = if (selected || highlight) Px.black else Px.grey,
                         small = true,
                     )
                 }
             }
         }
+        // --- Versión ---
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item { SectionTitle("Versión de Top Ports", Px.green) }
+            item {
+                val update = catalog.appUpdate
+                PixelPanel(Modifier.fillMaxWidth(), border = if (update != null) Px.green else Px.white) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Instalada: ${BuildConfig.VERSION_NAME}", style = PxText.body)
+                        if (update != null) {
+                            Text(
+                                "Nueva versión en el canal: ${update.version} (${FileNames.formatSize(update.file.size)})",
+                                style = PxText.body.copy(color = Px.green),
+                            )
+                            Text("Se instala encima sin perder la sesión, las descargas ni los ajustes.", style = PxText.small)
+                            PixelButton("Actualizar a ${update.version}", onClick = {
+                                vm.graph.tasks.updateApp(update)
+                                toast("Mira el progreso en TAREAS")
+                            }, color = Px.green, small = true)
+                        } else {
+                            Text(
+                                if (catalog.loading) "Comprobando el canal…" else "Tienes la última versión.",
+                                style = PxText.small,
+                            )
+                            PixelButton("Comprobar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true,
+                                enabled = !catalog.loading)
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Permisos ---
         if (vm.settingsSection == SettingsSection.PERMISSIONS) {
             item { SectionTitle("Permisos", Px.yellow) }

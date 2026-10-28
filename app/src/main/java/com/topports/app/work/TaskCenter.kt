@@ -9,6 +9,7 @@ import com.topports.app.archive.VolumeSet
 import com.topports.app.install.ApkInstaller
 import com.topports.app.storage.Storage
 import com.topports.app.telegram.TelegramClient
+import com.topports.core.AppRelease
 import com.topports.core.FileNames
 import com.topports.core.Game
 import com.topports.core.GamePackage
@@ -267,6 +268,19 @@ class TaskCenter(
         fileIds.forEach { runCatching { tg.deleteFile(it) } }
         val names = saved.joinToString("\n") { it.name }
         finish(taskId, "Guardado en ${dest.path}:\n$names", dest.path)
+    }
+
+    /** Descarga el APK nuevo de Top Ports del canal y lo instala encima (misma firma: no se pierde nada). */
+    fun updateApp(release: AppRelease) {
+        launchTask("Top Ports ${release.version}") { taskId, _ ->
+            update(taskId, "Descargando ${release.file.name}", null)
+            val path = tg.downloadNow(release.file.id, priority = 32)
+                ?: throw IOException("No se pudo descargar ${release.file.name}")
+            installApks(taskId, listOf(ApkInstaller.fromFile(File(path))))
+            // El instalador ya tiene su copia: no hace falta guardar el APK.
+            runCatching { tg.deleteFile(release.file.id) }
+            finish(taskId, "Instalación lanzada. Acepta el aviso de Android; la app se reiniciará.")
+        }
     }
 
     // --- Explorador de archivos ---
