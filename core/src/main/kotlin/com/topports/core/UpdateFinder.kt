@@ -31,7 +31,9 @@ data class UpdateItem(
 
 object UpdateFinder {
 
-    private val versionRegex = Regex("""(?i)v?(\d+(?:[._]\d+)+)""")
+    // La versión no puede ir pegada a letras ni a otros números: en "bigodao_arm64.1.1.1" es
+    // 1.1.1, no 64.1.1.1 (el 64 es de "arm64").
+    private val versionRegex = Regex("""(?i)(?<![\p{L}\d])v?(\d+(?:[._]\d+)+)""")
     private val looseWords = Regex("""(?i)android|port|apk|release|final|nativo|native""")
 
     /** "DW5-Android-v1.5.apk" → "1.5"; null si el nombre no lleva versión. */

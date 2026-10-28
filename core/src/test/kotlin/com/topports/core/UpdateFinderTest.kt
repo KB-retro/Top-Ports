@@ -21,6 +21,16 @@ class UpdateFinderTest {
         assertEquals(UpdateFinder.normalize("DW5-Android-v1.5.apk"), UpdateFinder.normalize("DW5-Android-v1.6.apk"))
         assertTrue(UpdateFinder.compareVersions("1.10", "1.9") > 0)
         assertEquals(0, UpdateFinder.compareVersions("2.0", "2.0.0"))
+        // Números pegados a letras (arm64, x86) no son parte de la versión.
+        assertEquals("1.1.1", UpdateFinder.version("bigodao_arm64.1.1.1.apk"))
+        assertEquals("2.0", UpdateFinder.version("Juego-x86_64-v2.0.apk"))
+    }
+
+    @Test
+    fun architectureInNameIsNotAVersion() {
+        val g = game(10, "Bigodao", 1 to "bigodao_arm64.1.1.1.apk")
+        val app = InstalledApp("com.bigodao", "Bigodao 1.1", "1.1")
+        assertTrue(UpdateFinder.find(listOf(app), listOf(g)).isEmpty())
     }
 
     @Test
