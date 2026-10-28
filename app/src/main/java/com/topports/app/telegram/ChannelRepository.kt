@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import com.topports.core.AppRelease
+import com.topports.core.Announcement
+import com.topports.core.Announcements
 import com.topports.core.SelfUpdate
 
 data class CatalogState(
@@ -29,6 +31,8 @@ data class CatalogState(
     val error: String? = null,
     /** APK de Top Ports más nuevo que el instalado, si se ha publicado en el canal. */
     val appUpdate: AppRelease? = null,
+    /** Último aviso de novedades ("ACTUALIZACIÓN DE PORTS") del canal. */
+    val announcement: Announcement? = null,
 )
 
 class ChannelNotAccessibleException : Exception(
@@ -105,10 +109,21 @@ class ChannelRepository(
 
     private fun publish() {
         val snapshot = synchronized(messages) { messages.values.toList() }
-        // Los APK de la propia tienda no son juegos: se ofrecen en Ajustes como actualización.
-        val games = CatalogBuilder.build(snapshot.filterNot(SelfUpdate::isAppRelease))
+        // Los APK de la propia tienda no son juegos (se ofrecen en Ajustes) y los avisos de
+        // novedades tampoco (se muestran una vez al abrir la app).
+        val gameMessages = snapshot.filterNot { SelfUpdate.isAppRelease(it) || Announcements.isAnnouncement(it) }
+        val announcements = Announcements.all(snapshot)
+        // Los ports que nombra un aviso cuentan como actualizados en su fecha.
+        val games = Announcements.applyTo(CatalogBuilder.build(gameMessages), announcements)
         val appUpdate = SelfUpdate.newest(snapshot, BuildConfig.VERSION_NAME)
-        _state.update { it.copy(games = games, scannedMessages = snapshot.size, appUpdate = appUpdate) }
+        _state.update {
+            it.copy(
+                games = games,
+                scannedMessages = snapshot.size,
+                appUpdate = appUpdate,
+                announcement = announcements.firstOrNull(),
+            )
+        }
     }
 
     private suspend fun resolveChat(): TdApi.Chat {

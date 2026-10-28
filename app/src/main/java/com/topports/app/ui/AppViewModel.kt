@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -85,6 +86,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setTheme(theme: AppTheme) {
         Px.theme = theme
         prefs.edit().putString("theme", theme.name).apply()
+    }
+
+    /** Último aviso de novedades ya visto: el popup solo sale con uno más nuevo. */
+    var seenAnnouncementId by mutableLongStateOf(prefs.getLong("seenAnnouncement", 0L))
+        private set
+
+    /** Abierto a mano desde Ajustes → Versión. */
+    var announcementOpen by mutableStateOf(false)
+
+    fun dismissAnnouncement(id: Long) {
+        announcementOpen = false
+        if (id > seenAnnouncementId) {
+            seenAnnouncementId = id
+            prefs.edit().putLong("seenAnnouncement", id).apply()
+        }
     }
 
     /** Sección abierta en Ajustes (se conserva al cambiar de pestaña). */

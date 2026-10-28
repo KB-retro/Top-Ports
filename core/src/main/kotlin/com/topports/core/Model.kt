@@ -75,8 +75,8 @@ data class Game(
     /** Etiquetas del post sin la almohadilla y en mayúsculas ("N64", "X360"). */
     val tags: List<String> = emptyList(),
     /**
-     * Última actividad del juego: archivos o avisos añadidos después y ediciones del post
-     * (p. ej. al cambiar el APK por una versión nueva). Igual a [date] si no ha cambiado.
+     * Última vez que cambiaron sus archivos (añadidos después o reemplazados al editar el post),
+     * o fecha del último aviso de "ACTUALIZACIÓN DE PORTS" que lo nombra. Igual a [date] si no.
      */
     val updated: Int = date,
 ) {

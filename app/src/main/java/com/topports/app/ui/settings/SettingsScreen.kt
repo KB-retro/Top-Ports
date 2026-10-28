@@ -152,6 +152,10 @@ fun SettingsScreen(vm: AppViewModel) {
                             PixelButton("Comprobar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true,
                                 enabled = !catalog.loading)
                         }
+                        if (catalog.announcement != null) {
+                            PixelButton("Ver últimas novedades del canal", onClick = { vm.announcementOpen = true },
+                                color = Px.yellow, small = true)
+                        }
                     }
                 }
             }

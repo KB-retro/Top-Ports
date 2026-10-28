@@ -51,6 +51,7 @@ import com.topports.app.ui.login.LoginFlow
 import com.topports.app.ui.login.MessageScreen
 import com.topports.app.ui.login.SplashScreen
 import com.topports.app.ui.login.TopPortsLogo
+import com.topports.app.ui.store.AnnouncementDialog
 import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
 import com.topports.app.ui.tasks.TasksScreen
@@ -206,6 +207,13 @@ private fun MainScreen(vm: AppViewModel) {
                     Tab.entries.forEach { tab -> tabButton(tab, Modifier) }
                 }
             }
+        }
+    }
+
+    // Aviso de novedades del canal: una vez por aviso nuevo (o a mano desde Ajustes → Versión).
+    catalogState.announcement?.let { announcement ->
+        if (announcement.id > vm.seenAnnouncementId || vm.announcementOpen) {
+            AnnouncementDialog(vm, announcement, catalogState.games)
         }
     }
 }

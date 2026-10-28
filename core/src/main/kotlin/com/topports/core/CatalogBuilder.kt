@@ -31,11 +31,12 @@ object CatalogBuilder {
         val date = first.date
         var lastDate = first.date
         var lastAlbumId = 0L
-        /** Última actividad: mensajes añadidos después y ediciones. */
+        /** Última vez que cambiaron los archivos: archivos añadidos después o reemplazados al editar. */
         var updated = first.date
 
         fun touch(m: ChannelMessage) {
-            updated = maxOf(updated, m.date, m.editDate)
+            // Solo cuentan los archivos: corregir el texto (una errata) no es una actualización.
+            if (m.document != null) updated = maxOf(updated, m.date, m.editDate)
         }
 
         fun add(m: ChannelMessage) {
@@ -79,8 +80,6 @@ object CatalogBuilder {
             if (!startsNew && cur != null && cur.docs.isNotEmpty() &&
                 m.photo == null && m.document == null && m.video == null
             ) {
-                // No va en la descripción, pero sí cuenta como actividad ("actualizado a v1.2").
-                cur.touch(m)
                 continue
             }
             if (startsNew) {

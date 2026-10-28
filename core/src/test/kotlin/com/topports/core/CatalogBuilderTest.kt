@@ -181,22 +181,25 @@ class CatalogBuilderTest {
     }
 
     @Test
-    fun updatedTracksLaterFilesNoticesAndEdits() {
+    fun updatedOnlyCountsFileChanges() {
         val day = 86_400
         val games = CatalogBuilder.build(
             listOf(
-                ChannelMessage(1, 100, text = "Juego A", photo = photo(1)),
+                // Errata corregida en el texto: no es una actualización.
+                ChannelMessage(1, 100, text = "Juego A", photo = photo(1), editDate = 9 * day),
                 ChannelMessage(2, 110, document = doc(5, "a-v1.apk")),
-                ChannelMessage(3, 200, text = "Juego B", photo = photo(2), editDate = 5 * day),
-                ChannelMessage(4, 210, document = doc(6, "b.apk")),
-                // Aviso suelto días después: cuenta como actividad de B.
-                ChannelMessage(5, 3 * day, text = "Actualizado a v1.1"),
+                ChannelMessage(3, 200, text = "Juego B", photo = photo(2)),
+                // APK reemplazado editando el mensaje.
+                ChannelMessage(4, 210, document = doc(6, "b.apk"), editDate = 5 * day),
+                // Parche subido días después.
+                ChannelMessage(5, 7 * day, document = doc(7, "b-parche.zip")),
+                // Aviso de texto: tampoco cuenta.
+                ChannelMessage(6, 8 * day, text = "Actualizado a v1.1"),
             ),
         )
         val (b, a) = games
         assertEquals(110, a.updated)
-        assertEquals(5 * day, b.updated)
-        assertEquals(200, b.date)
+        assertEquals(7 * day, b.updated)
     }
 
     @Test
