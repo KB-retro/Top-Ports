@@ -79,10 +79,17 @@ fun UpdatesScreen(vm: AppViewModel) {
                         Text("${update.pkg.name} · ${FileNames.formatSize(update.pkg.size)}", style = PxText.small)
                     }
                     Spacer(Modifier.width(8.dp))
-                    PixelButton("Ver", onClick = {
-                        vm.tab = Tab.STORE
-                        vm.openGame(update.game.id)
-                    }, color = Px.green, small = true)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PixelButton("Ver", onClick = {
+                            vm.tab = Tab.STORE
+                            vm.openGame(update.game.id)
+                        }, color = Px.green, small = true, modifier = Modifier.fillMaxWidth())
+                        // Por si el aviso no es correcto: no volver a avisar de este archivo.
+                        PixelButton("Ignorar", onClick = {
+                            vm.graph.installs.ignoreUpdate(update.packageName, update.pkg)
+                            vm.graph.updates.refresh()
+                        }, color = Px.darkGrey, textColor = Px.white, small = true, modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
         }

@@ -420,7 +420,7 @@ class TaskCenter(
     /** Anota de qué archivo del canal sale un APK, para avisar luego de sus actualizaciones. */
     private fun remember(apk: File, game: Game, pkg: GamePackage) {
         val packageName = installs.packageNameOf(context, apk) ?: return
-        installs.record(InstallRecord(packageName, pkg.name, pkg.parts.first().id, game.id))
+        installs.record(InstallRecord(packageName, pkg.name, pkg.parts.first().id, game.id, pkg.size))
     }
 
     private suspend fun extractAndInstall(

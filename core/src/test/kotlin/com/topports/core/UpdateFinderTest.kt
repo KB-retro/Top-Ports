@@ -46,20 +46,47 @@ class UpdateFinderTest {
     }
 
     @Test
-    fun trackedWithoutVersionUsesNewerPost() {
+    fun trackedWithoutVersionNeedsADifferentFile() {
         val old = game(10, "MK9", 1 to "MK9Recomp-snapdragon.apk")
-        val new = game(30, "MK9", 5 to "MK9Recomp-snapdragon.apk")
-        val app = InstalledApp("com.mk9", "MK9", null, InstallRecord("com.mk9", "MK9Recomp-snapdragon.apk", 1, 10))
-        assertEquals(30L, UpdateFinder.find(listOf(app), listOf(new, old)).single().game.id)
+        val repost = game(30, "MK9", 5 to "MK9Recomp-snapdragon.apk")
+        val changed = Game(
+            id = 40, title = "MK9", description = "", date = 0, images = emptyList(),
+            packages = CatalogBuilder.groupPackages(listOf(RemoteFile(6, "MK9Recomp-snapdragon.apk", 250))),
+            messageIds = listOf(40),
+        )
+        val app = InstalledApp(
+            "com.mk9", "MK9", null,
+            InstallRecord("com.mk9", "MK9Recomp-snapdragon.apk", 1, 10, fileSize = 100),
+        )
+        // El mismo APK publicado otra vez no es una actualización…
+        assertTrue(UpdateFinder.find(listOf(app), listOf(repost, old)).isEmpty())
+        // …uno con el mismo nombre pero distinto sí.
+        assertEquals(40L, UpdateFinder.find(listOf(app), listOf(changed, repost, old)).single().game.id)
+        // Registros antiguos sin tamaño: sin versión no se puede saber, no se avisa.
+        val legacy = app.copy(record = app.record!!.copy(fileSize = 0))
+        assertTrue(UpdateFinder.find(listOf(legacy), listOf(changed, old)).isEmpty())
+    }
+
+    @Test
+    fun trackedIgnoresTheAppInternalVersion() {
+        // El port se llama v1.2 en el canal pero la app dice 1.08 por dentro: no es una actualización.
+        val g = game(10, "GTA", 1 to "GTA-v1.2.apk")
+        val repost = game(20, "GTA", 2 to "GTA-v1.2.apk")
+        val app = InstalledApp("com.gta", "GTA", "1.08", InstallRecord("com.gta", "GTA-v1.2.apk", 1, 10))
+        assertTrue(UpdateFinder.find(listOf(app), listOf(repost, g)).isEmpty())
     }
 
     @Test
     fun untrackedNeedsComparableVersion() {
-        val g = game(10, "Mareshine", 1 to "Mareshine-2.1.0.apk")
+        val v2 = game(5, "Mareshine", 1 to "Mareshine-2.0.0.apk")
+        val v21 = game(10, "Mareshine", 2 to "Mareshine-2.1.0.apk")
         val older = InstalledApp("com.mare", "Mareshine", "2.0.0")
         val same = InstalledApp("com.mare", "Mareshine", "2.1.0")
         val unknown = InstalledApp("com.other", "Otra app", "9.9")
-        assertEquals("2.1.0", UpdateFinder.find(listOf(older), listOf(g)).single().newVersion)
-        assertTrue(UpdateFinder.find(listOf(same, unknown), listOf(g)).isEmpty())
+        // Solo con la versión instalada también en el canal se sabe que se pueden comparar.
+        val otherScheme = InstalledApp("com.mare", "Mareshine", "1.0.3")
+        assertEquals("2.1.0", UpdateFinder.find(listOf(older), listOf(v21, v2)).single().newVersion)
+        assertTrue(UpdateFinder.find(listOf(same, unknown, otherScheme), listOf(v21, v2)).isEmpty())
+        assertTrue(UpdateFinder.find(listOf(older), listOf(v21)).isEmpty())
     }
 }

@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import com.topports.app.telegram.ChannelRepository
 import com.topports.core.InstallRecord
 import com.topports.core.InstalledFinder
+import com.topports.core.GamePackage
 import com.topports.core.InstalledGame
 import com.topports.core.InstalledApp
 import com.topports.core.UpdateFinder
@@ -32,13 +33,17 @@ class InstallRegistry(context: Context) {
             .put("fileName", record.fileName)
             .put("fileId", record.fileId)
             .put("gameId", record.gameId)
+            .put("fileSize", record.fileSize)
         prefs.edit().putString(record.packageName, json.toString()).apply()
     }
 
     fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { key -> internalPrefixes.none { key.startsWith(it) } }.mapNotNull { (pkg, value) ->
         runCatching {
             val json = JSONObject(value as String)
-            pkg to InstallRecord(pkg, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"))
+            pkg to InstallRecord(
+                pkg, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"),
+                json.optLong("fileSize", 0),
+            )
         }.getOrNull()
     }.toMap()
 
@@ -103,7 +108,15 @@ class InstallRegistry(context: Context) {
         }.getOrNull()
     }
 
-    private val internalPrefixes = listOf("extracted_", "saved_", "pending_")
+    /** "No avisar de esta actualización": se recuerda el archivo concreto (nombre y tamaño). */
+    fun ignoreUpdate(packageName: String, pkg: GamePackage) {
+        prefs.edit().putString("ignored_$packageName", "${pkg.name}|${pkg.size}").apply()
+    }
+
+    fun isIgnored(packageName: String, pkg: GamePackage): Boolean =
+        prefs.getString("ignored_$packageName", null) == "${pkg.name}|${pkg.size}"
+
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {
@@ -139,7 +152,7 @@ class UpdateService(
             val games = channel.state.value.games
             if (games.isEmpty()) return@launch
             val apps = withContext(Dispatchers.IO) { installedApps() }
-            _updates.value = UpdateFinder.find(apps, games)
+            _updates.value = UpdateFinder.find(apps, games).filterNot { registry.isIgnored(it.packageName, it.pkg) }
             _installed.value = InstalledFinder.find(apps, games)
         }
     }
