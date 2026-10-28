@@ -88,9 +88,12 @@ object CatalogBuilder {
     private fun Draft.toGame(): Game {
         val packages = groupPackages(docs)
         val allText = texts.joinToString("\n\n")
+        val tags = tagsOf(allText)
+        // Las etiquetas se muestran aparte: fuera del título y sin líneas que solo tengan etiquetas.
         val lines = allText.lines().map { it.trim() }
-        val titleIndex = lines.indexOfFirst { cleanTitle(it).isNotEmpty() }
-        val title = if (titleIndex >= 0) cleanTitle(lines[titleIndex]).take(80)
+            .filterNot { it.isNotEmpty() && stripTags(it).isEmpty() }
+        val titleIndex = lines.indexOfFirst { cleanTitle(stripTags(it)).isNotEmpty() }
+        val title = if (titleIndex >= 0) cleanTitle(stripTags(lines[titleIndex])).take(80)
         else packages.first().name.substringBeforeLast('.')
         val description = if (titleIndex >= 0) {
             lines.drop(titleIndex + 1).joinToString("\n").trim()
@@ -104,8 +107,19 @@ object CatalogBuilder {
             packages = packages,
             messageIds = ids.toList(),
             videos = videos.toList(),
+            tags = tags,
         )
     }
+
+    private val tagPattern = Regex("""(?<![\p{L}\p{N}_&/])#([\p{L}\p{N}_]*\p{L}[\p{L}\p{N}_]*)""")
+
+    /** Etiquetas de sistema del post ("#N64 #X360" → N64, X360), sin repetir. */
+    fun tagsOf(text: String): List<String> =
+        tagPattern.findAll(text).map { it.groupValues[1].uppercase() }.distinct().toList()
+
+    /** Quita las etiquetas de una línea. */
+    fun stripTags(line: String): String =
+        line.replace(tagPattern, "").replace(Regex("""\s{2,}"""), " ").trim()
 
     fun groupPackages(docs: List<RemoteFile>): List<GamePackage> {
         val groups = LinkedHashMap<String, MutableList<RemoteFile>>()

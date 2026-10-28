@@ -70,6 +70,8 @@ data class Game(
     val packages: List<GamePackage>,
     val messageIds: List<Long>,
     val videos: List<VideoRef> = emptyList(),
+    /** Etiquetas del post sin la almohadilla y en mayúsculas ("N64", "X360"). */
+    val tags: List<String> = emptyList(),
 ) {
     val size: Long get() = packages.sumOf { it.size }
 }

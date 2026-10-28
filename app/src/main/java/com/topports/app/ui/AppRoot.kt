@@ -169,7 +169,7 @@ private fun MainScreen(vm: AppViewModel) {
                     TopPortsLogo(size = 96.dp)
                     Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
                     Spacer(Modifier.weight(1f))
-                    Text("L1/R1  FILA\nL2/R2  PESTAÑA\nA  ACEPTAR\nB  ATRÁS", style = PxText.tiny.copy(color = Px.darkGrey))
+                    Text("L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  ATRÁS", style = PxText.tiny.copy(color = Px.darkGrey))
                 }
                 Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxHeight())

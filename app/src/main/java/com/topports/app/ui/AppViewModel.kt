@@ -18,7 +18,7 @@ enum class Tab(val label: String) {
 }
 
 /** Orden de la tienda. */
-enum class SortMode(val label: String) { NEWEST("Más nuevos"), ALPHABETICAL("A-Z") }
+enum class SortMode(val label: String) { NEWEST("Más nuevos"), ALPHABETICAL("A-Z"), SYSTEM("Sistema") }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -61,11 +61,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     )
         private set
 
-    /** Botón ORDEN o X del mando: alterna entre más nuevos y A-Z. */
+    /** Botón ORDEN o X del mando: más nuevos → A-Z → por sistema. */
     fun toggleSort() {
-        sortMode = if (sortMode == SortMode.NEWEST) SortMode.ALPHABETICAL else SortMode.NEWEST
+        val modes = SortMode.entries
+        sortMode = modes[(sortMode.ordinal + 1) % modes.size]
         prefs.edit().putString("sort", sortMode.name).apply()
     }
+
+    /** Sistema elegido en la tienda ("N64", "X360"…); null = todos. */
+    var systemFilter by mutableStateOf<String?>(null)
+    var systemPickerOpen by mutableStateOf(false)
 
     /** Tema de colores; se aplica al momento y se recuerda. */
     fun setTheme(theme: AppTheme) {

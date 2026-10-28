@@ -168,6 +168,10 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 
     val header: @Composable () -> Unit = {
         Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
+        if (game.tags.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { game.tags.forEach { SystemTag(it) } }
+        }
         Spacer(Modifier.height(6.dp))
         Text(
             "${FileNames.formatSize(game.size)} · " +

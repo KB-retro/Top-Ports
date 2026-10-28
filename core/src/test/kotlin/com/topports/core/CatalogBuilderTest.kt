@@ -163,6 +163,24 @@ class CatalogBuilderTest {
     }
 
     @Test
+    fun hashtagsBecomeTagsAndLeaveTheTitle() {
+        val games = CatalogBuilder.build(
+            listOf(
+                ChannelMessage(1, 100, text = "#N64\nMario 64 Port #n64 #Port\nRequiere https://x.com/a#b", photo = photo(1)),
+                ChannelMessage(2, 110, document = doc(5, "mario.apk")),
+                ChannelMessage(3, 200, text = "Halo 3 #X360", photo = photo(2)),
+                ChannelMessage(4, 210, document = doc(6, "halo.apk")),
+            ),
+        )
+        val (halo, mario) = games
+        assertEquals("Mario 64 Port", mario.title)
+        assertEquals(listOf("N64", "PORT"), mario.tags)
+        assertEquals("Requiere https://x.com/a#b", mario.description)
+        assertEquals("Halo 3", halo.title)
+        assertEquals(listOf("X360"), halo.tags)
+    }
+
+    @Test
     fun fileOnlyPostUsesFileNameAsTitle() {
         val games = CatalogBuilder.build(listOf(ChannelMessage(1, 100, document = doc(1, "Doom 3.zip"))))
         assertEquals("Doom 3", games.single().title)

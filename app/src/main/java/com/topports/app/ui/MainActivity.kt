@@ -65,9 +65,14 @@ class MainActivity : ComponentActivity() {
                 if (down) vm.searchOpen = true
                 return true
             }
-            // X en la tienda: cambiar el orden (más nuevos / A-Z).
+            // X en la tienda: cambiar el orden (más nuevos / A-Z / sistema).
             KeyEvent.KEYCODE_BUTTON_X -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
                 if (down) vm.toggleSort()
+                return true
+            }
+            // SELECT en la tienda: elegir sistema (#N64, #X360…).
+            KeyEvent.KEYCODE_BUTTON_SELECT -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
+                if (down) vm.systemPickerOpen = true
                 return true
             }
         }

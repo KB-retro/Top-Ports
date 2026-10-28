@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.topports.app.ui.components.PixelDialog
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -66,24 +72,40 @@ fun CatalogScreen(vm: AppViewModel) {
     val installedIds = remember(installed) { installed.map { it.game.id }.toSet() }
     val context = LocalContext.current
     val query = vm.search.trim()
-    val games = remember(state.games, query, vm.sortMode) {
-        val found = if (query.isEmpty()) state.games
-        else state.games.filter { it.title.contains(query, true) || it.description.contains(query, true) }
+    val games = remember(state.games, query, vm.sortMode, vm.systemFilter) {
+        val filter = vm.systemFilter
+        val found = state.games.filter { game ->
+            (filter == null || filter in game.tags) &&
+                (
+                    query.isEmpty() || game.title.contains(query, true) ||
+                        game.description.contains(query, true) || game.tags.any { it.contains(query, true) }
+                    )
+        }
+        // Orden alfabético en español: ignora tildes y mayúsculas, la Ñ va tras la N.
+        val collator = Collator.getInstance(Locale("es", "ES")).apply { strength = Collator.PRIMARY }
         when (vm.sortMode) {
             SortMode.NEWEST -> found.sortedByDescending { it.id }
-            // Orden alfabético en español: ignora tildes y mayúsculas, la Ñ va tras la N.
-            SortMode.ALPHABETICAL -> {
-                val collator = Collator.getInstance(Locale("es", "ES")).apply { strength = Collator.PRIMARY }
-                found.sortedWith { a, b -> collator.compare(a.title, b.title) }
-            }
+            SortMode.ALPHABETICAL -> found.sortedWith { a, b -> collator.compare(a.title, b.title) }
+            // Agrupados por su primera etiqueta; los que no tienen ninguna, al final.
+            SortMode.SYSTEM -> found.sortedWith(
+                compareBy<Game> { it.tags.isEmpty() }
+                    .thenComparator { a, b -> collator.compare(a.tags.firstOrNull().orEmpty(), b.tags.firstOrNull().orEmpty()) }
+                    .thenComparator { a, b -> collator.compare(a.title, b.title) },
+            )
         }
+    }
+    // Sistemas del canal con cuántos juegos tiene cada uno, para el selector.
+    val systems = remember(state.games) {
+        state.games.flatMap { it.tags }.groupingBy { it }.eachCount().toList().sortedBy { it.first }
     }
 
     // Al cambiar el orden, volver al principio de la lista.
     var shownSort by remember { mutableStateOf(vm.sortMode) }
-    LaunchedEffect(vm.sortMode) {
-        if (vm.sortMode != shownSort) {
+    var shownFilter by remember { mutableStateOf(vm.systemFilter) }
+    LaunchedEffect(vm.sortMode, vm.systemFilter) {
+        if (vm.sortMode != shownSort || vm.systemFilter != shownFilter) {
             shownSort = vm.sortMode
+            shownFilter = vm.systemFilter
             vm.catalogGrid.scrollToItem(0)
         }
     }
@@ -144,6 +166,15 @@ fun CatalogScreen(vm: AppViewModel) {
                 textColor = Px.white,
                 small = true,
             )
+            if (systems.isNotEmpty()) {
+                PixelButton(
+                    "Sistema: ${vm.systemFilter ?: "Todos"} (Sel)",
+                    onClick = { vm.systemPickerOpen = true },
+                    color = if (vm.systemFilter == null) Px.navyDark else Px.yellow,
+                    textColor = if (vm.systemFilter == null) Px.grey else Px.black,
+                    small = true,
+                )
+            }
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }
@@ -182,6 +213,10 @@ fun CatalogScreen(vm: AppViewModel) {
                     }
                 }
             }
+        }
+
+        if (vm.systemPickerOpen) {
+            SystemPickerDialog(vm, systems, state.games.size)
         }
 
         if (vm.searchOpen) {
@@ -234,6 +269,12 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
             if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
         }
         Spacer(Modifier.height(6.dp))
+        // Etiquetas de sistema junto al título; la fila ocupa siempre lo mismo para que las
+        // carátulas queden alineadas.
+        Row(Modifier.heightIn(min = 18.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            game.tags.take(3).forEach { SystemTag(it) }
+        }
+        Spacer(Modifier.height(4.dp))
         Text(
             game.title.uppercase(),
             style = PxText.label,
@@ -247,6 +288,46 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
                 PixelTag(label, color)
             }
             Text(FileNames.formatSize(game.size), style = PxText.small, maxLines = 1)
+        }
+    }
+}
+
+/** Etiqueta de sistema ("#N64"), con un color fijo para cada sistema. */
+@Composable
+fun SystemTag(tag: String, modifier: Modifier = Modifier) {
+    PixelTag("#$tag", systemColor(tag), modifier)
+}
+
+fun systemColor(tag: String): Color {
+    val colors = listOf(Px.blue, Px.pink, Px.orange, Px.lavender, Px.green, Px.yellow)
+    return colors[Math.floorMod(tag.hashCode(), colors.size)]
+}
+
+/** Elegir sistema: todos o solo los juegos con una etiqueta. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SystemPickerDialog(vm: AppViewModel, systems: List<Pair<String, Int>>, total: Int) {
+    val close = { vm.systemPickerOpen = false }
+    PixelDialog("Sistema", onDismiss = close, wide = true, widthFraction = 0.8f) {
+        Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PixelButton(
+                    "Todos ($total)",
+                    onClick = { vm.systemFilter = null; close() },
+                    color = if (vm.systemFilter == null) Px.orange else Px.navyDark,
+                    textColor = if (vm.systemFilter == null) Px.black else Px.white,
+                    small = true,
+                )
+                systems.forEach { (tag, count) ->
+                    PixelButton(
+                        "#$tag ($count)",
+                        onClick = { vm.systemFilter = tag; close() },
+                        color = if (vm.systemFilter == tag) Px.orange else systemColor(tag),
+                        textColor = Px.black,
+                        small = true,
+                    )
+                }
+            }
         }
     }
 }
