@@ -36,6 +36,17 @@
 - Como con cualquier app de Telegram, conviene instalar Top Ports solo desde el canal
   oficial: una copia modificada sí podría acceder a la cuenta.
 
+## Aviso legal
+
+- Top Ports es una app no oficial que usa la API de Telegram. No está afiliada a Telegram,
+  Google ni a ninguna de las empresas o marcas de los juegos que aparecen en el canal.
+- La app no aloja ningún archivo: solo muestra y descarga lo que se publica en el canal de
+  Telegram. Los nombres, carátulas y marcas pertenecen a sus respectivos dueños.
+- Cada usuario es responsable de lo que descarga e instala. Descarga solo contenido que tengas
+  derecho a usar; si un port necesita los archivos de un juego, usa los de tu copia original.
+- Si eres titular de derechos y crees que algún contenido del canal los infringe, escribe con
+  el enlace a la publicación y se retirará (contacto en Ajustes → Aviso legal).
+
 ## Cómo conseguir el APK
 
 El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
@@ -49,6 +60,8 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
    - `TOPPORTS_CHANNEL_USERNAME`: el @usuario del canal, si es público.
    - `TOPPORTS_CHANNEL_INVITE_LINK`: el enlace de invitación (`https://t.me/+…`), si es privado.
      Con él la app puede unir al usuario al canal automáticamente.
+   - `TOPPORTS_LEGAL_CONTACT`: contacto para reclamaciones de derechos (`@usuario` de Telegram,
+     email o enlace). Si no se pone, el botón de Ajustes → Aviso legal abre el canal.
 4. Clave de firma (para que cada APK nuevo se instale encima del anterior sin perder datos):
    - `SIGNING_KEYSTORE_BASE64`: el archivo `.p12` de la clave en base64.
    - `SIGNING_STORE_PASSWORD`: su contraseña.
@@ -107,3 +120,6 @@ scripts/build-tdlib.sh   Compila TDLib para Android
 - [7-Zip-JBinding-4Android](https://github.com/omicronapps/7-Zip-JBinding-4Android) (LGPL, con la restricción unRAR para RAR)
 - Fuentes [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) y
   [VT323](https://fonts.google.com/specimen/VT323) (SIL OFL, ver `licenses/`)
+- Jetpack Compose, AndroidX, Media3, Coil y kotlinx.coroutines (Apache 2.0)
+- El robot de Android del logo se reproduce o modifica a partir de trabajo creado y compartido
+  por Google y se usa según la licencia Creative Commons 3.0 Attribution

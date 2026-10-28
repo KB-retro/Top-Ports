@@ -48,10 +48,12 @@ import com.topports.app.install.ApkInstaller
 import com.topports.app.settings.StorageTools
 import com.topports.app.storage.Storage
 import com.topports.app.ui.AppViewModel
+import com.topports.app.ui.SettingsSection
 import com.topports.app.ui.components.DialogButtons
 import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelDialog
 import com.topports.app.ui.components.PixelPanel
+import com.topports.app.ui.components.pixelCard
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
 import com.topports.app.ui.components.SectionTitle
@@ -103,168 +105,251 @@ fun SettingsScreen(vm: AppViewModel) {
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // Secciones: solo se muestra la elegida para que Ajustes no sea una lista larguísima.
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsSection.entries.forEach { section ->
+                    val selected = vm.settingsSection == section
+                    PixelButton(
+                        section.label,
+                        onClick = { vm.settingsSection = section },
+                        color = if (selected) Px.orange else Px.navyDark,
+                        textColor = if (selected) Px.black else Px.grey,
+                        small = true,
+                    )
+                }
+            }
+        }
         // --- Permisos ---
-        item { SectionTitle("Permisos", Px.yellow) }
-        item {
-            key(refresh) {
-                PermissionRow(
-                    "Instalar apps",
-                    "Para instalar los APK de los ports.",
-                    ApkInstaller.canInstall(context),
-                ) { context.startActivity(ApkInstaller.unknownSourcesIntent(context)) }
+        if (vm.settingsSection == SettingsSection.PERMISSIONS) {
+            item { SectionTitle("Permisos", Px.yellow) }
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Instalar apps",
+                        "Para instalar los APK de los ports.",
+                        ApkInstaller.canInstall(context),
+                    ) { context.startActivity(ApkInstaller.unknownSourcesIntent(context)) }
+                }
             }
-        }
-        item {
-            key(refresh) {
-                PermissionRow(
-                    "Archivos",
-                    "Explorador, extraer en la raíz o /TopPorts y copiar OBB.",
-                    Storage.hasAllFilesAccess(context),
-                ) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
-                    } else {
-                        storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Archivos",
+                        "Explorador, extraer en la raíz o /TopPorts y copiar OBB.",
+                        Storage.hasAllFilesAccess(context),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
+                        } else {
+                            storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        }
                     }
                 }
             }
-        }
-        item {
-            key(refresh) {
-                PermissionRow(
-                    "Notificaciones",
-                    "Ver el progreso de descargas y extracciones.",
-                    NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                ) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        context.startActivity(
-                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Notificaciones",
+                        "Ver el progreso de descargas y extracciones.",
+                        NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
                     }
                 }
             }
-        }
-        item {
-            key(refresh) {
-                PermissionRow(
-                    "Sin límite de batería",
-                    "Evita que Android corte las descargas largas en segundo plano.",
-                    isIgnoringBattery(context),
-                ) { requestIgnoreBattery(context) }
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Sin límite de batería",
+                        "Evita que Android corte las descargas largas en segundo plano.",
+                        isIgnoringBattery(context),
+                    ) { requestIgnoreBattery(context) }
+                }
             }
+
         }
 
         // --- Almacenamiento ---
-        item { SectionTitle("Almacenamiento", Px.blue) }
-        item {
-            PixelPanel(Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val u = usage
-                    if (u == null) {
-                        PixelProgress(null, Modifier.fillMaxWidth(), color = Px.blue)
-                    } else {
-                        Text("Juegos descargados: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
-                        Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
-                        Text("Descargas a medias: ${FileNames.formatSize(u.partial)}", style = PxText.body)
-                    }
-                    if (busy) PixelProgress(null, Modifier.fillMaxWidth())
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PixelButton("Borrar caché", onClick = {
-                            work { toast("Liberado ${FileNames.formatSize(storage.clearCache())}") }
-                        }, color = Px.blue, small = true, enabled = !busy)
-                        PixelButton("Buscar huérfanos", onClick = {
-                            work { orphans = storage.findOrphans() }
-                        }, color = Px.orange, small = true, enabled = !busy)
-                        PixelButton("Borrar todas las descargas", onClick = { confirmDeleteAll = true },
-                            color = Px.red, textColor = Px.white, small = true, enabled = !busy)
-                    }
-                    orphans?.let { o ->
-                        if (o.isEmpty) {
-                            Text("No hay restos de descargas: todo limpio.", style = PxText.small.copy(color = Px.green))
+        if (vm.settingsSection == SettingsSection.STORAGE) {
+            item { SectionTitle("Almacenamiento", Px.blue) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val u = usage
+                        if (u == null) {
+                            PixelProgress(null, Modifier.fillMaxWidth(), color = Px.blue)
                         } else {
-                            Text(
-                                "Restos de descargas fallidas o en pausa: ${o.fileIds.size} archivo(s), " +
-                                    FileNames.formatSize(o.total),
-                                style = PxText.body.copy(color = Px.yellow),
-                            )
-                            PixelButton("Limpiar ${FileNames.formatSize(o.total)}", onClick = {
-                                work {
-                                    val freed = storage.cleanOrphans(o)
-                                    orphans = null
-                                    toast("Liberado ${FileNames.formatSize(freed)}")
-                                }
-                            }, color = Px.green, small = true, enabled = !busy)
+                            Text("Juegos descargados: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
+                            Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
+                            Text("Descargas a medias: ${FileNames.formatSize(u.partial)}", style = PxText.body)
                         }
+                        if (busy) PixelProgress(null, Modifier.fillMaxWidth())
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PixelButton("Borrar caché", onClick = {
+                                work { toast("Liberado ${FileNames.formatSize(storage.clearCache())}") }
+                            }, color = Px.blue, small = true, enabled = !busy)
+                            PixelButton("Buscar huérfanos", onClick = {
+                                work { orphans = storage.findOrphans() }
+                            }, color = Px.orange, small = true, enabled = !busy)
+                            PixelButton("Borrar todas las descargas", onClick = { confirmDeleteAll = true },
+                                color = Px.red, textColor = Px.white, small = true, enabled = !busy)
+                        }
+                        orphans?.let { o ->
+                            if (o.isEmpty) {
+                                Text("No hay restos de descargas: todo limpio.", style = PxText.small.copy(color = Px.green))
+                            } else {
+                                Text(
+                                    "Restos de descargas fallidas o en pausa: ${o.fileIds.size} archivo(s), " +
+                                        FileNames.formatSize(o.total),
+                                    style = PxText.body.copy(color = Px.yellow),
+                                )
+                                PixelButton("Limpiar ${FileNames.formatSize(o.total)}", onClick = {
+                                    work {
+                                        val freed = storage.cleanOrphans(o)
+                                        orphans = null
+                                        toast("Liberado ${FileNames.formatSize(freed)}")
+                                    }
+                                }, color = Px.green, small = true, enabled = !busy)
+                            }
+                        }
+                        Text(
+                            "Borrar descargas no desinstala nada ni toca lo ya extraído; solo libera el espacio " +
+                                "de los archivos bajados de Telegram.",
+                            style = PxText.small,
+                        )
                     }
-                    Text(
-                        "Borrar descargas no desinstala nada ni toca lo ya extraído; solo libera el espacio " +
-                            "de los archivos bajados de Telegram.",
-                        style = PxText.small,
-                    )
                 }
             }
+
         }
 
         // --- Apariencia ---
-        item { SectionTitle("Tema de colores", Px.pink) }
-        item {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AppTheme.entries.forEach { theme -> ThemeChip(theme, selected = Px.theme == theme) { vm.setTheme(theme) } }
+        if (vm.settingsSection == SettingsSection.THEME) {
+            item { SectionTitle("Tema de colores", Px.pink) }
+            item {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppTheme.entries.forEach { theme -> ThemeChip(theme, selected = Px.theme == theme) { vm.setTheme(theme) } }
+                }
             }
+
         }
 
         // --- Mando ---
-        item { SectionTitle("Mando", Px.green) }
-        item {
-            PixelPanel(Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Intercambiar A y B", style = PxText.body)
-                            Text("Para mandos con distribución Nintendo.", style = PxText.small)
+        if (vm.settingsSection == SettingsSection.GAMEPAD) {
+            item { SectionTitle("Mando", Px.green) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Intercambiar A y B", style = PxText.body)
+                                Text("Para mandos con distribución Nintendo.", style = PxText.small)
+                            }
+                            PixelButton(
+                                if (vm.swapAB) "Sí" else "No",
+                                onClick = { vm.toggleSwapAB() },
+                                color = if (vm.swapAB) Px.green else Px.darkGrey,
+                                textColor = if (vm.swapAB) Px.black else Px.white,
+                                small = true,
+                            )
                         }
-                        PixelButton(
-                            if (vm.swapAB) "Sí" else "No",
-                            onClick = { vm.toggleSwapAB() },
-                            color = if (vm.swapAB) Px.green else Px.darkGrey,
-                            textColor = if (vm.swapAB) Px.black else Px.white,
-                            small = true,
+                        Text(
+                            "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} inicio · " +
+                                "L1/R1 fila o texto · stick derecho texto · L2/R2 pestaña · Y buscar · X ordenar · SELECT sistema",
+                            style = PxText.small,
                         )
                     }
-                    Text(
-                        "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} inicio · " +
-                            "L1/R1 fila o texto · stick derecho texto · L2/R2 pestaña · Y buscar · X ordenar · SELECT sistema",
-                        style = PxText.small,
-                    )
                 }
             }
+
         }
 
         // --- Privacidad ---
-        item { SectionTitle("Privacidad", Px.green) }
-        item {
-            PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PRIVACY_POINTS.forEach { Text("• $it", style = PxText.small) }
+        if (vm.settingsSection == SettingsSection.PRIVACY) {
+            item { SectionTitle("Privacidad", Px.green) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PRIVACY_POINTS.forEach { Text("• $it", style = PxText.small) }
+                    }
                 }
             }
+
+        }
+
+        // --- Aviso legal ---
+        if (vm.settingsSection == SettingsSection.LEGAL) {
+            item { SectionTitle("Aviso legal", Px.orange) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth(), border = Px.orange) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        LEGAL_POINTS.forEach { Text("• $it", style = PxText.small) }
+                        PixelButton("Contactar / pedir retirada", onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(legalContactLink())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }.onFailure { toast("No hay ninguna app para abrir el contacto") }
+                        }, color = Px.orange, small = true)
+                    }
+                }
+            }
+
+        }
+
+        // --- Licencias ---
+        if (vm.settingsSection == SettingsSection.LEGAL) {
+            item { SectionTitle("Licencias", Px.blue) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth(), border = Px.blue) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Top Ports usa este software de terceros. Pulsa uno para ver su licencia.", style = PxText.small)
+                        LICENSES.forEach { lib ->
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .pixelCard(onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(Intent.ACTION_VIEW, Uri.parse(lib.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                            )
+                                        }
+                                    })
+                                    .padding(8.dp),
+                            ) {
+                                Text(lib.name, style = PxText.body)
+                                Text(lib.license, style = PxText.small.copy(color = Px.blue))
+                                if (lib.note.isNotEmpty()) Text(lib.note, style = PxText.small)
+                            }
+                        }
+                    }
+                }
+            }
+
         }
 
         // --- Cuenta ---
-        item { SectionTitle("Cuenta", Px.lavender) }
-        item {
-            PixelPanel(Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Top Ports ${BuildConfig.VERSION_NAME}", style = PxText.body)
-                    if (catalog.channelTitle.isNotBlank()) {
-                        Text("Canal: ${catalog.channelTitle} · ${catalog.games.size} juegos", style = PxText.small)
+        if (vm.settingsSection == SettingsSection.ACCOUNT) {
+            item { SectionTitle("Cuenta", Px.lavender) }
+            item {
+                PixelPanel(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Top Ports ${BuildConfig.VERSION_NAME}", style = PxText.body)
+                        if (catalog.channelTitle.isNotBlank()) {
+                            Text("Canal: ${catalog.channelTitle} · ${catalog.games.size} juegos", style = PxText.small)
+                        }
+                        PixelButton("Cerrar sesión", onClick = { confirmLogout = true },
+                            color = Px.red, textColor = Px.white, small = true)
                     }
-                    PixelButton("Cerrar sesión", onClick = { confirmLogout = true },
-                        color = Px.red, textColor = Px.white, small = true)
                 }
             }
         }

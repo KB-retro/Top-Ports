@@ -18,6 +18,12 @@ enum class Tab(val label: String) {
     STORE("Tienda"), INSTALLED("Instalados"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
 }
 
+/** Secciones de Ajustes. */
+enum class SettingsSection(val label: String) {
+    PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Tema"), GAMEPAD("Mando"),
+    ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
+}
+
 /** Orden de la tienda. */
 enum class SortMode(val label: String) { NEWEST("Más nuevos"), ALPHABETICAL("A-Z"), SYSTEM("Sistema") }
 
@@ -78,6 +84,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         Px.theme = theme
         prefs.edit().putString("theme", theme.name).apply()
     }
+
+    /** Sección abierta en Ajustes (se conserva al cambiar de pestaña). */
+    var settingsSection by mutableStateOf(SettingsSection.PERMISSIONS)
 
     /** Intercambiar A y B (mandos con distribución Nintendo). */
     var swapAB by mutableStateOf(Gamepad.swapAB)

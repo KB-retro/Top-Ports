@@ -40,6 +40,8 @@ android {
         buildConfigField("long", "CHANNEL_ID", "${config("TOPPORTS_CHANNEL_ID", "4399047221").toLong()}L")
         buildConfigField("String", "CHANNEL_USERNAME", quoted(config("TOPPORTS_CHANNEL_USERNAME")))
         buildConfigField("String", "CHANNEL_INVITE_LINK", quoted(config("TOPPORTS_CHANNEL_INVITE_LINK")))
+        // Contacto para reclamaciones (enlace, @usuario de Telegram o email). Vacío: el canal.
+        buildConfigField("String", "LEGAL_CONTACT", quoted(config("TOPPORTS_LEGAL_CONTACT")))
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

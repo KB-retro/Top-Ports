@@ -86,6 +86,7 @@ jobs:
           TOPPORTS_CHANNEL_ID: ${{ secrets.TOPPORTS_CHANNEL_ID || vars.TOPPORTS_CHANNEL_ID }}
           TOPPORTS_CHANNEL_USERNAME: ${{ secrets.TOPPORTS_CHANNEL_USERNAME || vars.TOPPORTS_CHANNEL_USERNAME }}
           TOPPORTS_CHANNEL_INVITE_LINK: ${{ secrets.TOPPORTS_CHANNEL_INVITE_LINK || vars.TOPPORTS_CHANNEL_INVITE_LINK }}
+          TOPPORTS_LEGAL_CONTACT: ${{ secrets.TOPPORTS_LEGAL_CONTACT || vars.TOPPORTS_LEGAL_CONTACT }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       # Nombre claro para el APK en lugar del "app-release.apk" que genera Gradle.
