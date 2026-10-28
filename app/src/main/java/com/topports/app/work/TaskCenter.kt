@@ -165,13 +165,47 @@ class TaskCenter(
                 PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> {
                     extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password, game, pkg)
                 }
-                PackageKind.OTHER -> {
-                    dest.mkdirs()
-                    parts.forEach { (name, file) -> copyWithProgress(taskId, file, File(dest, name)) }
-                    finish(taskId, "Copiado en ${dest.path}", dest.path)
-                }
+                PackageKind.OTHER -> saveParts(taskId, game, pkg, parts, dest)
             }
         }
+    }
+
+    /**
+     * Guarda el archivo tal cual, sin extraerlo (p. ej. un .zip que carga el lanzador del port).
+     * Se copia de la caché de Telegram a [dest] y después se borra de la caché para no ocupar el doble.
+     */
+    fun savePackage(game: Game, pkg: GamePackage, dest: File) {
+        launchTask(game.title) { taskId, _ ->
+            val parts = pkg.parts.map { part ->
+                val f = tg.refreshFile(part.id)
+                if (!f.local.isDownloadingCompleted) throw IOException("Falta descargar ${part.name}")
+                part.name to File(f.local.path)
+            }
+            saveParts(taskId, game, pkg, parts, dest)
+        }
+    }
+
+    private suspend fun saveParts(taskId: Int, game: Game, pkg: GamePackage, parts: List<Pair<String, File>>, dest: File) {
+        dest.mkdirs()
+        val needed = parts.sumOf { it.second.length() }
+        val free = Storage.freeBytes(dest)
+        if (needed > free) throw NotEnoughSpaceException(needed, free)
+        val saved = parts.map { (name, file) ->
+            val target = File(dest, name)
+            try {
+                copyWithProgress(taskId, file, target)
+            } catch (e: Exception) {
+                // No dejar un archivo a medias si se cancela o falla la copia.
+                target.delete()
+                throw e
+            }
+            target
+        }
+        installs.recordExtracted(game.id, saved.filter { Storage.isSafeToDelete(it) }.map { it.path })
+        installs.recordSaved(pkg.key, dest.path)
+        pkg.parts.forEach { runCatching { tg.deleteFile(it.id) } }
+        val names = saved.joinToString("\n") { it.name }
+        finish(taskId, "Guardado en ${dest.path}:\n$names", dest.path)
     }
 
     // --- Explorador de archivos ---

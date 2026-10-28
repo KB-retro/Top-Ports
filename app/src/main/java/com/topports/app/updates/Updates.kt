@@ -35,7 +35,7 @@ class InstallRegistry(context: Context) {
         prefs.edit().putString(record.packageName, json.toString()).apply()
     }
 
-    fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { !it.startsWith("extracted_") }.mapNotNull { (pkg, value) ->
+    fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { !it.startsWith("extracted_") && !it.startsWith("saved_") }.mapNotNull { (pkg, value) ->
         runCatching {
             val json = JSONObject(value as String)
             pkg to InstallRecord(pkg, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"))
@@ -56,6 +56,17 @@ class InstallRegistry(context: Context) {
 
     fun forgetExtracted(gameId: Long) {
         prefs.edit().remove("extracted_$gameId").apply()
+    }
+
+    /** Carpeta donde se guardó un archivo del canal sin extraerlo (clave: [GamePackage.key]). */
+    fun recordSaved(pkgKey: String, dir: String) {
+        prefs.edit().putString("saved_$pkgKey", dir).apply()
+    }
+
+    fun savedDir(pkgKey: String): String? = prefs.getString("saved_$pkgKey", null)
+
+    fun forgetSaved(pkgKey: String) {
+        prefs.edit().remove("saved_$pkgKey").apply()
     }
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */

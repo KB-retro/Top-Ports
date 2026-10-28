@@ -32,6 +32,8 @@ import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -310,6 +312,7 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifi
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: FocusRequester? = null) {
     val files by vm.files.collectAsStateWithLifecycle()
@@ -318,6 +321,12 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
     val (tag, color) = kindTag(pkg.name, pkg.kind)
     var confirmDelete by remember { mutableStateOf(false) }
     var chooseDest by remember { mutableStateOf(false) }
+    // Elegir destino para guardar el archivo tal cual (sin extraer).
+    var chooseSaveDest by remember { mutableStateOf(false) }
+    // Dónde se guardó la última vez (si los archivos siguen ahí).
+    val savedDir = remember(info.complete, files) {
+        vm.graph.installs.savedDir(pkg.key)?.takeIf { dir -> pkg.parts.any { File(dir, it.name).exists() } }
+    }
     val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
 
     PixelPanel(Modifier.fillMaxWidth()) {
@@ -344,7 +353,11 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (savedDir != null) {
+                Text("Guardado en $savedDir", style = PxText.small.copy(color = Px.green))
+            }
+
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     info.complete -> {
                         val action = when (pkg.kind) {
@@ -360,6 +373,10 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
                                 chooseDest = true
                             }
                         }, color = Px.green, small = true, modifier = primary)
+                        // Hay ports cuyo lanzador carga el .zip/.7z directamente: guardarlo sin extraer.
+                        if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) {
+                            PixelButton("Guardar sin extraer", onClick = { chooseSaveDest = true }, color = Px.blue, small = true)
+                        }
                     }
                     info.active -> PixelButton("Pausar", onClick = { vm.graph.tasks.pause(pkg) }, color = Px.yellow, small = true, modifier = primary)
                     info.started -> PixelButton("Continuar", onClick = { download(vm, context, pkg) }, small = true, modifier = primary)
@@ -368,12 +385,18 @@ private fun PackageRow(vm: AppViewModel, game: Game, pkg: GamePackage, focus: Fo
                 if (info.started || info.complete) {
                     PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)
                 }
+                if (savedDir != null) {
+                    PixelButton("Abrir carpeta", onClick = { vm.openFolder(savedDir) }, color = Px.yellow, small = true)
+                }
             }
         }
     }
 
     if (chooseDest) {
-        DestinationDialog(vm, game, pkg, onDismiss = { chooseDest = false })
+        DestinationDialog(vm, game, pkg, save = pkg.kind == PackageKind.OTHER, onDismiss = { chooseDest = false })
+    }
+    if (chooseSaveDest) {
+        DestinationDialog(vm, game, pkg, save = true, onDismiss = { chooseSaveDest = false })
     }
 
     if (confirmDelete) {
@@ -434,20 +457,20 @@ private fun VideoRow(vm: AppViewModel, video: VideoRef) {
     }
 }
 
-private fun startInstall(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, dest: File) {
-    vm.graph.tasks.installPackage(game, pkg, dest)
+private fun startInstall(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, dest: File, save: Boolean = false) {
+    if (save) vm.graph.tasks.savePackage(game, pkg, dest) else vm.graph.tasks.installPackage(game, pkg, dest)
     Toast.makeText(context, "Mira el progreso en TAREAS", Toast.LENGTH_SHORT).show()
     vm.tab = Tab.TASKS
 }
 
-/** Dónde extraer/guardar: raíz de la memoria interna o /TopPorts/<juego>. */
+/** Dónde extraer/guardar: raíz de la memoria interna o /TopPorts/<juego>. [save]: copiar sin extraer. */
 @Composable
-private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, onDismiss: () -> Unit) {
+private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, save: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val wantsRoot = pkg.kind != PackageKind.OTHER && CatalogBuilder.wantsStorageRoot(game.description)
+    val wantsRoot = !save && CatalogBuilder.wantsStorageRoot(game.description)
     val hasAccess = Storage.hasAllFilesAccess(context)
     val gameDir = "/TopPorts/${FileNames.safeFolderName(game.title)}"
-    val verb = if (pkg.kind == PackageKind.OTHER) "guardar" else "extraer"
+    val verb = if (save) "guardar" else "extraer"
     PixelDialog("¿Dónde $verb?", onDismiss = onDismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (wantsRoot) {
@@ -462,13 +485,13 @@ private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, on
             val rootButton: @Composable () -> Unit = {
                 PixelButton("Raíz de la memoria", onClick = {
                     onDismiss()
-                    startInstall(vm, context, game, pkg, Storage.externalRoot)
+                    startInstall(vm, context, game, pkg, Storage.externalRoot, save)
                 }, color = if (wantsRoot) Px.green else Px.blue, enabled = hasAccess, small = true, modifier = Modifier.fillMaxWidth())
             }
             val folderButton: @Composable () -> Unit = {
                 PixelButton(gameDir, onClick = {
                     onDismiss()
-                    startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
+                    startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title), save)
                 }, color = if (wantsRoot) Px.blue else Px.green, small = true, modifier = Modifier.fillMaxWidth())
             }
             // La opción recomendada va primero.
