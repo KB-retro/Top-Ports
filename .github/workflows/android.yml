@@ -88,7 +88,13 @@ jobs:
           TOPPORTS_CHANNEL_INVITE_LINK: ${{ secrets.TOPPORTS_CHANNEL_INVITE_LINK || vars.TOPPORTS_CHANNEL_INVITE_LINK }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
+      # Nombre claro para el APK en lugar del "app-release.apk" que genera Gradle.
+      - name: Renombrar APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk "dist/TopPorts-0.1.${{ github.run_number }}.apk"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: TopPorts-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: TopPorts-0.1.${{ github.run_number }}
+          path: dist/*.apk

@@ -1,6 +1,11 @@
 package com.topports.app.ui.store
 
 import android.content.Intent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
@@ -8,14 +13,11 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import com.topports.app.ui.components.pixelFrame
 import android.net.Uri
@@ -156,12 +158,15 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             Spacer(Modifier.height(12.dp))
         }
     }
-    // Scroll de la columna con la descripción y su zona visible, para desplazarla con el mando.
-    val infoScroll = rememberScrollState()
-    var viewport by remember { mutableStateOf(Rect.Zero) }
-    val trackViewport = Modifier.onGloballyPositioned { viewport = it.boundsInWindow() }
+    // La descripción tiene su propio desplazamiento: L1/R1 (o la cruceta sobre ella) la mueven.
+    val descScroll = rememberScrollState()
+    val pageStep = with(LocalDensity.current) { 140.dp.toPx() }
+    LaunchedEffect(vm.descriptionJump) {
+        val (dir, _) = vm.descriptionJump ?: return@LaunchedEffect
+        descScroll.animateScrollBy(dir * pageStep, tween(180, easing = LinearEasing))
+    }
 
-    val info: @Composable () -> Unit = {
+    val header: @Composable () -> Unit = {
         Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
         Spacer(Modifier.height(6.dp))
         Text(
@@ -169,10 +174,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(game.date * 1000L)),
             style = PxText.small,
         )
-        if (game.description.isNotBlank()) {
-            Spacer(Modifier.height(12.dp))
-            DescriptionPanel(game.description, infoScroll, viewport)
-        }
+        Spacer(Modifier.height(10.dp))
     }
     val downloads: @Composable () -> Unit = {
         SectionTitle("Archivos")
@@ -198,24 +200,31 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         if (maxWidth > maxHeight && maxWidth >= 560.dp) {
-            // Horizontal (consolas): ficha a la izquierda, archivos y acciones a la derecha.
+            // Horizontal (consolas): ficha a la izquierda (la descripción ocupa el resto de la
+            // altura con su propio scroll), archivos y acciones a la derecha.
             Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column(Modifier.weight(0.48f).fillMaxHeight().then(trackViewport).verticalScroll(infoScroll)) {
+                Column(Modifier.weight(0.48f).fillMaxHeight()) {
                     topBar()
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                     gallery()
-                    info()
+                    header()
+                    if (game.description.isNotBlank()) {
+                        DescriptionPanel(game.description, descScroll, Modifier.weight(1f).fillMaxWidth())
+                    }
                 }
                 Column(Modifier.weight(0.52f).fillMaxHeight().verticalScroll(rememberScrollState())) {
                     downloads()
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().then(trackViewport).verticalScroll(infoScroll).padding(12.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
                 topBar()
                 Spacer(Modifier.height(12.dp))
                 gallery()
-                info()
+                header()
+                if (game.description.isNotBlank()) {
+                    DescriptionPanel(game.description, descScroll, Modifier.fillMaxWidth().heightIn(max = 320.dp))
+                }
                 Spacer(Modifier.height(12.dp))
                 downloads()
             }
@@ -231,21 +240,19 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 }
 
 /**
- * Descripción seleccionable con el mando: con ella marcada, arriba/abajo (o L1/R1)
- * desplazan el texto poco a poco en vez de saltar al siguiente botón. Cuando el texto
- * ya se ve entero por ese lado, la cruceta pasa al siguiente elemento como siempre.
+ * Descripción en un recuadro con su propio desplazamiento. L1/R1 la mueven desde cualquier
+ * parte de la ficha; si está seleccionada con la cruceta (marco amarillo), arriba/abajo
+ * también, y manteniendo pulsado baja de forma continua. Al llegar al final, la cruceta
+ * pasa al siguiente elemento.
  */
 @Composable
-private fun DescriptionPanel(text: String, scroll: ScrollState, viewport: Rect) {
+private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifier) {
     val scope = rememberCoroutineScope()
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    var bounds by remember { mutableStateOf(Rect.Zero) }
-    val step = with(LocalDensity.current) { 110.dp.toPx() }
+    val step = with(LocalDensity.current) { 90.dp.toPx() }
     Box(
-        Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
+        modifier
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val down = when (event.key) {
@@ -253,12 +260,12 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, viewport: Rect) 
                     Key.DirectionUp -> false
                     else -> return@onPreviewKeyEvent false
                 }
-                // ¿Queda texto por ver en esa dirección?
-                val hidden = if (down) bounds.bottom - viewport.bottom else viewport.top - bounds.top
-                if (hidden <= 1f) return@onPreviewKeyEvent false
-                val delta = minOf(step, hidden)
+                val canMove = if (down) scroll.canScrollForward else scroll.canScrollBackward
+                if (!canMove) return@onPreviewKeyEvent false
+                val delta = if (down) step else -step
                 scope.launch {
-                    scroll.animateScrollBy(if (down) delta else -delta, tween(160, easing = LinearEasing))
+                    if (event.nativeKeyEvent.repeatCount > 0) scroll.scrollBy(delta / 2)
+                    else scroll.animateScrollBy(delta, tween(150, easing = LinearEasing))
                 }
                 true
             }
@@ -267,10 +274,35 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, viewport: Rect) 
                 fill = Px.navyDark,
                 border = if (focused) Px.yellow else Px.white,
                 shadow = if (focused) Px.yellow else Px.black,
-            )
-            .padding(10.dp),
+            ),
     ) {
-        Text(linkify(text), style = PxText.body)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(scroll)
+                .padding(start = 10.dp, end = 18.dp, top = 10.dp, bottom = 22.dp),
+        ) {
+            Text(linkify(text), style = PxText.body)
+        }
+        // Barra de desplazamiento pixel y aviso de que queda texto.
+        if (scroll.maxValue > 0) {
+            Canvas(Modifier.matchParentSize().padding(vertical = 6.dp, horizontal = 4.dp)) {
+                val w = 6.dp.toPx()
+                val x = size.width - w
+                drawRect(Px.navy, Offset(x, 0f), Size(w, size.height))
+                val visible = size.height / (size.height + scroll.maxValue)
+                val thumbH = (size.height * visible).coerceAtLeast(12.dp.toPx())
+                val y = (size.height - thumbH) * scroll.value / scroll.maxValue
+                drawRect(if (focused) Px.yellow else Px.blue, Offset(x, y), Size(w, thumbH))
+            }
+            if (scroll.canScrollForward) {
+                Text(
+                    "▼ MÁS (R1)",
+                    style = PxText.tiny.copy(color = Px.yellow),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 6.dp),
+                )
+            }
+        }
     }
 }
 

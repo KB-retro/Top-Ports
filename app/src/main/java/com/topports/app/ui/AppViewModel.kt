@@ -79,6 +79,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         catalogJump = rows to System.nanoTime()
     }
 
+    /** Petición de L1/R1 con un juego abierto: desplazar la descripción (-1 arriba, 1 abajo). */
+    var descriptionJump by mutableStateOf<Pair<Int, Long>?>(null)
+        private set
+
+    fun scrollDescription(dir: Int) {
+        descriptionJump = dir to System.nanoTime()
+    }
+
     /** Posición de la cuadrícula de la tienda (se conserva al entrar y salir de una ficha). */
     val catalogGrid = LazyGridState()
 

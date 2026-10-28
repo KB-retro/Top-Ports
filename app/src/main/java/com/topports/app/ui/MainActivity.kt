@@ -45,10 +45,12 @@ class MainActivity : ComponentActivity() {
                 return true
             }
             // L1 / R1 en la tienda: una fila de juegos arriba / abajo aunque el foco esté en el menú.
+            // Con un juego abierto: L1 / R1 desplazan la descripción, esté donde esté el foco.
             KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 ->
-                if (vm.tab == Tab.STORE && vm.selectedGameId == null && !vm.searchOpen) {
+                if (vm.tab == Tab.STORE && !vm.searchOpen) {
                     if (event.action == KeyEvent.ACTION_DOWN) {
-                        vm.jumpCatalogRows(if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1)
+                        val dir = if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1
+                        if (vm.selectedGameId == null) vm.jumpCatalogRows(dir) else vm.scrollDescription(dir)
                     }
                     return true
                 }

@@ -39,7 +39,7 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
    `keytool -genkeypair -storetype PKCS12 -keystore topports.p12 -alias topports -keyalg RSA -keysize 4096 -validity 10000`
    y luego `base64 -w0 topports.p12`.
 5. Lanza el workflow (pestaña **Actions → Android → Run workflow**) y descarga el artefacto
-   **TopPorts-apk**.
+   **TopPorts-0.1.N** (dentro va `TopPorts-0.1.N.apk`).
 
 La primera ejecución compila TDLib desde el código fuente y tarda bastante (1–3 h). Después
 queda en caché y cada build tarda unos minutos.
