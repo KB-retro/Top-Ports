@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,6 +68,7 @@ import com.topports.core.PackageKind
 import androidx.compose.runtime.produceState
 import java.io.File
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CatalogScreen(vm: AppViewModel) {
     val state by vm.catalog.collectAsStateWithLifecycle()
@@ -143,12 +146,8 @@ fun CatalogScreen(vm: AppViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Botón en lugar de campo de texto: así mover el mando no abre el teclado de Android.
+        // Botón en lugar de campo de texto: así mover el mando no abre el teclado de Android.
+        val searchButtons: @Composable RowScope.() -> Unit = {
             PixelButton(
                 if (vm.search.isBlank()) "Buscar (Y)" else "Buscar: ${vm.search}",
                 onClick = { vm.searchOpen = true },
@@ -160,6 +159,8 @@ fun CatalogScreen(vm: AppViewModel) {
             if (vm.search.isNotBlank()) {
                 PixelButton("X", onClick = { vm.search = "" }, color = Px.red, textColor = Px.white, small = true)
             }
+        }
+        val filterButtons: @Composable () -> Unit = {
             PixelButton(
                 "Orden: ${vm.sortMode.label} (X)",
                 onClick = { vm.toggleSort() },
@@ -178,6 +179,25 @@ fun CatalogScreen(vm: AppViewModel) {
             }
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
+            }
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp)) {
+            if (maxWidth >= 600.dp) {
+                // Horizontal: todo en una fila.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    searchButtons()
+                    filterButtons()
+                }
+            } else {
+                // Vertical: la búsqueda ocupa su propia fila y los demás botones van debajo.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        searchButtons()
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        filterButtons()
+                    }
+                }
             }
         }
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
