@@ -74,6 +74,7 @@ import java.io.File
 @Composable
 fun CatalogScreen(vm: AppViewModel) {
     val state by vm.catalog.collectAsStateWithLifecycle()
+    val edgeScope = rememberCoroutineScope()
     val installed by vm.installed.collectAsStateWithLifecycle()
     val installedIds = remember(installed) { installed.map { it.game.id }.toSet() }
     val context = LocalContext.current
@@ -183,7 +184,15 @@ fun CatalogScreen(vm: AppViewModel) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp)) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                // Con el mando en los botones de arriba, la lista vuelve arriba del todo.
+                .onFocusChanged { focus ->
+                    if (focus.hasFocus) edgeScope.launch { vm.catalogGrid.animateScrollToItem(0) }
+                },
+        ) {
             if (maxWidth >= 600.dp) {
                 // Horizontal: todo en una fila.
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -254,7 +263,6 @@ fun CatalogScreen(vm: AppViewModel) {
         // Cuadrícula de carátulas: 2 columnas en un móvil en vertical, 3–5 en consolas en horizontal.
         // Con el mando, en la primera y la última fila se sube o baja del todo, igual que con el dedo
         // (si no, la lista se queda a unos píxeles del borde y no se ve que se ha llegado al final).
-        val edgeScope = rememberCoroutineScope()
         fun scrollToEdge(index: Int) {
             val columns = (vm.catalogGrid.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 0) + 1
             val lastRowStart = games.lastIndex - games.lastIndex % columns
