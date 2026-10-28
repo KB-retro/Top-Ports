@@ -41,6 +41,24 @@ object Storage {
     fun gameDir(context: Context, title: String): File =
         File(topPortsDir(context), FileNames.safeFolderName(title)).apply { mkdirs() }
 
+    /** Carpetas del sistema en la raíz que nunca se registran ni se borran como datos de un juego. */
+    val protectedRootNames = setOf(
+        "android", "download", "downloads", "dcim", "pictures", "music", "movies", "documents",
+        "alarms", "notifications", "podcasts", "ringtones", "audiobooks", "recordings", "topports",
+    )
+
+    /** ¿Se puede borrar [file] como dato de un juego sin riesgo para el sistema? */
+    fun isSafeToDelete(file: File): Boolean {
+        val path = file.canonicalFile
+        val root = externalRoot.canonicalFile
+        if (path == root) return false
+        // Fuera del almacenamiento compartido (carpetas propias de la app): sin riesgo.
+        if (!path.path.startsWith(root.path + File.separator)) return true
+        // En la raíz solo se permiten carpetas propias del juego, nunca las del sistema.
+        val isTopLevel = path.parentFile == root
+        return !(isTopLevel && path.name.lowercase() in protectedRootNames)
+    }
+
     fun obbDir(packageName: String): File = File(externalRoot, "Android/obb/$packageName")
 
     fun dataDir(packageName: String): File = File(externalRoot, "Android/data/$packageName")

@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import com.topports.app.telegram.ChannelRepository
 import com.topports.core.InstallRecord
+import com.topports.core.InstalledFinder
+import com.topports.core.InstalledGame
 import com.topports.core.InstalledApp
 import com.topports.core.UpdateFinder
 import com.topports.core.UpdateItem
@@ -33,12 +35,28 @@ class InstallRegistry(context: Context) {
         prefs.edit().putString(record.packageName, json.toString()).apply()
     }
 
-    fun all(): Map<String, InstallRecord> = prefs.all.mapNotNull { (pkg, value) ->
+    fun all(): Map<String, InstallRecord> = prefs.all.filterKeys { !it.startsWith("extracted_") }.mapNotNull { (pkg, value) ->
         runCatching {
             val json = JSONObject(value as String)
             pkg to InstallRecord(pkg, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"))
         }.getOrNull()
     }.toMap()
+
+    /** Carpetas o archivos que dejó una extracción de este juego (para "Borrar datos"). */
+    fun recordExtracted(gameId: Long, paths: Collection<String>) {
+        val key = "extracted_$gameId"
+        val all = (extracted(gameId) + paths).toSet()
+        prefs.edit().putString(key, org.json.JSONArray(all.toList()).toString()).apply()
+    }
+
+    fun extracted(gameId: Long): List<String> = runCatching {
+        val arr = org.json.JSONArray(prefs.getString("extracted_$gameId", "[]"))
+        List(arr.length()) { arr.getString(it) }
+    }.getOrDefault(emptyList())
+
+    fun forgetExtracted(gameId: Long) {
+        prefs.edit().remove("extracted_$gameId").apply()
+    }
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {
@@ -58,6 +76,10 @@ class UpdateService(
     private val _updates = MutableStateFlow<List<UpdateItem>>(emptyList())
     val updates: StateFlow<List<UpdateItem>> = _updates.asStateFlow()
 
+    /** Juegos del canal que están instalados (pestaña Instalados y marca en la tienda). */
+    private val _installed = MutableStateFlow<List<InstalledGame>>(emptyList())
+    val installed: StateFlow<List<InstalledGame>> = _installed.asStateFlow()
+
     init {
         // Recalcular cuando cambia el catálogo (posts nuevos en el canal).
         scope.launch {
@@ -69,7 +91,9 @@ class UpdateService(
         scope.launch {
             val games = channel.state.value.games
             if (games.isEmpty()) return@launch
-            _updates.value = withContext(Dispatchers.IO) { UpdateFinder.find(installedApps(), games) }
+            val apps = withContext(Dispatchers.IO) { installedApps() }
+            _updates.value = UpdateFinder.find(apps, games)
+            _installed.value = InstalledFinder.find(apps, games)
         }
     }
 

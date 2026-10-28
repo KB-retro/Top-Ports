@@ -16,6 +16,9 @@
 - **Explorador de archivos** al estilo CX: navegar por todo el almacenamiento, copiar,
   cortar, pegar, renombrar, borrar, crear carpetas, ver el contenido de un comprimido,
   extraer e instalar.
+- **Instalados**: los juegos instalados se marcan en la tienda y tienen su propia pestaña
+  para abrirlos, desinstalarlos y borrar sus datos (OBB, `Android/data`, lo extraído y las
+  descargas de Telegram).
 
 ## Cómo conseguir el APK
 

@@ -62,6 +62,8 @@ import java.io.File
 @Composable
 fun CatalogScreen(vm: AppViewModel) {
     val state by vm.catalog.collectAsStateWithLifecycle()
+    val installed by vm.installed.collectAsStateWithLifecycle()
+    val installedIds = remember(installed) { installed.map { it.game.id }.toSet() }
     val context = LocalContext.current
     val query = vm.search.trim()
     val games = remember(state.games, query, vm.sortMode) {
@@ -203,6 +205,7 @@ fun CatalogScreen(vm: AppViewModel) {
             itemsIndexed(games, key = { _, game -> game.id }) { index, game ->
                 GameCard(
                     game,
+                    installed = game.id in installedIds,
                     onClick = { vm.openGame(game.id) },
                     modifier = Modifier
                         .focusRequester(requesterFor(game.id))
@@ -214,7 +217,7 @@ fun CatalogScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun GameCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier
             .fillMaxWidth()
@@ -228,6 +231,7 @@ private fun GameCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modif
             } else {
                 Text("?", style = PxText.title.copy(color = Px.darkGrey), modifier = Modifier.align(Alignment.Center))
             }
+            if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
         }
         Spacer(Modifier.height(6.dp))
         Text(

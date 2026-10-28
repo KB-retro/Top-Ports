@@ -14,7 +14,7 @@ import com.topports.app.ui.theme.Px
 import kotlinx.coroutines.launch
 
 enum class Tab(val label: String) {
-    STORE("Tienda"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
+    STORE("Tienda"), INSTALLED("Instalados"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
 }
 
 /** Orden de la tienda. */
@@ -28,6 +28,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val files = graph.telegram.files
     val tasks = graph.tasks.tasks
     val updates = graph.updates.updates
+    val installed = graph.updates.installed
 
     private var currentTab by mutableStateOf(Tab.STORE)
     private val tabHistory = ArrayDeque<Tab>()

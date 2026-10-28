@@ -338,6 +338,16 @@ class TaskCenter(
     ) {
         // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
         val extracted = extract(taskId, volumes, dest, password)
+        // Recordar qué se extrajo de este juego (primer nivel) para poder borrarlo en Instalados.
+        if (game != null) {
+            installs.recordExtracted(
+                game.id,
+                extracted.map { it.substringBefore('/') }.distinct()
+                    .map { File(dest, it) }
+                    .filter { Storage.isSafeToDelete(it) }
+                    .map { it.path },
+            )
+        }
         val plan = InstallPlanner.plan(extracted)
         val notes = mutableListOf<String>()
 

@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -44,6 +46,7 @@ import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelDialog
 import com.topports.app.ui.components.pixelClickable
 import com.topports.app.ui.files.FileBrowserScreen
+import com.topports.app.ui.installed.InstalledScreen
 import com.topports.app.ui.login.LoginFlow
 import com.topports.app.ui.login.MessageScreen
 import com.topports.app.ui.login.SplashScreen
@@ -122,6 +125,7 @@ private fun MainScreen(vm: AppViewModel) {
                     val id = vm.selectedGameId
                     if (id == null) CatalogScreen(vm) else GameScreen(vm, id)
                 }
+                Tab.INSTALLED -> InstalledScreen(vm)
                 Tab.UPDATES -> UpdatesScreen(vm)
                 Tab.FILES -> FileBrowserScreen(vm)
                 Tab.TASKS -> TasksScreen(vm)
@@ -197,11 +201,12 @@ private fun MainScreen(vm: AppViewModel) {
                 Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxWidth())
                 Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
+                // Seis pestañas no caben en un móvil en vertical: la barra se desplaza.
                 Row(
-                    Modifier.fillMaxWidth().background(Px.navy).padding(8.dp),
+                    Modifier.fillMaxWidth().background(Px.navy).horizontalScroll(rememberScrollState()).padding(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Tab.entries.forEach { tab -> tabButton(tab, Modifier.weight(1f)) }
+                    Tab.entries.forEach { tab -> tabButton(tab, Modifier) }
                 }
             }
         }
