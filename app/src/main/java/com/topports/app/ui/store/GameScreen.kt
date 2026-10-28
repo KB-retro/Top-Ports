@@ -49,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.topports.app.ui.components.pixelScrollbar
+import com.topports.app.ui.components.keepVerticalFocus
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.positionInParent
@@ -263,6 +264,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                     Modifier
                         .weight(if (game.description.isNotBlank()) 0.46f else 1f)
                         .fillMaxHeight()
+                        .keepVerticalFocus()
                         .pixelScrollbar(listScroll)
                         .verticalScroll(listScroll)
                         .padding(end = 10.dp),
@@ -278,7 +280,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().pixelScrollbar(listScroll).verticalScroll(listScroll).padding(12.dp)) {
+            Column(Modifier.fillMaxSize().keepVerticalFocus().pixelScrollbar(listScroll).verticalScroll(listScroll).padding(12.dp)) {
                 topBar()
                 Spacer(Modifier.height(12.dp))
                 gallery()

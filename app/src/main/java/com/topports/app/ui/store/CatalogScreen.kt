@@ -57,6 +57,7 @@ import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
 import com.topports.app.ui.components.PixelKeyboardDialog
 import com.topports.app.ui.components.pixelCard
+import com.topports.app.ui.components.keepVerticalFocus
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
@@ -235,7 +236,8 @@ fun CatalogScreen(vm: AppViewModel) {
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize(),
+            // Abajo en la última fila no salta al menú lateral; arriba sí sube a Buscar/Orden.
+            modifier = Modifier.fillMaxSize().keepVerticalFocus(blockUp = false),
         ) {
             itemsIndexed(games, key = { _, game -> game.id }) { index, game ->
                 GameCard(

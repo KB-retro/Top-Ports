@@ -45,6 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
@@ -397,3 +400,19 @@ fun Modifier.pixelScrollbar(scroll: androidx.compose.foundation.ScrollState, col
         drawRect(Px.navyDark, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Size(w, size.height))
         drawRect(color, androidx.compose.ui.geometry.Offset(x, y), androidx.compose.ui.geometry.Size(w, thumb))
     }
+
+/**
+ * Con el mando, arriba/abajo no sacan la selección de esta zona (p. ej. al llegar al último
+ * archivo no salta al menú lateral); izquierda/derecha sí cambian de columna.
+ * [blockUp] = false deja subir (p. ej. de la cuadrícula a los botones de búsqueda).
+ */
+fun Modifier.keepVerticalFocus(blockUp: Boolean = true): Modifier =
+    focusProperties {
+        onExit = {
+            if (requestedFocusDirection == FocusDirection.Down ||
+                (blockUp && requestedFocusDirection == FocusDirection.Up)
+            ) {
+                cancelFocusChange()
+            }
+        }
+    }.focusGroup()
