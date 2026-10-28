@@ -125,6 +125,11 @@ private fun PhoneStep(vm: AppViewModel) {
                 "Telegram te enviará un código.",
             style = PxText.body,
         )
+        Text(
+            "Tu número va cifrado directamente a Telegram, sin pasar por nadie más. " +
+                "Top Ports no tiene servidores ni recopila datos.",
+            style = PxText.small.copy(color = Px.green),
+        )
         PixelTextField(
             value = phone,
             onValueChange = { phone = it },

@@ -20,6 +20,22 @@
   para abrirlos, desinstalarlos y borrar sus datos (OBB, `Android/data`, lo extraído y las
   descargas de Telegram).
 
+## Privacidad
+
+- Top Ports no tiene servidores propios y no recopila ningún dato: sin estadísticas, sin
+  anuncios y sin rastreadores.
+- El inicio de sesión usa la librería oficial de Telegram (TDLib). El número de teléfono, el
+  código y la contraseña en dos pasos viajan cifrados directamente a los servidores de
+  Telegram. No pasan por nadie más: ni el autor de la app ni los administradores del canal los
+  ven.
+- La sesión se guarda solo en el dispositivo, en la carpeta privada de la app. La app solo lee
+  el canal de Top Ports: no lee los chats ni envía mensajes.
+- La sesión aparece en Telegram → Ajustes → Dispositivos y se puede cerrar desde ahí en
+  cualquier momento (o desde Ajustes → Cuenta → Cerrar sesión en la app).
+- Los juegos se descargan directamente de Telegram al dispositivo.
+- Como con cualquier app de Telegram, conviene instalar Top Ports solo desde el canal
+  oficial: una copia modificada sí podría acceder a la cuenta.
+
 ## Cómo conseguir el APK
 
 El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:

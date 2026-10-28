@@ -6,11 +6,17 @@ import android.view.Window
 /**
  * Botones de los mandos de consolas Android (Odin, Anbernic, Retroid…):
  * A acepta (como el centro de la cruceta), B vuelve atrás y L1/R1 suben o bajan una fila.
+ * En la ventana principal, B lleva a la tienda (ver MainActivity); el botón atrás del sistema
+ * sigue volviendo a la pantalla anterior.
  */
 object Gamepad {
     /** Mandos con distribución Nintendo: A y B intercambiados (opción en Ajustes). */
     @Volatile
     var swapAB = false
+
+    /** ¿Es el botón B del mando (o A si están intercambiados)? */
+    fun isBackButton(event: KeyEvent): Boolean =
+        event.keyCode == if (swapAB) KeyEvent.KEYCODE_BUTTON_A else KeyEvent.KEYCODE_BUTTON_B
 
     fun remap(event: KeyEvent): KeyEvent {
         val accept = if (swapAB) KeyEvent.KEYCODE_BUTTON_B else KeyEvent.KEYCODE_BUTTON_A

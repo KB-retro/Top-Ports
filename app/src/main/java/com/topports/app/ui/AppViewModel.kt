@@ -121,6 +121,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         selectedGameId = id
     }
 
+    /** B del mando: cerrar la ficha y volver a la tienda. */
+    fun goHome() {
+        selectedGameId = null
+        tab = Tab.STORE
+    }
+
     /** L2 / R2 del mando: pestaña anterior / siguiente. */
     fun cycleTab(step: Int) {
         val tabs = Tab.entries

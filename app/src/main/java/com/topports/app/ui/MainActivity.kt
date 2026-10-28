@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
+        // B: a la pantalla principal de la tienda. (Los diálogos tienen su propia ventana y ahí B
+        // los sigue cerrando; el botón atrás del sistema vuelve a la pantalla anterior.)
+        if (Gamepad.isBackButton(event)) {
+            if (down) vm.goHome()
+            return true
+        }
         when (event.keyCode) {
             // L2 / R2: pestaña anterior / siguiente (L1/R1 se usan para moverse entre filas).
             KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2 -> {

@@ -236,10 +236,20 @@ fun SettingsScreen(vm: AppViewModel) {
                         )
                     }
                     Text(
-                        "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} atrás · " +
+                        "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} inicio · " +
                             "L1/R1 fila o texto · L2/R2 pestaña · Y buscar · X ordenar",
                         style = PxText.small,
                     )
+                }
+            }
+        }
+
+        // --- Privacidad ---
+        item { SectionTitle("Privacidad", Px.green) }
+        item {
+            PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    PRIVACY_POINTS.forEach { Text("• $it", style = PxText.small) }
                 }
             }
         }
