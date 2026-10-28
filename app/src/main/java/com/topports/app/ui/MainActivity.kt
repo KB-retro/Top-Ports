@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import com.topports.app.ui.theme.AppTheme
+import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.TopPortsTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,6 +22,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Preferencias guardadas en Ajustes: tema de colores y botones A/B.
+        val prefs = getSharedPreferences("ui", MODE_PRIVATE)
+        Px.theme = AppTheme.fromName(prefs.getString("theme", null))
+        Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)

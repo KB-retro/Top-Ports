@@ -3,6 +3,7 @@ package com.topports.app
 import android.app.Application
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.telegram.TelegramClient
+import com.topports.app.settings.StorageTools
 import com.topports.app.updates.InstallRegistry
 import com.topports.app.updates.UpdateService
 import com.topports.app.work.TaskCenter
@@ -18,6 +19,7 @@ class AppGraph(app: Application) {
     val installs = InstallRegistry(app)
     val tasks = TaskCenter(app, telegram, scope, installs)
     val updates = UpdateService(app, installs, channel, scope)
+    val storage = StorageTools(app, telegram)
 }
 
 class TopPortsApp : Application() {

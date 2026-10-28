@@ -51,6 +51,7 @@ import com.topports.app.ui.login.TopPortsLogo
 import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
 import com.topports.app.ui.tasks.TasksScreen
+import com.topports.app.ui.settings.SettingsScreen
 import com.topports.app.ui.updates.UpdatesScreen
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
@@ -124,6 +125,7 @@ private fun MainScreen(vm: AppViewModel) {
                 Tab.UPDATES -> UpdatesScreen(vm)
                 Tab.FILES -> FileBrowserScreen(vm)
                 Tab.TASKS -> TasksScreen(vm)
+                Tab.SETTINGS -> SettingsScreen(vm)
             }
         }
     }

@@ -9,9 +9,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.topports.app.TopPortsApp
+import com.topports.app.ui.theme.AppTheme
+import com.topports.app.ui.theme.Px
 import kotlinx.coroutines.launch
 
-enum class Tab(val label: String) { STORE("Tienda"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas") }
+enum class Tab(val label: String) {
+    STORE("Tienda"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
+}
 
 /** Orden de la tienda. */
 enum class SortMode(val label: String) { NEWEST("Más nuevos"), ALPHABETICAL("A-Z") }
@@ -60,6 +64,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleSort() {
         sortMode = if (sortMode == SortMode.NEWEST) SortMode.ALPHABETICAL else SortMode.NEWEST
         prefs.edit().putString("sort", sortMode.name).apply()
+    }
+
+    /** Tema de colores; se aplica al momento y se recuerda. */
+    fun setTheme(theme: AppTheme) {
+        Px.theme = theme
+        prefs.edit().putString("theme", theme.name).apply()
+    }
+
+    /** Intercambiar A y B (mandos con distribución Nintendo). */
+    var swapAB by mutableStateOf(Gamepad.swapAB)
+        private set
+
+    fun toggleSwapAB() {
+        swapAB = !swapAB
+        Gamepad.swapAB = swapAB
+        prefs.edit().putBoolean("swapAB", swapAB).apply()
     }
 
     /** Teclado de búsqueda abierto (botón BUSCAR o Y del mando). */
