@@ -34,8 +34,29 @@ class SelfUpdateTest {
             // Publicado justo después: sin foto se uniría al juego anterior si no se apartara.
             ChannelMessage(3, 120, document = RemoteFile(6, "TopPorts-0.1.47.apk", 10)),
         )
-        val games = CatalogBuilder.build(messages.filterNot(SelfUpdate::isAppRelease))
+        val games = CatalogBuilder.build(messages)
         assertEquals(listOf("a.apk"), games.single().packages.map { it.name })
         assertTrue(SelfUpdate.isAppRelease(messages[2]))
+    }
+
+    @Test
+    fun storePromoPostIsNotAGameAndLaterFilesGoBack() {
+        val messages = listOf(
+            ChannelMessage(1, 100, text = "Patrulla's Crown", photo = PhotoRef(1, 1)),
+            ChannelMessage(2, 110, document = RemoteFile(5, "PatrullasCrown.apk", 10)),
+            // Anuncio de la app: foto + texto y su APK.
+            ChannelMessage(3, 5000, text = "Top Ports Android\nLa Store de confianza de este canal.", photo = PhotoRef(2, 2)),
+            ChannelMessage(4, 5010, document = RemoteFile(6, "TopPorts-0.1.54.apk", 10)),
+            // Parche sin foto publicado después: es del juego anterior, no de la app.
+            ChannelMessage(5, 6000, document = RemoteFile(7, "Patrulla's Crown Parche al Español.zip", 10)),
+            ChannelMessage(6, 7000, text = "Juego B", photo = PhotoRef(3, 3)),
+            ChannelMessage(7, 7010, document = RemoteFile(8, "b.apk", 10)),
+        )
+        val games = CatalogBuilder.build(messages)
+        assertEquals(listOf("Juego B", "Patrulla's Crown"), games.map { it.title })
+        assertEquals(
+            listOf("PatrullasCrown.apk", "Patrulla's Crown Parche al Español.zip"),
+            games[1].packages.map { it.name },
+        )
     }
 }

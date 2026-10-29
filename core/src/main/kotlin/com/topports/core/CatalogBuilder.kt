@@ -13,7 +13,9 @@ package com.topports.core
  *    son más partes del mismo post ("Configuración del mando", "Mods"…) y se añaden a la
  *    ficha; tras un aviso suelto sin archivos, una foto más tardía empieza otro juego;
  *  - un texto suelto después de los archivos (avisos) no se añade a la descripción.
- * Las fichas sin archivos (avisos, encuestas…) se descartan.
+ * Las fichas sin archivos (avisos, encuestas…) se descartan, y también el post de la propia
+ * app (el que lleva el APK TopPorts-x.y.z.apk); lo que llegue sin foto después de él vuelve al
+ * juego anterior.
  */
 object CatalogBuilder {
 
@@ -31,6 +33,8 @@ object CatalogBuilder {
         val date = first.date
         var lastDate = first.date
         var lastAlbumId = 0L
+        /** Post de la propia app (foto + texto + TopPorts-x.y.z.apk): no es un juego. */
+        var isAppPost = false
         /** Última vez que cambiaron los archivos: archivos añadidos después o reemplazados al editar. */
         var updated = first.date
 
@@ -67,6 +71,21 @@ object CatalogBuilder {
         val drafts = mutableListOf<Draft>()
         var current: Draft? = null
         for (m in messages.sortedBy { it.id }) {
+            // APK de la propia tienda: el post en curso (foto y texto aún sin archivos) es el
+            // anuncio de la app y no sale en la tienda. El APK nunca es un archivo de un juego.
+            if (m.document?.let { SelfUpdate.versionOf(it.name) } != null) {
+                current?.takeIf { it.docs.isEmpty() }?.isAppPost = true
+                continue
+            }
+            // Después del post de la app, los archivos y vídeos sin foto vuelven al juego anterior.
+            val appPost = current?.takeIf { it.isAppPost }
+            if (appPost != null && m.photo == null) {
+                val sameAlbum = m.albumId != 0L && m.albumId == appPost.lastAlbumId
+                if (!sameAlbum && (m.document != null || m.video != null)) {
+                    drafts.lastOrNull { !it.isAppPost && it.docs.isNotEmpty() }?.add(m)
+                }
+                continue
+            }
             val cur = current
             val startsNew = when {
                 cur == null -> true
@@ -88,7 +107,7 @@ object CatalogBuilder {
             current!!.add(m)
         }
         return drafts
-            .filter { it.docs.isNotEmpty() }
+            .filter { it.docs.isNotEmpty() && !it.isAppPost }
             .map { it.toGame() }
             .sortedByDescending { it.id }
     }

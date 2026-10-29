@@ -168,7 +168,8 @@ class ChannelRepository(
         val snapshot = synchronized(messages) { messages.values.toList() }
         // Los APK de la propia tienda no son juegos (se ofrecen en Ajustes) y los avisos de
         // novedades tampoco (se muestran una vez al abrir la app).
-        val gameMessages = snapshot.filterNot { SelfUpdate.isAppRelease(it) || Announcements.isAnnouncement(it) }
+        // (El post de la app con su APK lo aparta CatalogBuilder, con foto y texto incluidos.)
+        val gameMessages = snapshot.filterNot(Announcements::isAnnouncement)
         val announcements = Announcements.all(snapshot)
         // Los ports que nombra un aviso cuentan como actualizados en su fecha.
         val games = Announcements.applyTo(CatalogBuilder.build(gameMessages), announcements)
