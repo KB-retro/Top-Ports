@@ -188,6 +188,7 @@ private fun MainScreen(vm: AppViewModel) {
                         buildAnnotatedString {
                             withStyle(SpanStyle(color = Px.orange)) { append("TOP") }
                             withStyle(SpanStyle(color = Px.blue)) { append(" PORTS") }
+                            withStyle(SpanStyle(color = Px.green)) { append(" ANDROID") }
                         },
                         style = PxText.title,
                         modifier = Modifier.weight(1f).pixelClickable {
