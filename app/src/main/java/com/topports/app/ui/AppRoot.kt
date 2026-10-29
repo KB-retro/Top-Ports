@@ -192,6 +192,11 @@ private fun MainScreen(vm: AppViewModel) {
                     verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // En pantallas altas (4:3 como la RG477M) el logo se separa un poco del borde de arriba.
+                    when {
+                        screenHeight >= 600.dp -> Spacer(Modifier.height(24.dp))
+                        screenHeight >= 470.dp -> Spacer(Modifier.height(8.dp))
+                    }
                     TopPortsLogo(size = logoSize)
                     // Pestañas centradas en el hueco entre el logo y la ayuda (en pantallas altas como
                     // las 4:3 no se quedan arriba dejando un vacío); si no caben, se desplazan.
