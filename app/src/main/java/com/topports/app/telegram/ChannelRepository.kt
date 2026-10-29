@@ -114,6 +114,35 @@ class ChannelRepository(
             publish()
         }
         publish()
+        fillFromServerSearch(chatId)
+    }
+
+    /**
+     * Segunda pasada directamente contra el servidor: todas las fotos, archivos y vídeos del canal.
+     * GetChatHistory se apoya en la copia local de TDLib y, si en un dispositivo está incompleta,
+     * se para antes de tiempo (en un móvil faltaban unos 40 juegos). Esto rellena lo que falte.
+     */
+    private suspend fun fillFromServerSearch(chatId: Long) {
+        val filters = listOf(
+            TdApi.SearchMessagesFilterPhoto(),
+            TdApi.SearchMessagesFilterDocument(),
+            TdApi.SearchMessagesFilterVideo(),
+        )
+        for (filter in filters) {
+            var from = 0L
+            var pages = 0
+            while (pages++ < MAX_MESSAGES / 100) {
+                val found = runCatching {
+                    tg.send(TdApi.SearchChatMessages(chatId, null, "", null, from, 0, 100, filter))
+                }.getOrNull() ?: break
+                found.messages.forEach { add(it) }
+                publish()
+                if (found.messages.isEmpty() || found.nextFromMessageId == 0L) break
+                from = found.nextFromMessageId
+            }
+        }
+    }
+        }
     }
 
     private fun listenForNewPosts(chatId: Long) {
