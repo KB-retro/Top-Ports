@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ColumnScope
@@ -429,3 +430,53 @@ fun Modifier.keepVerticalFocus(blockUp: Boolean = true): Modifier =
             }
         }
     }.focusGroup()
+
+private val HEART_PIXELS = listOf(
+    ".XX.XX.",
+    "XXXXXXX",
+    "XXXXXXX",
+    ".XXXXX.",
+    "..XXX..",
+    "...X...",
+)
+
+/** Corazón pixel art de 7×6 (la fuente pixel no tiene ♥). Vacío: solo el contorno. */
+@Composable
+fun PixelHeart(filled: Boolean, modifier: Modifier = Modifier, color: Color = Px.red) {
+    val outline = Px.grey
+    androidx.compose.foundation.Canvas(modifier) {
+        val cell = minOf(size.width / 7f, size.height / 6f)
+        val ox = (size.width - cell * 7f) / 2f
+        val oy = (size.height - cell * 6f) / 2f
+        fun on(x: Int, y: Int) = y in HEART_PIXELS.indices && x in 0..6 && HEART_PIXELS[y][x] == 'X'
+        for (y in HEART_PIXELS.indices) for (x in 0..6) {
+            if (!on(x, y)) continue
+            val edge = !on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1)
+            val c = when {
+                filled -> color
+                edge -> outline
+                else -> null
+            } ?: continue
+            drawRect(
+                c,
+                androidx.compose.ui.geometry.Offset(ox + x * cell, oy + y * cell),
+                androidx.compose.ui.geometry.Size(cell + 0.5f, cell + 0.5f),
+            )
+        }
+    }
+}
+
+/** Botón de corazón con el número, como las reacciones del canal. */
+@Composable
+fun HeartButton(count: Int, mine: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .pixelCard(onClick, fill = if (mine) Px.navyDark else Px.navy, border = if (mine) Px.red else Px.white)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PixelHeart(filled = mine, modifier = Modifier.size(width = 21.dp, height = 18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(count.toString(), style = PxText.label.copy(color = if (mine) Px.red else Px.white))
+    }
+}

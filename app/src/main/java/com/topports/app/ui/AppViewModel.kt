@@ -39,6 +39,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val tasks = graph.tasks.tasks
     val updates = graph.updates.updates
     val installed = graph.updates.installed
+    val hearts = graph.channel.hearts
 
     private var currentTab by mutableStateOf(Tab.STORE)
     private val tabHistory = ArrayDeque<Tab>()

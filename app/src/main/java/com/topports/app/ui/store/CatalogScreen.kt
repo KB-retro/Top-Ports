@@ -59,6 +59,8 @@ import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
+import com.topports.app.ui.components.PixelHeart
+import com.topports.app.telegram.Hearts
 import com.topports.app.ui.components.PixelKeyboardDialog
 import com.topports.app.ui.components.pixelCard
 import com.topports.app.ui.components.keepVerticalFocus
@@ -77,6 +79,7 @@ fun CatalogScreen(vm: AppViewModel) {
     val edgeScope = rememberCoroutineScope()
     val installed by vm.installed.collectAsStateWithLifecycle()
     val installedIds = remember(installed) { installed.map { it.game.id }.toSet() }
+    val hearts by vm.hearts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val query = vm.search.trim()
     val games = remember(state.games, query, vm.sortMode, vm.systemFilter) {
@@ -291,6 +294,7 @@ fun CatalogScreen(vm: AppViewModel) {
                 GameCard(
                     game,
                     installed = game.id in installedIds,
+                    hearts = vm.graph.channel.heartsOf(game, hearts).second,
                     onClick = { vm.openGame(game.id) },
                     modifier = Modifier
                         .focusRequester(requesterFor(game.id))
@@ -307,7 +311,7 @@ fun CatalogScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun GameCard(game: Game, installed: Boolean, hearts: Hearts, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier
             .fillMaxWidth()
@@ -343,7 +347,11 @@ private fun GameCard(game: Game, installed: Boolean, onClick: () -> Unit, modifi
             game.packages.map { kindTag(it.name, it.kind) }.distinct().take(2).forEach { (label, color) ->
                 PixelTag(label, color)
             }
-            Text(FileNames.formatSize(game.size), style = PxText.small, maxLines = 1)
+            Text(FileNames.formatSize(game.size), style = PxText.small, maxLines = 1, modifier = Modifier.weight(1f))
+            if (hearts.count > 0) {
+                PixelHeart(filled = true, modifier = Modifier.size(width = 14.dp, height = 12.dp), color = if (hearts.mine) Px.red else Px.pink)
+                Text(hearts.count.toString(), style = PxText.small, maxLines = 1)
+            }
         }
     }
 }

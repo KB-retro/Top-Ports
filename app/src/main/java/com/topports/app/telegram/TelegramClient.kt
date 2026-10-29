@@ -37,6 +37,10 @@ class TelegramClient(private val context: Context) {
     private val _newMessages = MutableSharedFlow<TdApi.Message>(extraBufferCapacity = 64)
     val newMessages: SharedFlow<TdApi.Message> = _newMessages
 
+    /** Cambios en las reacciones (corazones) de los mensajes de chats abiertos. */
+    private val _interactions = MutableSharedFlow<TdApi.UpdateMessageInteractionInfo>(extraBufferCapacity = 64)
+    val interactions: SharedFlow<TdApi.UpdateMessageInteractionInfo> = _interactions
+
     @Volatile
     private var client: Client? = null
 
@@ -55,6 +59,7 @@ class TelegramClient(private val context: Context) {
             is TdApi.UpdateAuthorizationState -> onAuthorizationState(update.authorizationState)
             is TdApi.UpdateFile -> rememberFile(update.file)
             is TdApi.UpdateNewMessage -> _newMessages.tryEmit(update.message)
+            is TdApi.UpdateMessageInteractionInfo -> _interactions.tryEmit(update)
             // Post editado (texto o archivo cambiado): se vuelve a leer y se trata como nuevo,
             // así el catálogo se entera de las actualizaciones al momento.
             is TdApi.UpdateMessageEdited -> client?.send(

@@ -35,6 +35,9 @@ data class CatalogState(
     val announcement: Announcement? = null,
 )
 
+/** Corazones (reacción ❤) de un post del canal: cuántos hay y si el usuario ha dado el suyo. */
+data class Hearts(val count: Int = 0, val mine: Boolean = false)
+
 class ChannelNotAccessibleException : Exception(
     "No se encuentra el canal. Únete al canal desde Telegram con esta misma cuenta y pulsa Reintentar.",
 )
@@ -48,6 +51,10 @@ class ChannelRepository(
     val state: StateFlow<CatalogState> = _state.asStateFlow()
 
     private val messages = LinkedHashMap<Long, ChannelMessage>()
+
+    /** Corazones por id de mensaje (solo los que tienen alguno). */
+    private val _hearts = MutableStateFlow<Map<Long, Hearts>>(emptyMap())
+    val hearts: StateFlow<Map<Long, Hearts>> = _hearts.asStateFlow()
     private var loadJob: Job? = null
     private var listening = false
 
@@ -100,9 +107,59 @@ class ChannelRepository(
                 }
             }
         }
+        // Corazones que dan otros usuarios (o tú desde Telegram) mientras la app está abierta.
+        scope.launch {
+            tg.interactions.collect { update ->
+                if (update.chatId == chatId) setHearts(update.messageId, heartsOf(update.interactionInfo))
+            }
+        }
+    }
+
+    /** Mensaje del juego donde están (o irán) sus corazones y cuántos tiene. */
+    fun heartsOf(game: Game, all: Map<Long, Hearts> = _hearts.value): Pair<Long, Hearts> {
+        val known = game.messageIds.mapNotNull { id -> all[id]?.let { id to it } }
+        // El que ya tiene tu corazón; si no, el que más tiene; si ninguno, el primer mensaje del post.
+        return known.firstOrNull { it.second.mine } ?: known.maxByOrNull { it.second.count } ?: (game.id to Hearts())
+    }
+
+    /** Da o quita tu corazón al juego, como en el canal. */
+    suspend fun toggleHeart(game: Game) {
+        val chatId = _state.value.chatId
+        val (target, current) = heartsOf(game)
+        val add = !current.mine
+        // Se ve al momento; si Telegram lo rechaza se deshace.
+        setHearts(target, Hearts((current.count + if (add) 1 else -1).coerceAtLeast(0), add))
+        try {
+            val heart = TdApi.ReactionTypeEmoji(HEART)
+            if (add) tg.send(TdApi.AddMessageReaction(chatId, target, heart, false, true))
+            else tg.send(TdApi.RemoveMessageReaction(chatId, target, heart))
+        } catch (e: Exception) {
+            setHearts(target, current)
+            val msg = e.message.orEmpty()
+            throw Exception(
+                when {
+                    "REACTION" in msg -> "El canal no permite corazones en este post"
+                    else -> "No se pudo enviar el corazón: $msg"
+                },
+            )
+        }
+        runCatching { tg.send(TdApi.GetMessage(chatId, target)) }.getOrNull()
+            ?.let { setHearts(it.id, heartsOf(it.interactionInfo)) }
+    }
+
+    private fun setHearts(messageId: Long, hearts: Hearts) {
+        _hearts.update { if (hearts.count == 0 && !hearts.mine) it - messageId else it + (messageId to hearts) }
+    }
+
+    private fun heartsOf(info: TdApi.MessageInteractionInfo?): Hearts {
+        val heart = info?.reactions?.reactions?.firstOrNull { r ->
+            (r.type as? TdApi.ReactionTypeEmoji)?.emoji?.trimEnd('\uFE0F') == HEART
+        } ?: return Hearts()
+        return Hearts(heart.totalCount, heart.isChosen)
     }
 
     private fun add(message: TdApi.Message) {
+        setHearts(message.id, heartsOf(message.interactionInfo))
         val mapped = message.toChannelMessage() ?: return
         synchronized(messages) { messages[mapped.id] = mapped }
     }
@@ -166,6 +223,9 @@ class ChannelRepository(
 
     companion object {
         const val MAX_MESSAGES = 20_000
+
+        /** Reacción de corazón de Telegram (sin el selector de variante U+FE0F). */
+        const val HEART = "\u2764"
 
         /**
          * @usuario del canal público. Vale tanto TOPPORTS_CHANNEL_USERNAME como un enlace

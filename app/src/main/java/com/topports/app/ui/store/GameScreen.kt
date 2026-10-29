@@ -84,6 +84,7 @@ import com.topports.app.ui.components.PixelDialog
 import com.topports.app.ui.components.PixelPanel
 import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
+import com.topports.app.ui.components.HeartButton
 import com.topports.app.ui.components.SectionTitle
 import com.topports.app.ui.components.pixelCard
 import com.topports.app.ui.theme.Px
@@ -191,6 +192,9 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         descScroll.animateScrollBy(dir * pageStep, tween(180, easing = LinearEasing))
     }
 
+    val allHearts by vm.hearts.collectAsStateWithLifecycle()
+    val hearts = vm.graph.channel.heartsOf(game, allHearts).second
+    val heartScope = rememberCoroutineScope()
     val header: @Composable () -> Unit = {
         Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
         if (game.tags.isNotEmpty()) {
@@ -198,11 +202,22 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { game.tags.forEach { SystemTag(it) } }
         }
         Spacer(Modifier.height(6.dp))
-        Text(
-            "${FileNames.formatSize(game.size)} · " +
-                DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(game.date * 1000L)),
-            style = PxText.small,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${FileNames.formatSize(game.size)} · " +
+                    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(game.date * 1000L)),
+                style = PxText.small,
+                modifier = Modifier.weight(1f),
+            )
+            // Corazón del post, el mismo que en el canal de Telegram.
+            HeartButton(hearts.count, hearts.mine, onClick = {
+                heartScope.launch {
+                    runCatching { vm.graph.channel.toggleHeart(game) }.onFailure { e ->
+                        Toast.makeText(context, e.message ?: "Error", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            })
+        }
         Spacer(Modifier.height(10.dp))
     }
     // Columna con los archivos: al seleccionar uno con el mando se ve entero, y con el último
