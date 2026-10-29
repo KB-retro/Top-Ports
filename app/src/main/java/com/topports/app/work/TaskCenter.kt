@@ -291,8 +291,12 @@ class TaskCenter(
             if (installAfter) {
                 extractAndInstall(taskId, volumes, dest, password)
             } else {
-                extract(taskId, volumes, dest, password)
-                finish(taskId, "Extraído en ${dest.path}", dest.path)
+                val files = extract(taskId, volumes, dest, password)
+                finish(
+                    taskId,
+                    "Extraídos ${files.size} archivos (${FileNames.formatSize(extractor.lastWrittenBytes)}) en ${dest.path}",
+                    dest.path,
+                )
             }
         }
     }
@@ -458,13 +462,16 @@ class TaskCenter(
             )
         }
         val plan = InstallPlanner.plan(extracted)
-        val notes = mutableListOf<String>()
+        val notes = mutableListOf(
+            "Extraídos ${extracted.size} archivos (${FileNames.formatSize(extractor.lastWrittenBytes)}) en ${dest.path}",
+        )
 
         for (obb in plan.obbs) {
             val src = File(dest, obb.path)
             val target = File(Storage.obbDir(obb.packageName), src.name)
             update(taskId, "Copiando OBB ${src.name}", null)
-            if (moveOrCopy(src, target)) notes += "OBB en Android/obb/${obb.packageName}"
+            // El OBB se mueve: ya no estará en la carpeta de extracción, sino en Android/obb.
+            if (moveOrCopy(src, target)) notes += "OBB movido a Android/obb/${obb.packageName}"
             else notes += "No se pudo copiar ${src.name} a Android/obb/${obb.packageName}: muévelo a mano"
         }
 

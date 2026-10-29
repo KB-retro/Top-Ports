@@ -83,6 +83,11 @@ data class ArchiveEntry(val path: String, val size: Long, val isDirectory: Boole
 /** Extractor basado en 7-Zip: ZIP, 7z, RAR4/RAR5, TAR… incluidos multivolumen. */
 class ArchiveExtractor {
 
+    /** Bytes escritos en la última extracción (para el resumen de la tarea). */
+    @Volatile
+    var lastWrittenBytes = 0L
+        private set
+
     fun list(volumes: VolumeSet, password: String? = null): List<ArchiveEntry> =
         open(volumes, password) { archive ->
             (0 until archive.numberOfItems).map { i ->
@@ -126,6 +131,18 @@ class ArchiveExtractor {
             }
             throw IOException("Error al extraer: $result")
         }
+        // Nunca dar por buena una extracción que no ha escrito nada.
+        if (callback.extracted.isEmpty() && archive.numberOfItems > 0) {
+            val folders = (0 until archive.numberOfItems)
+                .all { (archive.getProperty(it, PropID.IS_FOLDER) as? Boolean) == true }
+            if (!folders) {
+                throw IOException(
+                    "No se ha extraído ningún archivo" +
+                        if (callback.skipped > 0) " (${callback.skipped} rutas no válidas dentro del archivo)" else "",
+                )
+            }
+        }
+        lastWrittenBytes = callback.writtenBytes
         callback.extracted
     }
 
@@ -209,7 +226,13 @@ class ArchiveExtractor {
         var encrypted = false
         private var total = 0L
         private var out: OutputStream? = null
-        private val destPath = dest.canonicalPath + File.separator
+        // Rutas normalizadas (sin resolver enlaces): en el almacenamiento de Android las rutas
+        // canónicas pueden no coincidir (enlaces, mayúsculas) y se descartaría todo en silencio.
+        private val destPath = dest.absoluteFile.toPath().normalize()
+        var writtenBytes = 0L
+            private set
+        var skipped = 0
+            private set
 
         override fun getStream(index: Int, extractAskMode: ExtractAskMode): ISequentialOutStream? {
             closeCurrent()
@@ -217,8 +240,11 @@ class ArchiveExtractor {
             val path = (archive.getStringProperty(index, PropID.PATH) ?: "archivo_$index").replace('\\', '/')
             if ((archive.getProperty(index, PropID.ENCRYPTED) as? Boolean) == true) encrypted = true
             val target = File(dest, path)
-            // Evita "zip slip": nada puede escribirse fuera de la carpeta destino.
-            if (!target.canonicalPath.startsWith(destPath)) return null
+            // Evita "zip slip": nada puede escribirse fuera de la carpeta destino ("../").
+            if (!target.absoluteFile.toPath().normalize().startsWith(destPath)) {
+                skipped++
+                return null
+            }
             if ((archive.getProperty(index, PropID.IS_FOLDER) as? Boolean) == true) {
                 target.mkdirs()
                 return null
@@ -230,6 +256,7 @@ class ArchiveExtractor {
             return ISequentialOutStream { data ->
                 try {
                     stream.write(data)
+                    writtenBytes += data.size
                 } catch (e: IOException) {
                     throw SevenZipException("No se pudo escribir ${target.name}: ${e.message}", e)
                 }
