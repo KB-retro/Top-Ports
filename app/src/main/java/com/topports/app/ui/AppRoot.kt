@@ -176,6 +176,7 @@ private fun MainScreen(vm: AppViewModel) {
             val compactWidth = maxWidth < 640.dp
             // El logo siempre se ve; en pantallas bajas (21:9 en horizontal, 4:3 pequeñas) más pequeño.
             val logoSize = when {
+                maxHeight >= 600.dp -> 124.dp
                 maxHeight >= 470.dp -> 96.dp
                 maxHeight >= 360.dp -> 72.dp
                 else -> 52.dp
@@ -192,11 +193,21 @@ private fun MainScreen(vm: AppViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     TopPortsLogo(size = logoSize)
-                    Column(
-                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
-                    ) {
-                        Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
+                    // Pestañas centradas en el hueco entre el logo y la ayuda (en pantallas altas como
+                    // las 4:3 no se quedan arriba dejando un vacío); si no caben, se desplazan.
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Column(
+                            Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(
+                                when {
+                                    screenHeight >= 600.dp -> 16.dp
+                                    screenHeight >= 380.dp -> 10.dp
+                                    else -> 6.dp
+                                },
+                            ),
+                        ) {
+                            Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
+                        }
                     }
                     if (showHelp) {
                         Text("L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO", style = PxText.tiny.copy(color = Px.darkGrey))
