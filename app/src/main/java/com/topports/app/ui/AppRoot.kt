@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -219,6 +220,7 @@ private fun MainScreen(vm: AppViewModel) {
                         // En móviles estrechos el título se encoge para caber en una línea.
                         style = if (narrowTitle) PxText.title.copy(fontSize = 11.sp, lineHeight = 16.sp) else PxText.title,
                         maxLines = 1,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f).pixelClickable {
                             vm.tab = Tab.STORE
                             vm.selectedGameId = null
