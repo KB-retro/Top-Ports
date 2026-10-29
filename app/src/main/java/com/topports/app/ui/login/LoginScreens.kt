@@ -175,6 +175,7 @@ private fun CodeStep(vm: AppViewModel, info: TdApi.AuthenticationCodeInfo) {
             enabled = !vm.authBusy && code.length >= 4,
             modifier = Modifier.fillMaxWidth(),
         )
+        ChangePhoneButton(vm)
     }
 }
 
@@ -203,5 +204,20 @@ private fun PasswordStep(vm: AppViewModel, hint: String) {
             enabled = !vm.authBusy && password.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
         )
+        ChangePhoneButton(vm)
     }
+}
+
+/** Volver a la pantalla del número (número mal escrito u otra cuenta). */
+@Composable
+private fun ChangePhoneButton(vm: AppViewModel) {
+    PixelButton(
+        "< Cambiar número",
+        onClick = { vm.changePhoneNumber() },
+        enabled = !vm.authBusy,
+        color = Px.darkGrey,
+        textColor = Px.white,
+        small = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }

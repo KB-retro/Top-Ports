@@ -178,6 +178,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun submitCode(code: String) = authCall { graph.telegram.sendCode(code.trim()) }
     fun submitPassword(password: String) = authCall { graph.telegram.sendPassword(password) }
 
+    /**
+     * Número equivocado, o se quiere usar otra cuenta: se cancela el inicio de sesión a medias y
+     * Telegram vuelve a pedir el número (sin borrar los datos de la app).
+     */
+    fun changePhoneNumber() = logOut()
+
     fun logOut() {
         selectedGameId = null
         tabHistory.clear()
