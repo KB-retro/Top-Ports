@@ -8,6 +8,8 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.background
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.verticalScroll
@@ -175,52 +177,49 @@ private fun MainScreen(vm: AppViewModel) {
             // El menú se adapta a la pantalla: 16:9 y 16:10 lo ven completo; 4:3 bajas y 21:9 quitan
             // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
             val compactWidth = maxWidth < 640.dp
-            // El logo siempre se ve; en pantallas bajas (21:9 en horizontal, 4:3 pequeñas) más pequeño.
-            // La ayuda de botones sale siempre que haya mando (consolas), aunque la pantalla sea
-            // baja como la Odin 2 Portal; en móviles sin mando no hace falta.
+            // La ayuda de botones sale siempre que haya mando (consolas); en móviles sin mando no.
             val showHelp = hasGamepad || maxHeight >= 470.dp
-            val tight = maxHeight < 470.dp && showHelp
-            val logoSize = when {
-                maxHeight >= 600.dp -> 124.dp
-                maxHeight >= 470.dp -> 96.dp
-                tight -> 56.dp
-                maxHeight >= 360.dp -> 72.dp
-                else -> 52.dp
+            val railWidth = if (compactWidth) 124.dp else 150.dp
+            val railPadding = if (compactWidth) 6.dp else 10.dp
+            val tabSpacing = when {
+                maxHeight >= 600.dp -> 16.dp
+                maxHeight >= 380.dp -> 10.dp
+                else -> 6.dp
             }
+            // El logo ocupa el espacio que dejan libre las pestañas y la ayuda (medidas de verdad,
+            // no por tramos): grande en 16:9 y 4:3, pequeño solo cuando de verdad no cabe.
+            var tabsHeight by remember { mutableStateOf(0.dp) }
+            var helpHeight by remember { mutableStateOf(0.dp) }
+            val density = LocalDensity.current
+            val free = screenHeight - railPadding * 2 - tabsHeight - (if (showHelp) helpHeight else 0.dp) - 32.dp
+            val logoSize = (free * 0.8f).coerceIn(44.dp, minOf(140.dp, railWidth - railPadding * 2))
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
                         .fillMaxHeight()
-                        .width(if (compactWidth) 124.dp else 150.dp)
+                        .width(railWidth)
                         .background(Px.navy)
-                        .padding(if (compactWidth) 6.dp else 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
+                        .padding(railPadding),
+                    // El hueco que sobre se reparte por igual arriba, entre bloques y abajo.
+                    verticalArrangement = Arrangement.SpaceEvenly,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // En pantallas altas (4:3 como la RG477M) el logo se separa un poco del borde de arriba.
-                    when {
-                        screenHeight >= 600.dp -> Spacer(Modifier.height(24.dp))
-                        screenHeight >= 470.dp -> Spacer(Modifier.height(8.dp))
-                    }
                     TopPortsLogo(size = logoSize)
-                    // Pestañas centradas en el hueco entre el logo y la ayuda (en pantallas altas como
-                    // las 4:3 no se quedan arriba dejando un vacío); si no caben, se desplazan.
-                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    // Si en una pantalla muy baja no caben, las pestañas se desplazan.
+                    Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                         Column(
-                            Modifier.verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(
-                                when {
-                                    screenHeight >= 600.dp -> 16.dp
-                                    screenHeight >= 380.dp && !tight -> 10.dp
-                                    else -> 6.dp
-                                },
-                            ),
+                            Modifier.onSizeChanged { tabsHeight = with(density) { it.height.toDp() } },
+                            verticalArrangement = Arrangement.spacedBy(tabSpacing),
                         ) {
                             Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
                         }
                     }
                     if (showHelp) {
-                        Text("L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO", style = PxText.tiny.copy(color = Px.darkGrey))
+                        Text(
+                            "L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO",
+                            style = PxText.tiny.copy(color = Px.darkGrey),
+                            modifier = Modifier.onSizeChanged { helpHeight = with(density) { it.height.toDp() } },
+                        )
                     }
                 }
                 Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
