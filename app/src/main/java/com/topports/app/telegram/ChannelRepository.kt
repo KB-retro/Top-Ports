@@ -142,8 +142,6 @@ class ChannelRepository(
             }
         }
     }
-        }
-    }
 
     private fun listenForNewPosts(chatId: Long) {
         if (listening) return
