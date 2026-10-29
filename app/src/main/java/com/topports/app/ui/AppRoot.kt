@@ -166,6 +166,9 @@ private fun MainScreen(vm: AppViewModel) {
         // Consolas (Odin 2 Portal, RG477M…), pantallas cuadradas (1:1, 8:7) y móviles en
         // horizontal: menú lateral. Solo los formatos más altos que anchos usan la barra inferior.
         val landscape = maxWidth >= maxHeight
+        // Medidas guardadas aquí: dentro de Row/Column no se pueden leer las de BoxWithConstraints.
+        val screenHeight = maxHeight
+        val narrowTitle = maxWidth < 360.dp
         if (landscape) {
             // El menú se adapta a la pantalla: 16:9 y 16:10 lo ven completo; 4:3 bajas y 21:9 quitan
             // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
@@ -183,13 +186,13 @@ private fun MainScreen(vm: AppViewModel) {
                         .width(if (compactWidth) 124.dp else 150.dp)
                         .background(Px.navy)
                         .padding(if (compactWidth) 6.dp else 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (maxHeight >= 380.dp) 10.dp else 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     if (logoSize > 0.dp) TopPortsLogo(size = logoSize)
                     Column(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(if (maxHeight >= 380.dp) 10.dp else 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
                     ) {
                         Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
                     }
@@ -213,7 +216,7 @@ private fun MainScreen(vm: AppViewModel) {
                             withStyle(SpanStyle(color = Px.green)) { append(" ANDROID") }
                         },
                         // En móviles estrechos el título se encoge para caber en una línea.
-                        style = if (maxWidth < 360.dp) PxText.title.copy(fontSize = 11.sp, lineHeight = 16.sp) else PxText.title,
+                        style = if (narrowTitle) PxText.title.copy(fontSize = 11.sp, lineHeight = 16.sp) else PxText.title,
                         maxLines = 1,
                         modifier = Modifier.weight(1f).pixelClickable {
                             vm.tab = Tab.STORE
