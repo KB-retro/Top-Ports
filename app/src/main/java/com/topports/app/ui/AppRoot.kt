@@ -173,10 +173,11 @@ private fun MainScreen(vm: AppViewModel) {
             // El menú se adapta a la pantalla: 16:9 y 16:10 lo ven completo; 4:3 bajas y 21:9 quitan
             // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
             val compactWidth = maxWidth < 640.dp
+            // El logo siempre se ve; en pantallas bajas (21:9 en horizontal, 4:3 pequeñas) más pequeño.
             val logoSize = when {
                 maxHeight >= 470.dp -> 96.dp
-                maxHeight >= 380.dp -> 60.dp
-                else -> 0.dp
+                maxHeight >= 360.dp -> 72.dp
+                else -> 52.dp
             }
             val showHelp = maxHeight >= 470.dp
             Row(Modifier.fillMaxSize()) {
@@ -189,7 +190,7 @@ private fun MainScreen(vm: AppViewModel) {
                     verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (logoSize > 0.dp) TopPortsLogo(size = logoSize)
+                    TopPortsLogo(size = logoSize)
                     Column(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(if (screenHeight >= 380.dp) 10.dp else 6.dp),
