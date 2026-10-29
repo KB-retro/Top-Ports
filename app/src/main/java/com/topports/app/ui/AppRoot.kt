@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -161,19 +163,39 @@ private fun MainScreen(vm: AppViewModel) {
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        // Consolas (Odin 2 Portal, RG477M…) y móviles en horizontal: menú lateral.
-        val landscape = maxWidth > maxHeight
+        // Consolas (Odin 2 Portal, RG477M…), pantallas cuadradas (1:1, 8:7) y móviles en
+        // horizontal: menú lateral. Solo los formatos más altos que anchos usan la barra inferior.
+        val landscape = maxWidth >= maxHeight
         if (landscape) {
+            // El menú se adapta a la pantalla: 16:9 y 16:10 lo ven completo; 4:3 bajas y 21:9 quitan
+            // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
+            val compactWidth = maxWidth < 640.dp
+            val logoSize = when {
+                maxHeight >= 470.dp -> 96.dp
+                maxHeight >= 380.dp -> 60.dp
+                else -> 0.dp
+            }
+            val showHelp = maxHeight >= 470.dp
             Row(Modifier.fillMaxSize()) {
                 Column(
-                    Modifier.fillMaxHeight().width(150.dp).background(Px.navy).padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier
+                        .fillMaxHeight()
+                        .width(if (compactWidth) 124.dp else 150.dp)
+                        .background(Px.navy)
+                        .padding(if (compactWidth) 6.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (maxHeight >= 380.dp) 10.dp else 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    TopPortsLogo(size = 96.dp)
-                    Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
-                    Spacer(Modifier.weight(1f))
-                    Text("L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO", style = PxText.tiny.copy(color = Px.darkGrey))
+                    if (logoSize > 0.dp) TopPortsLogo(size = logoSize)
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(if (maxHeight >= 380.dp) 10.dp else 6.dp),
+                    ) {
+                        Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
+                    }
+                    if (showHelp) {
+                        Text("L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO", style = PxText.tiny.copy(color = Px.darkGrey))
+                    }
                 }
                 Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxHeight())
@@ -190,7 +212,9 @@ private fun MainScreen(vm: AppViewModel) {
                             withStyle(SpanStyle(color = Px.blue)) { append(" PORTS") }
                             withStyle(SpanStyle(color = Px.green)) { append(" ANDROID") }
                         },
-                        style = PxText.title,
+                        // En móviles estrechos el título se encoge para caber en una línea.
+                        style = if (maxWidth < 360.dp) PxText.title.copy(fontSize = 11.sp, lineHeight = 16.sp) else PxText.title,
+                        maxLines = 1,
                         modifier = Modifier.weight(1f).pixelClickable {
                             vm.tab = Tab.STORE
                             vm.selectedGameId = null

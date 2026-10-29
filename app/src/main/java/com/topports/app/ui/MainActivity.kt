@@ -1,6 +1,7 @@
 package com.topports.app.ui
 
 import android.Manifest
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("ui", MODE_PRIVATE)
         Px.theme = AppTheme.fromName(prefs.getString("theme", null))
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
+        lockSquareScreensToLandscape()
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -53,6 +55,23 @@ class MainActivity : ComponentActivity() {
             }
         }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    /**
+     * Pantallas casi cuadradas (1:1, 8:7, 5:4): en vertical el menú inferior les roba sitio y no
+     * ganan nada, así que se quedan siempre en horizontal. 4:3, 16:10, 16:9 y 21:9 giran libremente.
+     */
+    private fun lockSquareScreensToLandscape() {
+        val (w, h) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.maximumWindowMetrics.bounds.let { it.width() to it.height() }
+        } else {
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getRealMetrics(metrics)
+            metrics.widthPixels to metrics.heightPixels
+        }
+        val ratio = maxOf(w, h).toFloat() / minOf(w, h).coerceAtLeast(1)
+        if (ratio < 1.26f) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 
     override fun onResume() {

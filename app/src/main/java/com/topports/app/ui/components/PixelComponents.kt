@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.heightIn
@@ -330,7 +331,9 @@ fun PixelDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
         DialogGamepadSupport()
         PixelPanel(
-            modifier = (if (wide) Modifier.fillMaxWidth(widthFraction) else Modifier).heightIn(max = maxHeight),
+            // En 21:9 y pantallas grandes no se estira de lado a lado: líneas de texto legibles.
+            modifier = (if (wide) Modifier.widthIn(max = 820.dp).fillMaxWidth(widthFraction) else Modifier)
+                .heightIn(max = maxHeight),
             fill = Px.navy,
             border = Px.orange,
         ) {

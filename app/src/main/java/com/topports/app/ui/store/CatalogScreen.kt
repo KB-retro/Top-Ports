@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -282,7 +283,7 @@ fun CatalogScreen(vm: AppViewModel) {
             }
         }
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(170.dp),
+            columns = CatalogColumns,
             state = vm.catalogGrid,
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -353,6 +354,19 @@ private fun GameCard(game: Game, installed: Boolean, hearts: Hearts, onClick: ()
                 Text(hearts.count.toString(), style = PxText.small, maxLines = 1)
             }
         }
+    }
+}
+
+/**
+ * Columnas de unos 170dp como mínimo (de 3 a 5 en consolas, más en 21:9), pero nunca menos de
+ * dos: en pantallas cuadradas o estrechas las carátulas se encogen en vez de quedarse en una sola.
+ */
+private object CatalogColumns : GridCells {
+    override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
+        val min = 170.dp.roundToPx()
+        val count = maxOf(2, (availableSize + spacing) / (min + spacing))
+        val usable = availableSize - spacing * (count - 1)
+        return List(count) { usable / count + if (it < usable % count) 1 else 0 }
     }
 }
 
