@@ -89,6 +89,9 @@ object CatalogBuilder {
             val cur = current
             val startsNew = when {
                 cur == null -> true
+                // Tras el post de la app, la siguiente foto siempre es otro juego (aunque llegue
+                // enseguida): si no, los juegos subidos seguidos se pegarían al post y desaparecerían.
+                cur.isAppPost -> true
                 m.albumId != 0L && m.albumId == cur.lastAlbumId -> false
                 // Sin foto no hay juego nuevo: archivos, vídeos y textos van con el anterior.
                 m.photo == null -> false

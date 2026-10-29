@@ -75,6 +75,23 @@ class ChannelRepository(
         }
     }
 
+    init {
+        // Si TDLib se reinicia (p. ej. al dar el permiso de archivos) mientras se lee el canal, la
+        // lectura se corta: al volver a estar listo se lee otra vez para no quedarse a medias.
+        scope.launch {
+            var wasReady = false
+            tg.authState.collect { state ->
+                val ready = state is TdApi.AuthorizationStateReady
+                if (ready && !wasReady && _state.value.chatId != 0L) {
+                    // La lectura anterior pudo quedarse colgada con el TDLib viejo: se empieza de nuevo.
+                    loadJob?.cancel()
+                    refresh()
+                }
+                wasReady = ready
+            }
+        }
+    }
+
     fun game(id: Long): Game? = _state.value.games.firstOrNull { it.id == id }
 
     private suspend fun loadHistory(chatId: Long) {
@@ -83,9 +100,10 @@ class ChannelRepository(
         while (messages.size < MAX_MESSAGES) {
             val page = tg.send(TdApi.GetChatHistory(chatId, fromId, 0, 100, false))
             if (page.messages.isEmpty()) {
-                // TDLib a veces devuelve una página vacía mientras sincroniza.
-                if (++emptyPages >= 3) break
-                delay(700)
+                // TDLib devuelve páginas vacías mientras sincroniza (sobre todo con datos móviles):
+                // se insiste un rato antes de dar el canal por leído entero, o faltarían juegos.
+                if (++emptyPages >= EMPTY_PAGE_RETRIES) break
+                delay(600L * emptyPages)
                 continue
             }
             emptyPages = 0
@@ -224,6 +242,9 @@ class ChannelRepository(
 
     companion object {
         const val MAX_MESSAGES = 20_000
+
+        /** Páginas vacías seguidas antes de dar por terminado el historial (unos 10 s en total). */
+        const val EMPTY_PAGE_RETRIES = 6
 
         /** Reacción de corazón de Telegram (sin el selector de variante U+FE0F). */
         const val HEART = "\u2764"

@@ -59,4 +59,22 @@ class SelfUpdateTest {
             games[1].packages.map { it.name },
         )
     }
+
+    @Test
+    fun gamesPostedRightAfterTheStorePostAreKept() {
+        val messages = listOf(
+            ChannelMessage(1, 100, text = "Juego A", photo = PhotoRef(1, 1)),
+            ChannelMessage(2, 110, document = RemoteFile(5, "a.apk", 10)),
+            ChannelMessage(3, 1000, text = "Top Ports Android\nLa Store", photo = PhotoRef(2, 2)),
+            ChannelMessage(4, 1010, document = RemoteFile(6, "TopPorts-0.1.54.apk", 10)),
+            // Varios juegos subidos seguidos, a pocos minutos unos de otros.
+            ChannelMessage(5, 1100, text = "Juego B", photo = PhotoRef(3, 3)),
+            ChannelMessage(6, 1110, document = RemoteFile(7, "b.apk", 10)),
+            ChannelMessage(7, 1200, text = "Juego C", photo = PhotoRef(4, 4)),
+            ChannelMessage(8, 1210, document = RemoteFile(8, "c.apk", 10)),
+        )
+        val games = CatalogBuilder.build(messages)
+        assertEquals(listOf("Juego C", "Juego B", "Juego A"), games.map { it.title })
+        assertEquals(listOf("b.apk"), games[1].packages.map { it.name })
+    }
 }
