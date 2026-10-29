@@ -131,7 +131,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     }
     val context = LocalContext.current
     var zoomed by remember { mutableStateOf<Int?>(null) }
-    // Con mando, al abrir la ficha queda seleccionado el botón del primer archivo.
+    // Con mando, al abrir la ficha queda seleccionado "< Volver" (arriba a la izquierda): la ficha
+    // no se desplaza y se ven carátula y título; los archivos están bajando con la cruceta.
     val primaryFocus = remember { FocusRequester() }
 
     LaunchedEffect(game.id) {
@@ -142,7 +143,10 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
 
     val topBar: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PixelButton("< Volver", onClick = { vm.selectedGameId = null }, color = Px.grey, small = true)
+            PixelButton(
+                "< Volver", onClick = { vm.selectedGameId = null }, color = Px.grey, small = true,
+                modifier = Modifier.focusRequester(primaryFocus),
+            )
             Spacer(Modifier.weight(1f))
             PixelButton("Ver en Telegram", onClick = {
                 runCatching {
@@ -243,7 +247,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         SectionTitle("Archivos (${game.packages.size})")
         game.packages.forEachIndexed { index, pkg ->
             val last = index == game.packages.lastIndex && game.videos.isEmpty()
-            PackageRow(vm, game, pkg, if (index == 0) primaryFocus else null) { top, bottom -> reveal(top, bottom, last) }
+            PackageRow(vm, game, pkg) { top, bottom -> reveal(top, bottom, last) }
             Spacer(Modifier.height(10.dp))
         }
         if (game.videos.isNotEmpty()) {
