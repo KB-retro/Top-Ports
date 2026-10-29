@@ -388,6 +388,25 @@ fun SettingsScreen(vm: AppViewModel) {
                         if (catalog.channelTitle.isNotBlank()) {
                             Text("Canal: ${catalog.channelTitle} · ${catalog.games.size} juegos", style = PxText.small)
                         }
+                        // Diagnóstico: si dos dispositivos muestran distinto número de juegos, aquí se ve
+                        // si es por la cuenta o porque uno no ha leído el canal entero.
+                        val me by produceState<String?>(null) {
+                            value = runCatching {
+                                val user = vm.graph.telegram.send(org.drinkless.tdlib.TdApi.GetMe())
+                                val phone = user.phoneNumber.takeLast(3)
+                                "${user.firstName} ${user.lastName}".trim() + if (phone.isNotEmpty()) " (···$phone)" else ""
+                            }.getOrNull()
+                        }
+                        me?.let { Text("Cuenta de Telegram: $it", style = PxText.small) }
+                        if (catalog.scannedMessages > 0) {
+                            val since = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+                                .format(java.util.Date(catalog.oldestDate * 1000L))
+                            Text(
+                                "Mensajes leídos del canal: ${catalog.scannedMessages} (desde el $since)" +
+                                    if (catalog.loading) " · leyendo…" else "",
+                                style = PxText.small,
+                            )
+                        }
                         PixelButton("Cerrar sesión", onClick = { confirmLogout = true },
                             color = Px.red, textColor = Px.white, small = true)
                     }

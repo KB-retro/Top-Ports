@@ -26,6 +26,8 @@ data class CatalogState(
     val games: List<Game> = emptyList(),
     val loading: Boolean = false,
     val scannedMessages: Int = 0,
+    /** Fecha del mensaje más antiguo leído (para comprobar si se ha leído el canal entero). */
+    val oldestDate: Int = 0,
     val channelTitle: String = "",
     val chatId: Long = 0,
     val error: String? = null,
@@ -196,6 +198,7 @@ class ChannelRepository(
             it.copy(
                 games = games,
                 scannedMessages = snapshot.size,
+                oldestDate = snapshot.minOfOrNull { m -> m.date } ?: 0,
                 appUpdate = appUpdate,
                 announcement = announcements.firstOrNull(),
             )

@@ -163,6 +163,7 @@ private fun MainScreen(vm: AppViewModel) {
         )
     }
 
+    val hasGamepad = remember { Gamepad.hasGamepad() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // Consolas (Odin 2 Portal, RG477M…), pantallas cuadradas (1:1, 8:7) y móviles en
         // horizontal: menú lateral. Solo los formatos más altos que anchos usan la barra inferior.
@@ -175,13 +176,17 @@ private fun MainScreen(vm: AppViewModel) {
             // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
             val compactWidth = maxWidth < 640.dp
             // El logo siempre se ve; en pantallas bajas (21:9 en horizontal, 4:3 pequeñas) más pequeño.
+            // La ayuda de botones sale siempre que haya mando (consolas), aunque la pantalla sea
+            // baja como la Odin 2 Portal; en móviles sin mando no hace falta.
+            val showHelp = hasGamepad || maxHeight >= 470.dp
+            val tight = maxHeight < 470.dp && showHelp
             val logoSize = when {
                 maxHeight >= 600.dp -> 124.dp
                 maxHeight >= 470.dp -> 96.dp
+                tight -> 56.dp
                 maxHeight >= 360.dp -> 72.dp
                 else -> 52.dp
             }
-            val showHelp = maxHeight >= 470.dp
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
@@ -206,7 +211,7 @@ private fun MainScreen(vm: AppViewModel) {
                             verticalArrangement = Arrangement.spacedBy(
                                 when {
                                     screenHeight >= 600.dp -> 16.dp
-                                    screenHeight >= 380.dp -> 10.dp
+                                    screenHeight >= 380.dp && !tight -> 10.dp
                                     else -> 6.dp
                                 },
                             ),

@@ -22,6 +22,12 @@ object Gamepad {
 
     const val STICK_DEAD_ZONE = 0.2f
 
+    /** ¿Hay un mando (integrado en consolas como la Odin o la RG477M, o conectado)? */
+    fun hasGamepad(): Boolean = InputDevice.getDeviceIds().any { id ->
+        val sources = InputDevice.getDevice(id)?.sources ?: return@any false
+        sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD
+    }
+
     /**
      * Joystick derecho en vertical (-1 arriba … 1 abajo, 0 en reposo) o null si el evento no es de
      * un joystick. Ejes Z/RZ en casi todos los mandos; algunos usan RY.
