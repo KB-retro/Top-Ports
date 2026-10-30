@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import com.topports.app.BuildConfig
 import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        if (BuildConfig.DEMO) openDemoScreen()
         setContent {
             TopPortsTheme {
                 AppRoot(vm)
@@ -72,6 +74,21 @@ class MainActivity : ComponentActivity() {
         }
         val ratio = maxOf(w, h).toFloat() / minOf(w, h).coerceAtLeast(1)
         if (ratio < 1.26f) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    }
+
+    /**
+     * Capturas automáticas (solo modo demo): la pantalla a mostrar llega en el intent, p. ej.
+     * `--es demo_tab SETTINGS --es demo_section LEGAL` o `--ez demo_game true`.
+     */
+    private fun openDemoScreen() {
+        Gamepad.forceGamepad = intent.getBooleanExtra("demo_gamepad", false)
+        intent.getStringExtra("demo_tab")?.let { name -> Tab.entries.firstOrNull { it.name == name }?.let { vm.tab = it } }
+        intent.getStringExtra("demo_section")?.let { name ->
+            SettingsSection.entries.firstOrNull { it.name == name }?.let { vm.settingsSection = it }
+        }
+        if (intent.getBooleanExtra("demo_game", false)) {
+            vm.graph.channel.state.value.games.firstOrNull()?.let { vm.openGame(it.id) }
+        }
     }
 
     override fun onResume() {

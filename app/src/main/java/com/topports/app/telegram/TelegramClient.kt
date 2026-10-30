@@ -45,10 +45,15 @@ class TelegramClient(private val context: Context) {
     private var client: Client? = null
 
     val isConfigured: Boolean
-        get() = BuildConfig.TELEGRAM_API_ID != 0 && BuildConfig.TELEGRAM_API_HASH.isNotBlank()
+        get() = BuildConfig.DEMO || (BuildConfig.TELEGRAM_API_ID != 0 && BuildConfig.TELEGRAM_API_HASH.isNotBlank())
 
     @Synchronized
     fun start() {
+        // Modo demo (capturas automáticas): sin TDLib, sesión "abierta" con un canal de ejemplo.
+        if (BuildConfig.DEMO) {
+            _authState.value = TdApi.AuthorizationStateReady()
+            return
+        }
         if (client != null || !isConfigured) return
         runCatching { Client.execute(TdApi.SetLogVerbosityLevel(1)) }
         client = Client.create(Client.ResultHandler { onUpdate(it) }, null, null)

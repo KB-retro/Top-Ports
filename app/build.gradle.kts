@@ -42,6 +42,8 @@ android {
         buildConfigField("String", "CHANNEL_INVITE_LINK", quoted(config("TOPPORTS_CHANNEL_INVITE_LINK")))
         // Contacto para reclamaciones (enlace, @usuario de Telegram o email). Vacío: el canal.
         buildConfigField("String", "LEGAL_CONTACT", quoted(config("TOPPORTS_LEGAL_CONTACT")))
+        // Solo para las capturas automáticas de pantalla en CI: catálogo de ejemplo sin Telegram.
+        buildConfigField("boolean", "DEMO", (config("TOPPORTS_DEMO") == "true").toString())
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

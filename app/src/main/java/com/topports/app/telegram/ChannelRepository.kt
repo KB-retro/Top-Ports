@@ -89,6 +89,12 @@ class ChannelRepository(
     }
 
     fun refresh() {
+        if (BuildConfig.DEMO) {
+            DemoCatalog.messages().forEach { m -> synchronized(messages) { messages[m.id] = m } }
+            _state.update { it.copy(channelTitle = "TOP PORTS ANDROID") }
+            publish()
+            return
+        }
         // Lo nuevo primero, aunque la lectura completa siga en marcha.
         syncRecent()
         if (loadJob?.isActive == true) return

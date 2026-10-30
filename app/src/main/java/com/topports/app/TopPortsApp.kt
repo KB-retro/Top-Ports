@@ -32,5 +32,7 @@ class TopPortsApp : Application() {
         super.onCreate()
         graph = AppGraph(this)
         graph.telegram.start()
+        // Modo demo: el catálogo de ejemplo está listo antes de la primera pantalla.
+        if (BuildConfig.DEMO) graph.channel.refresh()
     }
 }

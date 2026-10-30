@@ -22,8 +22,12 @@ object Gamepad {
 
     const val STICK_DEAD_ZONE = 0.2f
 
+    /** Solo para las capturas automáticas: simular una consola con mando en el emulador. */
+    @Volatile
+    var forceGamepad = false
+
     /** ¿Hay un mando (integrado en consolas como la Odin o la RG477M, o conectado)? */
-    fun hasGamepad(): Boolean = InputDevice.getDeviceIds().any { id ->
+    fun hasGamepad(): Boolean = forceGamepad || InputDevice.getDeviceIds().any { id ->
         val sources = InputDevice.getDevice(id)?.sources ?: return@any false
         sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD
     }
