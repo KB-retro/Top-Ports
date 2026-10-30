@@ -63,6 +63,8 @@ class VolumeSet private constructor(
                         .find(file.name)?.groupValues?.get(1)?.length ?: 1
                     v.baseName.removeSuffix(".rar").removeSuffix(".RAR") + ".part" + "1".padStart(digits, '0') + ".rar"
                 }
+                // juego.z01, .z02…: se abre el juego.zip (el último volumen).
+                FileNames.SplitStyle.ZIP_SPAN -> v.baseName
                 FileNames.SplitStyle.NONE -> file.name
             }
             val first = File(file.parentFile, firstName).takeIf { it.isFile } ?: file
@@ -161,7 +163,7 @@ class ArchiveExtractor {
                 val stream = MultiFileInStream(parts).also { opened += it }
                 SevenZip.openInArchive(null, stream, callback)
             } else {
-                // RAR multivolumen: 7-Zip pide cada volumen al callback por su nombre.
+                // RAR multivolumen y ZIP partido (.z01…): 7-Zip pide cada volumen al callback por su nombre.
                 val stream = callback.getStream(volumes.firstName)
                     ?: throw IOException("No se puede abrir ${volumes.first.name}")
                 SevenZip.openInArchive(null, stream, callback)

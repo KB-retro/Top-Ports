@@ -90,6 +90,12 @@ class TaskCenter(
     private val _saving = MutableStateFlow<Set<String>>(emptySet())
     val saving: StateFlow<Set<String>> = _saving.asStateFlow()
 
+    /** Resultado reciente de [savedFiles] por paquete (se consulta en cada redibujado de la ficha). */
+    private val savedCache = ConcurrentHashMap<String, Pair<Long, List<Pair<String, File>>?>>()
+
+    /** Última vez que se publicó el progreso de cada tarea. */
+    private val lastProgressAt = ConcurrentHashMap<Int, Long>()
+
     init {
         // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
         scope.launch { tg.files.collect { files -> movePendingDownloads(files) } }
@@ -113,8 +119,17 @@ class TaskCenter(
         }
     }
 
-    /** Partes ya guardadas en la carpeta del juego (null si falta alguna o no se guardaron). */
+    /**
+     * Partes ya guardadas en la carpeta del juego (null si falta alguna o no se guardaron). Mira el
+     * disco como mucho cada 2 s por paquete: durante una descarga se pregunta muchas veces por segundo.
+     */
     fun savedFiles(pkg: GamePackage): List<Pair<String, File>>? {
+        val now = android.os.SystemClock.uptimeMillis()
+        savedCache[pkg.key]?.let { (at, value) -> if (now - at < 2000) return value }
+        return checkSavedFiles(pkg).also { savedCache[pkg.key] = now to it }
+    }
+
+    private fun checkSavedFiles(pkg: GamePackage): List<Pair<String, File>>? {
         val dir = installs.savedDir(pkg.key) ?: return null
         val files = pkg.parts.map { it.name to File(dir, it.name) }
         val ok = files.zip(pkg.parts).all { (pair, part) -> pair.second.isFile && pair.second.length() == part.size }
@@ -195,6 +210,7 @@ class TaskCenter(
             pkg.parts.forEach { tg.deleteFile(it.id) }
             withContext(Dispatchers.IO) { savedFiles(pkg)?.forEach { it.second.delete() } }
             installs.forgetSaved(pkg.key)
+            savedCache.remove(pkg.key)
         }
     }
 
@@ -265,6 +281,7 @@ class TaskCenter(
         }
         installs.recordExtracted(gameId, saved.filter { Storage.isSafeToDelete(it) }.map { it.path })
         installs.recordSaved(pkgKey, dest.path)
+        savedCache.remove(pkgKey)
         fileIds.forEach { runCatching { tg.deleteFile(it) } }
         val names = saved.joinToString("\n") { it.name }
         finish(taskId, "Guardado en ${dest.path}:\n$names", dest.path)
@@ -568,7 +585,14 @@ class TaskCenter(
         }
     }
 
+    /**
+     * Progreso de una tarea. Extraer o copiar avisa cientos de veces por segundo: se publica como
+     * mucho ~6 veces por segundo para que la interfaz y la notificación no vayan a tirones.
+     */
     private fun update(taskId: Int, message: String, progress: Float?) {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (progress != null && progress < 1f && now - (lastProgressAt[taskId] ?: 0L) < 160) return
+        lastProgressAt[taskId] = now
         _tasks.update { list ->
             list.map { if (it.id == taskId) it.copy(message = message, progress = progress) else it }
         }

@@ -12,12 +12,19 @@ object FileNames {
 
         /** Volúmenes RAR: `juego.part1.rar`, `juego.part02.rar`. */
         RAR_PART,
+
+        /**
+         * ZIP partido al estilo WinZip: `juego.z01`, `juego.z02`… y el último `juego.zip`, que es el
+         * que se abre (7-Zip pide los demás). El `.zip` va como volumen 1 para abrirse primero.
+         */
+        ZIP_SPAN,
     }
 
     data class Volume(val baseName: String, val index: Int, val style: SplitStyle)
 
     private val numbered = Regex("""^(.+)\.(\d{3})$""")
     private val rarPart = Regex("""^(.+)\.part(\d+)\.rar$""", RegexOption.IGNORE_CASE)
+    private val zipSpan = Regex("""^(.+)\.z(\d{2,3})$""", RegexOption.IGNORE_CASE)
     private val obbName = Regex("""^(?:main|patch)\.\d+\.(.+)\.obb$""", RegexOption.IGNORE_CASE)
 
     private val archiveExtensions = setOf("zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "xz")
@@ -26,6 +33,10 @@ object FileNames {
     fun volumeOf(name: String): Volume {
         rarPart.matchEntire(name)?.let {
             return Volume(it.groupValues[1] + ".rar", it.groupValues[2].toInt(), SplitStyle.RAR_PART)
+        }
+        // ".z64" es una ROM de N64, no la parte 64 de un ZIP.
+        zipSpan.matchEntire(name)?.takeUnless { name.endsWith(".z64", ignoreCase = true) }?.let {
+            return Volume(it.groupValues[1] + ".zip", it.groupValues[2].toInt() + 1, SplitStyle.ZIP_SPAN)
         }
         numbered.matchEntire(name)?.let {
             return Volume(it.groupValues[1], it.groupValues[2].toInt(), SplitStyle.NUMBERED)
@@ -40,7 +51,7 @@ object FileNames {
     fun kindOf(baseName: String, split: SplitStyle = SplitStyle.NONE): PackageKind {
         val ext = extension(baseName)
         return when {
-            split == SplitStyle.RAR_PART -> PackageKind.ARCHIVE
+            split == SplitStyle.RAR_PART || split == SplitStyle.ZIP_SPAN -> PackageKind.ARCHIVE
             // Un APK partido en .001/.002 se une al instalar: sigue siendo un APK.
             ext == "apk" -> PackageKind.APK
             ext in bundleExtensions -> PackageKind.APK_BUNDLE

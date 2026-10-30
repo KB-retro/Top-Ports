@@ -28,6 +28,22 @@ class FileNamesTest {
     }
 
     @Test
+    fun detectsSpannedZip() {
+        val z1 = FileNames.volumeOf("Juego.z01")
+        assertEquals("Juego.zip", z1.baseName)
+        assertEquals(FileNames.SplitStyle.ZIP_SPAN, z1.style)
+        assertEquals(PackageKind.ARCHIVE, FileNames.kindOfFile("Juego.z02"))
+        // Una ROM de N64 no es una parte de ZIP.
+        assertEquals(FileNames.SplitStyle.NONE, FileNames.volumeOf("mario.z64").style)
+        // El .zip se agrupa con sus partes y va primero (es el que se abre).
+        val pkg = CatalogBuilder.groupPackages(
+            listOf(RemoteFile(1, "Juego.z01", 10), RemoteFile(2, "Juego.zip", 5), RemoteFile(3, "Juego.z02", 10)),
+        ).single()
+        assertEquals(listOf("Juego.zip", "Juego.z01", "Juego.z02"), pkg.parts.map { it.name })
+        assertEquals(PackageKind.ARCHIVE, pkg.kind)
+    }
+
+    @Test
     fun plainFiles() {
         assertEquals(PackageKind.APK, FileNames.kindOfFile("Juego v1.2.apk"))
         assertEquals(PackageKind.APK, FileNames.kindOfFile("Juego.apk.001"))

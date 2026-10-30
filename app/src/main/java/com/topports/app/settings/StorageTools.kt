@@ -3,6 +3,7 @@ package com.topports.app.settings
 import android.content.Context
 import com.topports.app.telegram.TelegramClient
 import kotlinx.coroutines.Dispatchers
+import org.drinkless.tdlib.TdApi
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -35,8 +36,26 @@ class StorageTools(private val context: Context, private val tg: TelegramClient)
     }
 
     /** Borra miniaturas, capturas y vídeos guardados; se vuelven a bajar si hacen falta. */
-    suspend fun clearCache(): Long = withContext(Dispatchers.IO) {
-        cacheDirs.sumOf { dir -> clearContents(dir) }
+    suspend fun clearCache(): Long {
+        val before = withContext(Dispatchers.IO) { cacheDirs.sumOf { sizeOf(it) } }
+        // Primero con TDLib, que así sabe qué ha borrado y vuelve a bajar las imágenes al verlas
+        // (borrarlas a mano le deja apuntando a archivos que ya no existen).
+        runCatching {
+            tg.send(
+                TdApi.OptimizeStorage(
+                    0, 0, 0, 0,
+                    arrayOf(
+                        TdApi.FileTypePhoto(), TdApi.FileTypeThumbnail(), TdApi.FileTypeVideo(),
+                        TdApi.FileTypeProfilePhoto(), TdApi.FileTypeAnimation(),
+                    ),
+                    null, null, false, 0,
+                ),
+            )
+        }
+        // Lo que quede (p. ej. de la carpeta antigua) y la caché propia de la app.
+        withContext(Dispatchers.IO) { cacheDirs.forEach { clearContents(it) } }
+        val after = withContext(Dispatchers.IO) { cacheDirs.sumOf { sizeOf(it) } }
+        return (before - after).coerceAtLeast(0)
     }
 
     private fun downloading(): Boolean = tg.files.value.values.any { it.local.isDownloadingActive }
