@@ -60,7 +60,36 @@ class ChannelRepository(
     private var loadJob: Job? = null
     private var listening = false
 
+    /**
+     * Posts más recientes pedidos directamente al servidor (no a la copia local de TDLib), y el
+     * canal se cierra y se vuelve a abrir para que Telegram lo sincronice. Así un juego recién
+     * publicado aparece al recargar o al volver a la app, sin tener que reiniciarla.
+     */
+    fun syncRecent() {
+        val chatId = _state.value.chatId
+        if (chatId == 0L) return
+        scope.launch {
+            runCatching { tg.send(TdApi.CloseChat(chatId)) }
+            runCatching { tg.send(TdApi.OpenChat(chatId)) }
+            val filters = listOf(
+                TdApi.SearchMessagesFilterPhoto(),
+                TdApi.SearchMessagesFilterDocument(),
+                TdApi.SearchMessagesFilterVideo(),
+            )
+            for (filter in filters) {
+                runCatching { tg.send(TdApi.SearchChatMessages(chatId, null, "", null, 0, 0, 50, filter)) }
+                    .getOrNull()?.messages?.forEach { add(it) }
+            }
+            // Y los últimos mensajes de texto (avisos de novedades), también del servidor.
+            runCatching { tg.send(TdApi.GetChatHistory(chatId, 0, 0, 50, false)) }
+                .getOrNull()?.messages?.forEach { add(it) }
+            publish()
+        }
+    }
+
     fun refresh() {
+        // Lo nuevo primero, aunque la lectura completa siga en marcha.
+        syncRecent()
         if (loadJob?.isActive == true) return
         loadJob = scope.launch {
             _state.update { it.copy(loading = true, error = null) }
@@ -84,6 +113,7 @@ class ChannelRepository(
             var wasReady = false
             tg.authState.collect { state ->
                 val ready = state is TdApi.AuthorizationStateReady
+                if (ready && !wasReady) tg.setOnline(true)
                 if (ready && !wasReady && _state.value.chatId != 0L) {
                     // La lectura anterior pudo quedarse colgada con el TDLib viejo: se empieza de nuevo.
                     loadJob?.cancel()

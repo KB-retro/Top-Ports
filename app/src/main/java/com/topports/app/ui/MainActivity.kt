@@ -78,6 +78,14 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Al volver de dar el permiso de archivos, las descargas pasan a /TopPorts/.telegram.
         vm.graph.telegram.applyStorageLocation()
+        // En pantalla: en línea para recibir los posts nuevos, y se recogen los que hayan salido.
+        vm.graph.telegram.setOnline(true)
+        vm.graph.channel.syncRecent()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        vm.graph.telegram.setOnline(false)
     }
 
     /**

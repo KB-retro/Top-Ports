@@ -142,6 +142,15 @@ class TelegramClient(private val context: Context) {
         _files.update { it + (file.id to file) }
     }
 
+    /**
+     * Con la app en pantalla, "en línea": Telegram manda al momento los posts nuevos del canal.
+     * Sin esto, TDLib puede no enterarse de ellos hasta reiniciarse.
+     */
+    fun setOnline(online: Boolean) {
+        if (_authState.value !is TdApi.AuthorizationStateReady) return
+        client?.send(TdApi.SetOption("online", TdApi.OptionValueBoolean(online)), Client.ResultHandler { })
+    }
+
     suspend fun <T : TdApi.Object> send(function: TdApi.Function<T>): T {
         val c = client ?: throw TdException(-1, "Telegram no está iniciado")
         return suspendCancellableCoroutine { cont ->
