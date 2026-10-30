@@ -2,6 +2,8 @@ name: Android
 
 on:
   push:
+    # La rama "capturas" solo guarda las imágenes de las capturas automáticas.
+    branches-ignore: [capturas]
   pull_request:
   workflow_dispatch:
 
@@ -108,6 +110,8 @@ jobs:
     needs: tdlib
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -150,3 +154,17 @@ jobs:
         with:
           name: capturas-0.1.${{ github.run_number }}
           path: capturas/
+
+      # También en la rama "capturas" del repositorio: se ven directamente en GitHub, sin
+      # descargar el zip (la rama se rehace en cada ejecución).
+      - name: Publicar en la rama capturas
+        if: always()
+        run: |
+          [ -d capturas ] && [ -n "$(ls capturas)" ] || exit 0
+          cd capturas
+          git init -q -b capturas
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Capturas 0.1.${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" capturas

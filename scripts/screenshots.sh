@@ -25,7 +25,9 @@ shot() {
 }
 
 # nombre  ancho  alto  densidad  mando(true = consola)
-while read -r name w h d pad; do
+# La lista se lee por el descriptor 3: "adb shell" se come la entrada estándar y, si no, solo se
+# haría el primer formato.
+while read -r name w h d pad <&3; do
   [ -z "$name" ] && continue
   echo "== $name (${w}x${h} @ ${d}dpi)"
   adb shell wm size "${w}x${h}"
@@ -34,7 +36,7 @@ while read -r name w h d pad; do
   shot "$name-1-tienda"  --es demo_tab STORE --ez demo_gamepad "$pad"
   shot "$name-2-ficha"   --es demo_tab STORE --ez demo_game true --ez demo_gamepad "$pad"
   shot "$name-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --ez demo_gamepad "$pad"
-done <<'FORMATS'
+done 3<<'FORMATS'
 16x9-horizontal     1920 1080 400 true
 16x9-vertical       1080 1920 400 false
 16x10-horizontal    1920 1200 320 true
