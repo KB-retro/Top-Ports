@@ -229,7 +229,7 @@ fun SettingsScreen(vm: AppViewModel) {
                         if (u == null) {
                             PixelProgress(null, Modifier.fillMaxWidth(), color = Px.blue)
                         } else {
-                            Text("Juegos descargados: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
+                            Text("Descargas a medias o sin mover: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
                             Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
                             Text("Descargas a medias: ${FileNames.formatSize(u.partial)}", style = PxText.body)
                         }
@@ -241,7 +241,7 @@ fun SettingsScreen(vm: AppViewModel) {
                             PixelButton("Buscar huérfanos", onClick = {
                                 work { orphans = storage.findOrphans() }
                             }, color = Px.orange, small = true, enabled = !busy)
-                            PixelButton("Borrar todas las descargas", onClick = { confirmDeleteAll = true },
+                            PixelButton("Borrar descargas de la caché", onClick = { confirmDeleteAll = true },
                                 color = Px.red, textColor = Px.white, small = true, enabled = !busy)
                         }
                         orphans?.let { o ->
@@ -417,8 +417,13 @@ fun SettingsScreen(vm: AppViewModel) {
     }
 
     if (confirmDeleteAll) {
-        PixelDialog("¿Borrar todas las descargas?", onDismiss = { confirmDeleteAll = false }) {
-            Text("Se borrarán los juegos bajados de Telegram. Lo instalado y lo extraído se queda.", style = PxText.body)
+        PixelDialog("¿Borrar descargas de la caché?", onDismiss = { confirmDeleteAll = false }) {
+            Text(
+                "Se borrarán las descargas que siguen en la caché de Telegram (a medias o sin pasar a " +
+                    "/TopPorts). Los juegos ya guardados en /TopPorts, lo instalado y lo extraído no se " +
+                    "tocan: esos se borran desde la ficha del juego o desde Instalados.",
+                style = PxText.body,
+            )
             DialogButtons {
                 PixelButton("No", onClick = { confirmDeleteAll = false }, color = Px.grey, small = true)
                 PixelButton("Borrar", onClick = {

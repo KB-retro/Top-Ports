@@ -327,7 +327,12 @@ class TaskCenter(
         launchTask(title) { taskId, _ ->
             val total = sources.sumOf { sizeOf(it) }.coerceAtLeast(1)
             var done = 0L
+            val destPath = destDir.absoluteFile.toPath().normalize()
             for (src in sources) {
+                // Una carpeta no se puede copiar ni mover dentro de sí misma: se copiaría sin fin.
+                if (src.isDirectory && destPath.startsWith(src.absoluteFile.toPath().normalize())) {
+                    throw IOException("No se puede copiar \"${src.name}\" dentro de sí misma")
+                }
                 val target = uniqueTarget(File(destDir, src.name))
                 if (move && src.renameTo(target)) {
                     done += sizeOf(target)

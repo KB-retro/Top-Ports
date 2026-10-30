@@ -53,6 +53,7 @@ class ChannelRepository(
     val state: StateFlow<CatalogState> = _state.asStateFlow()
 
     private val messages = LinkedHashMap<Long, ChannelMessage>()
+    private val publishLock = Any()
 
     /** Corazones por id de mensaje (solo los que tienen alguno). */
     private val _hearts = MutableStateFlow<Map<Long, Hearts>>(emptyMap())
@@ -241,7 +242,12 @@ class ChannelRepository(
         synchronized(messages) { messages[mapped.id] = mapped }
     }
 
-    private fun publish() {
+    /**
+     * Rehace el catálogo con todos los mensajes. Se llama desde varias corrutinas a la vez (lectura
+     * del historial, posts nuevos, recarga): va en exclusiva para que un catálogo calculado con
+     * menos mensajes no pise a uno más nuevo (un juego recién publicado "desaparecía").
+     */
+    private fun publish() = synchronized(publishLock) {
         val snapshot = synchronized(messages) { messages.values.toList() }
         // Los APK de la propia tienda no son juegos (se ofrecen en Ajustes) y los avisos de
         // novedades tampoco (se muestran una vez al abrir la app).

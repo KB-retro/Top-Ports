@@ -81,6 +81,8 @@ class MainActivity : ComponentActivity() {
         // En pantalla: en línea para recibir los posts nuevos, y se recogen los que hayan salido.
         vm.graph.telegram.setOnline(true)
         vm.graph.channel.syncRecent()
+        // Por si se ha instalado o desinstalado algo fuera de la app: marcas INSTALADO al día.
+        vm.graph.updates.refresh()
     }
 
     override fun onPause() {

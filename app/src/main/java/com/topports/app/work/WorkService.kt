@@ -44,6 +44,16 @@ class WorkService : LifecycleService() {
         return START_NOT_STICKY
     }
 
+    /**
+     * Android 15+: un servicio "dataSync" solo puede estar 6 horas al día en primer plano. Al
+     * agotarlas hay que pararlo; si no, Android cierra la app con un error. Las descargas siguen
+     * mientras la app esté abierta.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     private fun observe() {
         val graph = (application as TopPortsApp).graph
         lifecycleScope.launch {

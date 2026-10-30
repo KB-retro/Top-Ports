@@ -335,14 +335,15 @@ fun FileBrowserScreen(vm: AppViewModel) {
             DialogButtons { PixelButton("Cerrar", onClick = { dialog = null }, small = true) }
         }
         is FileDialog.Rename -> TextInputDialog("Renombrar", d.file.name, onDismiss = { dialog = null }) { name ->
-            val ok = name.isNotBlank() && d.file.renameTo(File(d.file.parentFile, name))
+            // Sin "/": un nombre con barras movería el archivo a otra carpeta.
+            val ok = name.isNotBlank() && '/' !in name && d.file.renameTo(File(d.file.parentFile, name.trim()))
             if (!ok) Toast.makeText(context, "No se pudo renombrar", Toast.LENGTH_SHORT).show()
             dialog = null
             selection = emptySet()
             reload++
         }
         FileDialog.NewFolder -> TextInputDialog("Nueva carpeta", "", onDismiss = { dialog = null }) { name ->
-            val ok = name.isNotBlank() && File(dir, name).mkdirs()
+            val ok = name.isNotBlank() && '/' !in name && File(dir, name.trim()).mkdirs()
             if (!ok) Toast.makeText(context, "No se pudo crear la carpeta", Toast.LENGTH_SHORT).show()
             dialog = null
             reload++
