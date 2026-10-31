@@ -7,6 +7,10 @@ import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
@@ -250,12 +254,34 @@ private fun MainScreen(vm: AppViewModel) {
                 Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxWidth())
                 Box(Modifier.fillMaxWidth().height(3.dp).background(Px.black))
-                // Seis pestañas no caben en un móvil en vertical: la barra se desplaza.
+                // Seis pestañas no caben en un móvil en vertical: la barra se desplaza y siempre
+                // deja a la vista la pestaña abierta (si no, AJUSTES quedaba cortada en el borde).
+                val barScroll = rememberScrollState()
+                val tabSpans = remember { mutableStateMapOf<Tab, Pair<Int, Int>>() }
+                var barWidth by remember { mutableIntStateOf(0) }
+                LaunchedEffect(vm.tab, barWidth, tabSpans[vm.tab]) {
+                    val (start, end) = tabSpans[vm.tab] ?: return@LaunchedEffect
+                    val target = (start + end) / 2 - barWidth / 2
+                    barScroll.animateScrollTo(target.coerceIn(0, barScroll.maxValue))
+                }
                 Row(
-                    Modifier.fillMaxWidth().background(Px.navy).horizontalScroll(rememberScrollState()).padding(8.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Px.navy)
+                        .onSizeChanged { barWidth = it.width }
+                        .horizontalScroll(barScroll)
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Tab.entries.forEach { tab -> tabButton(tab, Modifier) }
+                    Tab.entries.forEach { tab ->
+                        tabButton(
+                            tab,
+                            Modifier.onGloballyPositioned {
+                                val x = it.positionInParent().x.toInt()
+                                tabSpans[tab] = x to x + it.size.width
+                            },
+                        )
+                    }
                 }
             }
         }

@@ -96,6 +96,15 @@ class TaskCenter(
     /** Última vez que se publicó el progreso de cada tarea. */
     private val lastProgressAt = ConcurrentHashMap<Int, Long>()
 
+    private val prefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
+
+    /** Extraer solo al terminar la descarga (Ajustes > Almacenamiento). */
+    var autoExtract: Boolean = prefs.getBoolean("autoExtract", true)
+        set(value) {
+            field = value
+            prefs.edit().putBoolean("autoExtract", value).apply()
+        }
+
     init {
         // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
         scope.launch { tg.files.collect { files -> movePendingDownloads(files) } }
@@ -106,10 +115,15 @@ class TaskCenter(
             if (p.pkgKey in _saving.value) continue
             if (!p.parts.all { (id, _) -> files[id]?.local?.isDownloadingCompleted == true }) continue
             _saving.update { it + p.pkgKey }
-            launchTask("Guardando ${p.parts.first().second}") { taskId, _ ->
+            val unpack = autoExtract && shouldAutoExtract(p.parts.map { it.second })
+            launchTask((if (unpack) "Extrayendo " else "Guardando ") + p.parts.first().second) { taskId, password ->
                 try {
                     val parts = p.parts.map { (id, name) -> name to File(tg.refreshFile(id).local.path) }
-                    saveParts(taskId, p.gameId, p.pkgKey, p.parts.map { it.first }, parts, File(p.dir))
+                    if (unpack) {
+                        extractDownloaded(taskId, p, parts, password)
+                    } else {
+                        saveParts(taskId, p.gameId, p.pkgKey, p.parts.map { it.first }, parts, File(p.dir))
+                    }
                 } finally {
                     // Si falla, el archivo sigue en la caché y se puede guardar o extraer a mano.
                     installs.removePendingSave(p.pkgKey)
@@ -117,6 +131,26 @@ class TaskCenter(
                 }
             }
         }
+    }
+
+    /**
+     * Comprimidos que se extraen solos: 7z, rar y cualquier archivo en partes. Un .zip suelto se
+     * deja tal cual porque hay lanzadores de ports que lo cargan directamente.
+     */
+    private fun shouldAutoExtract(names: List<String>): Boolean {
+        val v = FileNames.volumeOf(names.first())
+        if (FileNames.kindOf(v.baseName, v.style) != PackageKind.ARCHIVE) return false
+        return names.size > 1 || !v.baseName.endsWith(".zip", ignoreCase = true)
+    }
+
+    /**
+     * Extrae en /TopPorts/<juego> lo recién descargado y borra el comprimido de la caché de
+     * Telegram. Si falla, el comprimido se queda y se puede extraer o guardar a mano.
+     */
+    private suspend fun extractDownloaded(taskId: Int, p: InstallRegistry.PendingSave, parts: List<Pair<String, File>>, password: String?) {
+        extractAndInstall(taskId, VolumeSet.ofParts(parts), File(p.dir), password, gameId = p.gameId)
+        installs.recordUnpacked(p.pkgKey, p.dir)
+        p.parts.forEach { (id, _) -> runCatching { tg.deleteFile(id) } }
     }
 
     /**
@@ -210,6 +244,7 @@ class TaskCenter(
             pkg.parts.forEach { tg.deleteFile(it.id) }
             withContext(Dispatchers.IO) { savedFiles(pkg)?.forEach { it.second.delete() } }
             installs.forgetSaved(pkg.key)
+            installs.forgetUnpacked(pkg.key)
             savedCache.remove(pkg.key)
         }
     }
@@ -446,7 +481,7 @@ class TaskCenter(
         val free = Storage.freeBytes(dest)
         if (estimate > free) throw NotEnoughSpaceException(estimate, free)
         update(taskId, "Extrayendo en ${dest.path}", 0f)
-        return extractor.extract(
+        val files = extractor.extract(
             volumes = volumes,
             dest = dest,
             password = password,
@@ -455,6 +490,17 @@ class TaskCenter(
             },
             isCancelled = { !coroutineContext.isActive },
         )
+        // Partes .001/.002 de un archivo sin extensión conocida: lo que sale es el .7z/.zip/.rar
+        // unido. Se extrae también y se borra, para no tener que hacerlo a mano.
+        val inner = files.singleOrNull()?.let { File(dest, it) }
+        if (FileNames.volumeOf(volumes.firstName).style == FileNames.SplitStyle.NUMBERED &&
+            inner != null && inner.isFile && FileNames.kindOf(inner.name) == PackageKind.ARCHIVE
+        ) {
+            val nested = extract(taskId, VolumeSet.local(inner), dest, password)
+            inner.delete()
+            return nested
+        }
+        return files
     }
 
     /** Anota de qué archivo del canal sale un APK, para avisar luego de sus actualizaciones. */
@@ -470,13 +516,15 @@ class TaskCenter(
         password: String?,
         game: Game? = null,
         pkg: GamePackage? = null,
+        gameId: Long? = game?.id,
     ) {
+        dest.mkdirs()
         // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
         val extracted = extract(taskId, volumes, dest, password)
         // Recordar qué se extrajo de este juego (primer nivel) para poder borrarlo en Instalados.
-        if (game != null) {
+        if (gameId != null) {
             installs.recordExtracted(
-                game.id,
+                gameId,
                 extracted.map { it.substringBefore('/') }.distinct()
                     .map { File(dest, it) }
                     .filter { Storage.isSafeToDelete(it) }

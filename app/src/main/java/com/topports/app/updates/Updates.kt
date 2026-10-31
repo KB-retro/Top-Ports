@@ -74,6 +74,17 @@ class InstallRegistry(context: Context) {
         prefs.edit().remove("saved_$pkgKey").apply()
     }
 
+    /** Carpeta donde se extrajo solo un comprimido al terminar de descargarse. */
+    fun recordUnpacked(pkgKey: String, dir: String) {
+        prefs.edit().putString("unpacked_$pkgKey", dir).apply()
+    }
+
+    fun unpackedDir(pkgKey: String): String? = prefs.getString("unpacked_$pkgKey", null)
+
+    fun forgetUnpacked(pkgKey: String) {
+        prefs.edit().remove("unpacked_$pkgKey").apply()
+    }
+
     /** Descarga que al terminar se mueve sola a la carpeta del juego. */
     data class PendingSave(val pkgKey: String, val gameId: Long, val dir: String, val parts: List<Pair<Int, String>>)
 
@@ -116,7 +127,7 @@ class InstallRegistry(context: Context) {
     fun isIgnored(packageName: String, pkg: GamePackage): Boolean =
         prefs.getString("ignored_$packageName", null) == "${pkg.name}|${pkg.size}"
 
-    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_")
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {

@@ -233,6 +233,24 @@ fun SettingsScreen(vm: AppViewModel) {
                             Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
                             Text("Descargas a medias: ${FileNames.formatSize(u.partial)}", style = PxText.body)
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Extraer al descargar", style = PxText.body)
+                                Text(
+                                    "Los .7z, .rar y archivos en partes se extraen solos en /TopPorts/<juego> y se " +
+                                        "borra el comprimido. Un .zip suelto se guarda tal cual.",
+                                    style = PxText.small,
+                                )
+                            }
+                            var auto by remember { mutableStateOf(vm.graph.tasks.autoExtract) }
+                            PixelButton(
+                                if (auto) "Sí" else "No",
+                                onClick = { auto = !auto; vm.graph.tasks.autoExtract = auto },
+                                color = if (auto) Px.green else Px.darkGrey,
+                                textColor = if (auto) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
                         if (busy) PixelProgress(null, Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PixelButton("Borrar caché", onClick = {

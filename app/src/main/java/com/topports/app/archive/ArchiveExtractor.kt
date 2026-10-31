@@ -161,6 +161,9 @@ class ArchiveExtractor {
                     .filterNotNull()
                     .toList()
                 val stream = MultiFileInStream(parts).also { opened += it }
+                // Con el nombre "juego.7z.001" 7-Zip elige su formato "Split" y solo une las partes
+                // (sale juego.7z sin extraer). Con "juego.7z" detecta el formato real y lo extrae.
+                callback.currentName = v.baseName
                 SevenZip.openInArchive(null, stream, callback)
             } else {
                 // RAR multivolumen y ZIP partido (.z01…): 7-Zip pide cada volumen al callback por su nombre.
@@ -186,7 +189,7 @@ class ArchiveExtractor {
         private val password: String?,
         private val opened: MutableList<Closeable>,
     ) : IArchiveOpenCallback, IArchiveOpenVolumeCallback, ICryptoGetTextPassword {
-        private var currentName: String = volumes.firstName
+        var currentName: String = volumes.firstName
         private val files = HashMap<String, RandomAccessFile>()
         var passwordAsked = false
 

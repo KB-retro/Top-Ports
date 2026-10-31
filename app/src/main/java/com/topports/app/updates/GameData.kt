@@ -41,7 +41,7 @@ class GameData(
         }
         item.game.packages.flatMap { it.parts }.forEach { tg.deleteFile(it.id) }
         registry.forgetExtracted(item.game.id)
-        item.game.packages.forEach { registry.forgetSaved(it.key) }
+        item.game.packages.forEach { registry.forgetSaved(it.key); registry.forgetUnpacked(it.key) }
         return freed
     }
 

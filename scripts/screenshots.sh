@@ -28,7 +28,7 @@ shot() {
 # La lista se lee por el descriptor 3: "adb shell" se come la entrada estándar y, si no, solo se
 # haría el primer formato.
 while read -r name w h d pad <&3; do
-  [ -z "$name" ] && continue
+  case "$name" in ""|"#"*) continue ;; esac
   echo "== $name (${w}x${h} @ ${d}dpi)"
   adb shell wm size "${w}x${h}"
   adb shell wm density "$d"
@@ -45,10 +45,12 @@ done 3<<'FORMATS'
 4x3-vertical        960  1280 320 false
 1x1                 720  720  240 true
 8x7                 1024 896  240 true
-21x9-horizontal     2400 1080 420 false
-21x9-vertical       1080 2400 420 false
-21x10-horizontal    2520 1200 420 false
-21x10-vertical      1200 2520 420 false
+# El emulador no pasa de 1920 px de lado: 21:9 y 21:10 se simulan a 1920 con la misma
+# proporción y unos dp parecidos a un móvil real (1080x2400 a 420 ppp = 411x914 dp).
+21x9-horizontal     1920 823 320 false
+21x9-vertical       823 1920 320 false
+21x10-horizontal    1920 914 320 false
+21x10-vertical      914 1920 320 false
 FORMATS
 
 adb shell wm size reset

@@ -229,12 +229,14 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     val listScroll = rememberScrollState()
     val revealScope = rememberCoroutineScope()
     val revealMargin = with(LocalDensity.current) { 16.dp.toPx() }
+    // Archivos antes que la descripción (pantallas bajas): el último no baja hasta el final.
+    var filesFirst by remember { mutableStateOf(false) }
     fun reveal(top: Float, bottom: Float, last: Boolean) {
         revealScope.launch {
             delay(30) // después del desplazamiento automático del foco
             val view = listScroll.viewportSize.toFloat()
             val target = when {
-                last -> listScroll.maxValue.toFloat()
+                last && !filesFirst -> listScroll.maxValue.toFloat()
                 bottom + revealMargin > listScroll.value + view -> bottom + revealMargin - view
                 top - revealMargin < listScroll.value -> top - revealMargin
                 else -> return@launch
@@ -259,9 +261,9 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
-                "Las descargas se guardan en /TopPorts/<juego>. Los APK se instalan directamente, " +
-                    "los comprimidos se extraen donde elijas (raíz de la memoria o /TopPorts) y los " +
-                    "OBB se copian a Android/obb.",
+                "Las descargas se guardan en /TopPorts/<juego>. Los .7z, .rar y archivos en partes se " +
+                    "extraen solos al terminar (se puede quitar en Ajustes > Almacenamiento). Los APK " +
+                    "se instalan directamente y los OBB se copian a Android/obb.",
                 style = PxText.small,
             )
         }
@@ -299,16 +301,28 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 }
             }
         } else {
+            // En pantallas bajas y anchas (4:3, 8:7 con menú lateral) los archivos van justo debajo
+            // del título, para no tener que bajar por toda la descripción hasta llegar a ellos.
+            filesFirst = maxWidth > maxHeight
+            val description: @Composable () -> Unit = {
+                if (game.description.isNotBlank()) {
+                    DescriptionPanel(game.description, descScroll, Modifier.fillMaxWidth().heightIn(max = 320.dp))
+                }
+            }
             Column(Modifier.fillMaxSize().keepVerticalFocus().pixelScrollbar(listScroll).verticalScroll(listScroll).padding(12.dp)) {
                 topBar()
                 Spacer(Modifier.height(12.dp))
                 gallery()
                 header()
-                if (game.description.isNotBlank()) {
-                    DescriptionPanel(game.description, descScroll, Modifier.fillMaxWidth().heightIn(max = 320.dp))
+                if (filesFirst) {
+                    downloads()
+                    Spacer(Modifier.height(12.dp))
+                    description()
+                } else {
+                    description()
+                    Spacer(Modifier.height(12.dp))
+                    downloads()
                 }
-                Spacer(Modifier.height(12.dp))
-                downloads()
             }
         }
     }
@@ -411,6 +425,10 @@ private fun PackageRow(
     val savedDir = remember(info.complete, files, moving) {
         if (vm.graph.tasks.savedFiles(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
     }
+    // Comprimido que se extrajo solo al descargarse (ya no está la descarga, sí la carpeta).
+    val unpackedDir = remember(info.started, moving) {
+        vm.graph.installs.unpackedDir(pkg.key)?.takeIf { !info.started && !moving && File(it).isDirectory }
+    }
     val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
     var bounds by remember { mutableStateOf(0f to 0f) }
 
@@ -447,6 +465,8 @@ private fun PackageRow(
                 Text("Pasando a /TopPorts…", style = PxText.small.copy(color = Px.yellow))
             } else if (savedDir != null) {
                 Text("En $savedDir", style = PxText.small.copy(color = Px.green))
+            } else if (unpackedDir != null) {
+                Text("Extraído en $unpackedDir", style = PxText.small.copy(color = Px.green))
             }
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -485,8 +505,8 @@ private fun PackageRow(
                 if ((info.started || info.complete) && !moving) {
                     PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)
                 }
-                if (savedDir != null) {
-                    PixelButton("Abrir carpeta", onClick = { vm.openFolder(savedDir) }, color = Px.yellow, small = true)
+                (savedDir ?: unpackedDir)?.let { dir ->
+                    PixelButton("Abrir carpeta", onClick = { vm.openFolder(dir) }, color = Px.yellow, small = true)
                 }
             }
         }
