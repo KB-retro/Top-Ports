@@ -234,6 +234,32 @@ class TaskCenter(
         }
     }
 
+    /** Descargas de la tienda aún sin terminar (y sin mover ni extraer), para TAREAS. */
+    fun pendingDownloads(): List<InstallRegistry.PendingSave> =
+        installs.pendingSaves().filter { it.pkgKey !in _saving.value }
+
+    fun pauseDownload(p: InstallRegistry.PendingSave) {
+        scope.launch { p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } } }
+    }
+
+    fun resumeDownload(p: InstallRegistry.PendingSave) {
+        scope.launch {
+            p.parts.forEach { (id, _) -> runCatching { tg.startDownload(id) } }
+            WorkService.start(context)
+        }
+    }
+
+    /** Para la descarga y borra lo ya bajado (no toca lo instalado ni extraído antes). */
+    fun cancelDownload(p: InstallRegistry.PendingSave) {
+        installs.removePendingSave(p.pkgKey)
+        scope.launch {
+            p.parts.forEach { (id, _) ->
+                runCatching { tg.pauseDownload(id) }
+                tg.deleteFile(id)
+            }
+        }
+    }
+
     fun pause(pkg: GamePackage) {
         scope.launch { pkg.parts.forEach { runCatching { tg.pauseDownload(it.id) } } }
     }
@@ -241,7 +267,10 @@ class TaskCenter(
     fun deleteDownload(pkg: GamePackage) {
         installs.removePendingSave(pkg.key)
         scope.launch {
-            pkg.parts.forEach { tg.deleteFile(it.id) }
+            pkg.parts.forEach {
+                runCatching { tg.pauseDownload(it.id) }
+                tg.deleteFile(it.id)
+            }
             withContext(Dispatchers.IO) { savedFiles(pkg)?.forEach { it.second.delete() } }
             installs.forgetSaved(pkg.key)
             installs.forgetUnpacked(pkg.key)

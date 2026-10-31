@@ -2,6 +2,8 @@ package com.topports.app.ui.tasks
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.topports.app.ui.AppViewModel
+import com.topports.app.updates.InstallRegistry
 import com.topports.app.ui.components.DialogButtons
 import com.topports.app.ui.components.PixelButton
 import com.topports.app.ui.components.PixelDialog
@@ -34,6 +37,7 @@ import com.topports.app.ui.theme.PxText
 import com.topports.app.work.TaskState
 import com.topports.core.FileNames
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TasksScreen(vm: AppViewModel) {
     val tasks by vm.tasks.collectAsStateWithLifecycle()
@@ -41,7 +45,15 @@ fun TasksScreen(vm: AppViewModel) {
     val names by vm.graph.tasks.downloadNames.collectAsStateWithLifecycle()
     var passwordFor by remember { mutableStateOf<TaskState?>(null) }
 
+    val catalog by vm.catalog.collectAsStateWithLifecycle()
+    var confirmCancel by remember { mutableStateOf<InstallRegistry.PendingSave?>(null) }
+
+    // Descargas de la tienda, una por paquete (todas sus partes juntas) con sus botones.
+    val pending = vm.graph.tasks.pendingDownloads()
+    val pendingIds = pending.flatMap { p -> p.parts.map { it.first } }.toSet()
+    // Otras descargas sueltas (vídeos, actualización de la app…): solo el progreso.
     val downloads = files.values
+        .filter { it.id !in pendingIds }
         .filter { it.local.isDownloadingActive || (it.id in names && !it.local.isDownloadingCompleted && it.local.downloadedSize > 0) }
         .sortedBy { names[it.id] ?: "" }
 
@@ -51,8 +63,40 @@ fun TasksScreen(vm: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item { SectionTitle("Descargas", Px.blue) }
-        if (downloads.isEmpty()) {
+        if (downloads.isEmpty() && pending.isEmpty()) {
             item { Text("No hay descargas en curso.", style = PxText.small) }
+        }
+        items(pending, key = { "p" + it.pkgKey }) { p ->
+            val parts = p.parts.map { (id, _) -> files[id] }
+            val total = parts.sumOf { f -> f?.let { if (it.size > 0) it.size else it.expectedSize } ?: 0L }
+            val done = parts.sumOf { it?.local?.downloadedSize ?: 0L }
+            val active = parts.any { it?.local?.isDownloadingActive == true }
+            val game = catalog.games.firstOrNull { it.id == p.gameId }
+            PixelPanel(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    game?.let { Text(it.title.uppercase(), style = PxText.label) }
+                    Text(
+                        p.parts.first().second + if (p.parts.size > 1) " · ${p.parts.size} partes" else "",
+                        style = PxText.body,
+                    )
+                    PixelProgress(if (total > 0) done.toFloat() / total else null, Modifier.fillMaxWidth(), color = Px.blue)
+                    Text(
+                        "${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}" + if (active) "" else " · en pausa",
+                        style = PxText.small,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (active) {
+                            PixelButton("Pausar", onClick = { vm.graph.tasks.pauseDownload(p) }, color = Px.yellow, small = true)
+                        } else {
+                            PixelButton("Continuar", onClick = { vm.graph.tasks.resumeDownload(p) }, color = Px.orange, small = true)
+                        }
+                        PixelButton("Cancelar", onClick = { confirmCancel = p }, color = Px.red, textColor = Px.white, small = true)
+                        if (game != null) {
+                            PixelButton("Ver juego", onClick = { vm.openGameFromTasks(game.id) }, color = Px.blue, small = true)
+                        }
+                    }
+                }
+            }
         }
         items(downloads, key = { "d" + it.id }) { file ->
             val total = if (file.size > 0) file.size else file.expectedSize
@@ -109,6 +153,19 @@ fun TasksScreen(vm: AppViewModel) {
             }
         }
         item { Spacer(Modifier.padding(8.dp)) }
+    }
+
+    confirmCancel?.let { p ->
+        PixelDialog("¿Cancelar descarga?", onDismiss = { confirmCancel = null }) {
+            Text("Se para la descarga de ${p.parts.first().second} y se borra lo ya descargado.", style = PxText.body)
+            DialogButtons {
+                PixelButton("No", onClick = { confirmCancel = null }, color = Px.grey, small = true)
+                PixelButton("Cancelar descarga", onClick = {
+                    vm.graph.tasks.cancelDownload(p)
+                    confirmCancel = null
+                }, color = Px.red, textColor = Px.white, small = true)
+            }
+        }
     }
 
     passwordFor?.let { task ->

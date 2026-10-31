@@ -51,14 +51,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (value == currentTab) return
             tabHistory.addLast(currentTab)
             if (tabHistory.size > 30) tabHistory.removeFirst()
-            currentTab = value
+            switchTab(value)
         }
 
     /** Vuelve a la pestaña anterior; false si no hay ninguna. */
     fun goBackTab(): Boolean {
         val previous = tabHistory.removeLastOrNull() ?: return false
-        currentTab = previous
+        switchTab(previous)
         return true
+    }
+
+    /** Juego desde el que se fue a TAREAS (o el que se está descargando), para volver a él. */
+    private var tasksGameId: Long? = null
+
+    private fun switchTab(value: Tab) {
+        if (value == Tab.TASKS && currentTab == Tab.STORE) tasksGameId = selectedGameId
+        // Al salir de TAREAS hacia la tienda se vuelve a la ficha del juego que se descargaba.
+        if (currentTab == Tab.TASKS && value == Tab.STORE) {
+            val id = tasksGameId ?: graph.tasks.pendingDownloads().lastOrNull()?.gameId
+            if (id != null && catalog.value.games.any { it.id == id }) openGame(id)
+            tasksGameId = null
+        }
+        currentTab = value
+    }
+
+    /** Botón "Ver juego" de una descarga en TAREAS. */
+    fun openGameFromTasks(id: Long) {
+        tasksGameId = id
+        tab = Tab.STORE
     }
     var selectedGameId by mutableStateOf<Long?>(null)
     var browserDir by mutableStateOf<String?>(null)
@@ -155,7 +175,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** B del mando: cerrar la ficha y volver a la tienda. */
     fun goHome() {
-        selectedGameId = null
+        // Desde TAREAS, B vuelve al juego que se estaba descargando (ver [switchTab]).
+        if (currentTab != Tab.TASKS) selectedGameId = null
         tab = Tab.STORE
     }
 

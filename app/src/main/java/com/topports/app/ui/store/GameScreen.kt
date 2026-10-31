@@ -503,7 +503,9 @@ private fun PackageRow(
                     PixelButton("Guardar sin extraer", onClick = { chooseSaveDest = true }, color = Px.blue, small = true)
                 }
                 if ((info.started || info.complete) && !moving) {
-                    PixelButton("Borrar", onClick = { confirmDelete = true }, color = Px.red, textColor = Px.white, small = true)
+                    // A medias es "Cancelar" (para y borra lo bajado); terminada, "Borrar".
+                    PixelButton(if (info.complete) "Borrar" else "Cancelar", onClick = { confirmDelete = true },
+                        color = Px.red, textColor = Px.white, small = true)
                 }
                 (savedDir ?: unpackedDir)?.let { dir ->
                     PixelButton("Abrir carpeta", onClick = { vm.openFolder(dir) }, color = Px.yellow, small = true)
@@ -520,11 +522,16 @@ private fun PackageRow(
     }
 
     if (confirmDelete) {
-        PixelDialog("¿Borrar descarga?", onDismiss = { confirmDelete = false }) {
-            Text("Se borrará ${pkg.name} del móvil para liberar espacio. Lo ya instalado o extraído no se toca.", style = PxText.body)
+        val cancelling = !info.complete
+        PixelDialog(if (cancelling) "¿Cancelar descarga?" else "¿Borrar descarga?", onDismiss = { confirmDelete = false }) {
+            Text(
+                if (cancelling) "Se para la descarga de ${pkg.name} y se borra lo ya descargado."
+                else "Se borrará ${pkg.name} del móvil para liberar espacio. Lo ya instalado o extraído no se toca.",
+                style = PxText.body,
+            )
             DialogButtons {
                 PixelButton("No", onClick = { confirmDelete = false }, color = Px.grey, small = true)
-                PixelButton("Borrar", onClick = {
+                PixelButton(if (cancelling) "Cancelar descarga" else "Borrar", onClick = {
                     confirmDelete = false
                     vm.graph.tasks.deleteDownload(pkg)
                 }, color = Px.red, textColor = Px.white, small = true)
