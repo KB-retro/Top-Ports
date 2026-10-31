@@ -229,9 +229,9 @@ fun SettingsScreen(vm: AppViewModel) {
                         if (u == null) {
                             PixelProgress(null, Modifier.fillMaxWidth(), color = Px.blue)
                         } else {
-                            Text("Descargas a medias o sin mover: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
+                            Text("Descargas terminadas sin pasar a /TopPorts: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
                             Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
-                            Text("Descargas a medias: ${FileNames.formatSize(u.partial)}", style = PxText.body)
+                            Text("Descargas a medias (sin terminar): ${FileNames.formatSize(u.partial)}", style = PxText.body)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
