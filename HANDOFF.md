@@ -55,7 +55,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1, L2/R2, X, Y, SELECT y stick derecho. `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
 | `ui/store/*` | Tienda (`CatalogScreen`), ficha (`GameScreen`) y popup de novedades. |
 | `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Almacenamiento, Apariencia, Mando, Cuenta, Privacidad, Legal. |
-| `ui/theme/PixelTheme.kt` | Temas de colores (PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **estilos de interfaz** (`UiStyle`: Pixel, Terminal, Ondas, Plano, RPG 16 bits), que se combinan. Un estilo (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. |
+| `ui/theme/PixelTheme.kt` | **Paletas de colores** (`AppTheme`: PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **temas** (`UiStyle`: Pixel, Terminal, Ondas, Plano, RPG 16 bits), que se combinan. En la interfaz se llaman "Paleta de colores" y "Temas". Un tema (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. Todos se ven del tamaño de RPG 16 bits: los tamaños salen de igualar la altura real de las letras de cada fuente. |
 | `ui/components/PixelComponents.kt` | `pixelFrame` dibuja cada recuadro según `Px.style`; `pxBackdrop` es el fondo (barrido, ondas, degradado). Usar `pxCaps()` en vez de `uppercase()` para títulos. |
 
 ## Compilar

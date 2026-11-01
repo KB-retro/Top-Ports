@@ -17,7 +17,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import kotlinx.coroutines.delay
@@ -26,7 +25,8 @@ private val keyRows = listOf("1234567890", "QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM
 
 /** Teclas grandes, cómodas en pantallas pequeñas como la de la RG477M. */
 private val KEY_HEIGHT = 42.dp
-private val keyText = PxText.heading.copy(fontSize = 12.sp)
+// Teclas algo más grandes que un título de sección, en la letra del tema.
+private val keyText get() = PxText.heading.let { it.copy(fontSize = it.fontSize * 1.25f, lineHeight = it.lineHeight * 1.25f) }
 
 /**
  * Teclado en pantalla para el mando: se recorre con la cruceta y se escribe con A.
@@ -50,7 +50,7 @@ fun PixelKeyboardDialog(
             Box(Modifier.fillMaxWidth().pixelFrame(Px.night, Px.white, shadow = null).padding(8.dp)) {
                 Text(
                     if (value.isEmpty()) "escribe con la cruceta y A…" else "$value▌",
-                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white, fontSize = 21.sp),
+                    style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white),
                     maxLines = 1,
                 )
             }

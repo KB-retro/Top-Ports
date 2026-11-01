@@ -295,11 +295,11 @@ fun SettingsScreen(vm: AppViewModel) {
 
         // --- Apariencia ---
         if (vm.settingsSection == SettingsSection.THEME) {
-            item { SectionTitle("Estilo de interfaz", Px.blue) }
+            item { SectionTitle("Temas", Px.blue) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Cambia las letras, los recuadros, las barras y el fondo. Se combina con cualquier tema de colores.",
+                        "Cambia las letras, los recuadros, las barras y el fondo. Se combina con cualquier paleta de colores.",
                         style = PxText.small,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -308,7 +308,7 @@ fun SettingsScreen(vm: AppViewModel) {
                     Text(Px.style.description, style = PxText.small.copy(color = Px.white))
                 }
             }
-            item { SectionTitle("Tema de colores", Px.pink) }
+            item { SectionTitle("Paleta de colores", Px.pink) }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppTheme.entries.forEach { theme -> ThemeChip(theme, selected = Px.theme == theme) { vm.setTheme(theme) } }
@@ -499,7 +499,7 @@ private fun PermissionRow(title: String, description: String, granted: Boolean, 
     }
 }
 
-/** Muestra de un estilo de interfaz: un recuadro dibujado con él y "Aa" en su letra. */
+/** Muestra de un tema (estilo de interfaz): un recuadro dibujado con él y "Aa" en su letra. */
 @Composable
 private fun StyleChip(style: UiStyle, selected: Boolean, onClick: () -> Unit) {
     val spec = style.spec
@@ -527,7 +527,7 @@ private fun StyleChip(style: UiStyle, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Muestra del tema: sus colores principales y el nombre. */
+/** Muestra de una paleta: sus colores principales y el nombre. */
 @Composable
 private fun ThemeChip(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
     val p = theme.palette

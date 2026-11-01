@@ -104,13 +104,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
 
-    /** Estilo de interfaz (letras y recuadros); se aplica al momento y se recuerda. */
+    /** Tema (estilo de interfaz: letras y recuadros); se aplica al momento y se recuerda. */
     fun setStyle(style: UiStyle) {
         Px.style = style
         prefs.edit().putString("uiStyle", style.name).apply()
     }
 
-    /** Tema de colores; se aplica al momento y se recuerda. */
+    /** Paleta de colores; se aplica al momento y se recuerda. */
     fun setTheme(theme: AppTheme) {
         Px.theme = theme
         prefs.edit().putString("theme", theme.name).apply()

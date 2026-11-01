@@ -42,7 +42,7 @@ data class PxPalette(
 
 private fun c(hex: Long) = Color(0xFF000000 or hex)
 
-/** Temas de color elegibles en Ajustes. */
+/** Paletas de colores elegibles en Ajustes (en la interfaz, "Paleta de colores"). */
 enum class AppTheme(val label: String, val palette: PxPalette) {
     PICO8(
         "PICO-8",
@@ -204,7 +204,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
 object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
 
-    /** Estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier [theme]. */
+    /** Tema: estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier paleta ([theme]). */
     var style by mutableStateOf(UiStyle.PIXEL)
     private val p get() = theme.palette
 
@@ -260,7 +260,12 @@ enum class FrameKind {
 /** Decoración del fondo de la app. */
 enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT }
 
-/** Tamaño y altura de línea de un tipo de texto. */
+/**
+ * Tamaño y altura de línea de un tipo de texto. Todos los temas se ven del mismo tamaño que
+ * RPG 16 bits: cada fuente mide distinto (a igual tamaño, una "H" de Press Start 2P es casi el
+ * doble de alta que una de VT323), así que los números se han sacado igualando la altura real
+ * de las letras medida en cada fuente, no copiando los de RPG.
+ */
 data class TextSize(val size: TextUnit, val line: TextUnit)
 
 /** Todo lo que cambia un estilo de interfaz, además de los colores. */
@@ -297,7 +302,7 @@ data class StyleSpec(
 )
 
 /**
- * Estilos de interfaz elegibles en Ajustes. Inspirados en los menús de RetroArch y de las
+ * Estilos de interfaz elegibles en Ajustes (en la interfaz, "Temas"). Inspirados en los menús de RetroArch y de las
  * consolas: cambian las letras, los recuadros, las barras y el fondo, no los colores.
  */
 enum class UiStyle(val label: String, val description: String, val spec: StyleSpec) {
@@ -306,8 +311,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "8 bits: letra gruesa, marcos sin esquinas y sombra dura.",
         StyleSpec(
             headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = TextSize(14.sp, 20.sp), heading = TextSize(11.sp, 16.sp), label = TextSize(9.sp, 13.sp),
-            tiny = TextSize(7.sp, 10.sp), body = TextSize(21.sp, 22.sp), small = TextSize(18.sp, 19.sp),
+            title = TextSize(12.sp, 17.sp), heading = TextSize(9.5.sp, 14.sp), label = TextSize(7.sp, 11.sp),
+            tiny = TextSize(6.sp, 9.sp), body = TextSize(19.sp, 21.sp), small = TextSize(17.sp, 18.sp),
             frame = FrameKind.PIXEL, shadow = true,
         ),
     ),
@@ -316,8 +321,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "Menú de texto, como RGUI: todo en letra de terminal, doble línea y líneas de barrido.",
         StyleSpec(
             headFont = TermFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = TextSize(28.sp, 28.sp), heading = TextSize(24.sp, 24.sp), label = TextSize(20.sp, 20.sp),
-            tiny = TextSize(17.sp, 17.sp), body = TextSize(21.sp, 22.sp), small = TextSize(18.sp, 19.sp),
+            title = TextSize(21.sp, 23.sp), heading = TextSize(17.sp, 19.sp), label = TextSize(13.sp, 15.sp),
+            tiny = TextSize(11.sp, 12.sp), body = TextSize(19.sp, 21.sp), small = TextSize(17.sp, 18.sp),
             headSpacing = 0.05f, frame = FrameKind.DOUBLE_LINE, stroke = 1.5.dp,
             backdrop = Backdrop.SCANLINES, marker = ">",
         ),
@@ -329,8 +334,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             headFont = FontFamily.SansSerif, headWeight = FontWeight.Light,
             labelFont = FontFamily.SansSerif, labelWeight = FontWeight.Medium,
             bodyFont = FontFamily.SansSerif, bodyFontRes = null,
-            title = TextSize(22.sp, 28.sp), heading = TextSize(17.sp, 22.sp), label = TextSize(13.sp, 17.sp),
-            tiny = TextSize(11.sp, 14.sp), body = TextSize(16.sp, 22.sp), small = TextSize(14.sp, 19.sp),
+            title = TextSize(17.sp, 22.sp), heading = TextSize(13.5.sp, 18.sp), label = TextSize(12.sp, 15.sp),
+            tiny = TextSize(10.sp, 13.sp), body = TextSize(15.sp, 20.sp), small = TextSize(13.5.sp, 18.sp),
             headSpacing = 0.04f, uppercase = false, frame = FrameKind.GLASS, stroke = 1.dp, radius = 14.dp,
             blocks = false, backdrop = Backdrop.WAVES, marker = "◆",
         ),
@@ -342,8 +347,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             headFont = FontFamily.Default, headWeight = FontWeight.SemiBold,
             labelWeight = FontWeight.Medium,
             bodyFont = FontFamily.Default, bodyFontRes = null,
-            title = TextSize(20.sp, 26.sp), heading = TextSize(16.sp, 21.sp), label = TextSize(13.sp, 17.sp),
-            tiny = TextSize(11.sp, 14.sp), body = TextSize(16.sp, 22.sp), small = TextSize(14.sp, 19.sp),
+            title = TextSize(17.sp, 22.sp), heading = TextSize(13.5.sp, 18.sp), label = TextSize(12.sp, 15.sp),
+            tiny = TextSize(10.sp, 13.sp), body = TextSize(15.sp, 20.sp), small = TextSize(13.5.sp, 18.sp),
             uppercase = false, frame = FrameKind.FLAT, stroke = 2.dp, radius = 6.dp, blocks = false,
         ),
     ),

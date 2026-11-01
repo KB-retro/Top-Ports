@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.background
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -243,7 +242,7 @@ private fun MainScreen(vm: AppViewModel) {
                             withStyle(SpanStyle(color = Px.green)) { append(" ANDROID") }
                         },
                         // En móviles estrechos el título se encoge para caber en una línea.
-                        style = if (narrowTitle) PxText.title.copy(fontSize = 11.sp, lineHeight = 16.sp) else PxText.title,
+                        style = if (narrowTitle) PxText.title.let { it.copy(fontSize = it.fontSize * 0.8f, lineHeight = it.lineHeight * 0.8f) } else PxText.title,
                         maxLines = 1,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f).pixelClickable {
