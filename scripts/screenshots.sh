@@ -24,6 +24,20 @@ shot() {
   echo "  $name.png"
 }
 
+# Como shot, pero pulsando la cruceta antes: Android arranca en modo táctil y no enseña lo
+# seleccionado hasta que se usa el mando (la derecha pasa de la 1.ª a la 2.ª carátula).
+shot_key() {
+  local name=$1
+  shift
+  adb shell am force-stop "$PKG"
+  adb shell am start -W -n "$PKG/.ui.MainActivity" "$@" >/dev/null
+  sleep 5
+  adb shell input keyevent KEYCODE_DPAD_RIGHT
+  sleep 1
+  adb exec-out screencap -p > "$OUT/$name.png"
+  echo "  $name.png"
+}
+
 # nombre  ancho  alto  densidad  mando(true = consola)
 # La lista se lee por el descriptor 3: "adb shell" se come la entrada estándar y, si no, solo se
 # haría el primer formato.
@@ -81,7 +95,7 @@ adb shell wm density 400
 sleep 2
 for theme in GAMEBOY GB_DMG VIRTUAL_BOY NES SYNTHWAVE; do
   for style in PIXEL WAVES; do
-    shot "seleccion-$theme-$style" --es demo_tab STORE --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad true
+    shot_key "seleccion-$theme-$style" --es demo_tab STORE --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad true
   done
 done
 
