@@ -10,7 +10,6 @@ import android.os.Environment
 import android.os.StatFs
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.topports.core.FileNames
 import java.io.File
 
 object Storage {
@@ -37,9 +36,6 @@ object Storage {
         dir.mkdirs()
         return dir
     }
-
-    fun gameDir(context: Context, title: String): File =
-        File(topPortsDir(context), FileNames.safeFolderName(title)).apply { mkdirs() }
 
     /** Carpetas del sistema en la raíz que nunca se registran ni se borran como datos de un juego. */
     val protectedRootNames = setOf(

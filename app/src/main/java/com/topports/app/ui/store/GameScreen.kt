@@ -99,6 +99,8 @@ import com.topports.core.VideoRef
 import com.topports.app.ui.video.VideoPlayerDialog
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
@@ -411,7 +413,12 @@ private fun PackageRow(
     focus: FocusRequester? = null,
     onFocused: (top: Float, bottom: Float) -> Unit = { _, _ -> },
 ) {
-    val files by vm.files.collectAsStateWithLifecycle()
+    // Solo las partes de este paquete: la ficha no se redibuja con el progreso de otras descargas.
+    val partsOf = { all: Map<Int, org.drinkless.tdlib.TdApi.File> ->
+        pkg.parts.mapNotNull { p -> all[p.id]?.let { p.id to it } }.toMap()
+    }
+    val files by remember(pkg.key) { vm.files.map(partsOf).distinctUntilChanged() }
+        .collectAsStateWithLifecycle(partsOf(vm.files.value))
     val context = LocalContext.current
     val info = vm.graph.tasks.downloadInfo(pkg, files)
     val (tag, color) = kindTag(pkg.name, pkg.kind)
@@ -488,7 +495,7 @@ private fun PackageRow(
                     when {
                         moving -> Unit
                         info.complete -> if (pkg.kind == PackageKind.APK || pkg.kind == PackageKind.OBB) {
-                            startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title))
+                            startInstall(vm, context, game, pkg, vm.graph.installs.gameDir(context, game.id, game.title))
                         } else {
                             chooseDest = true
                         }
@@ -602,7 +609,7 @@ private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, sa
     val context = LocalContext.current
     val wantsRoot = !save && CatalogBuilder.wantsStorageRoot(game.description)
     val hasAccess = Storage.hasAllFilesAccess(context)
-    val gameDir = "/TopPorts/${FileNames.safeFolderName(game.title)}"
+    val gameDir = "/TopPorts/${vm.graph.installs.gameFolderName(game.id, game.title)}"
     val verb = if (save) "guardar" else "extraer"
     PixelDialog("¿Dónde $verb?", onDismiss = onDismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -624,7 +631,7 @@ private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, sa
             val folderButton: @Composable () -> Unit = {
                 PixelButton(gameDir, onClick = {
                     onDismiss()
-                    startInstall(vm, context, game, pkg, Storage.gameDir(context, game.title), save)
+                    startInstall(vm, context, game, pkg, vm.graph.installs.gameDir(context, game.id, game.title), save)
                 }, color = if (wantsRoot) Px.blue else Px.green, small = true, modifier = Modifier.fillMaxWidth())
             }
             // La opción recomendada va primero.

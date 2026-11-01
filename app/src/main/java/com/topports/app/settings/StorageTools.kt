@@ -2,13 +2,18 @@ package com.topports.app.settings
 
 import android.content.Context
 import com.topports.app.telegram.TelegramClient
+import com.topports.app.updates.InstallRegistry
 import kotlinx.coroutines.Dispatchers
 import org.drinkless.tdlib.TdApi
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Espacio que ocupa la app y limpieza de caché y restos de descargas. */
-class StorageTools(private val context: Context, private val tg: TelegramClient) {
+class StorageTools(
+    private val context: Context,
+    private val tg: TelegramClient,
+    private val installs: InstallRegistry,
+) {
 
     private val tdFiles get() = tg.filesDir
 
@@ -60,23 +65,32 @@ class StorageTools(private val context: Context, private val tg: TelegramClient)
 
     private fun downloading(): Boolean = tg.files.value.values.any { it.local.isDownloadingActive }
 
+    /** Partes de las descargas de la tienda que siguen en TAREAS (en pausa incluidas). */
+    private fun pendingIds(): Set<Int> = installs.pendingSaves().flatMap { p -> p.parts.map { it.first } }.toSet()
+
     /**
-     * Restos de descargas: archivos a medias que no se están descargando (fallidos o en
-     * pausa) y, si no hay ninguna descarga activa, lo que quede en la carpeta temporal.
+     * Restos de descargas: archivos a medias que no se están descargando ni siguen en TAREAS
+     * (una descarga en pausa no es un resto) y, si no hay ninguna descarga activa, lo que quede
+     * en la carpeta temporal.
      */
     suspend fun findOrphans(): Orphans = withContext(Dispatchers.IO) {
+        val keep = pendingIds()
         val partial = tg.files.value.values.filter {
-            !it.local.isDownloadingActive && !it.local.isDownloadingCompleted && it.local.downloadedSize > 0
+            it.id !in keep &&
+                !it.local.isDownloadingActive && !it.local.isDownloadingCompleted && it.local.downloadedSize > 0
         }
         val tracked = partial.sumOf { it.local.downloadedSize }
-        val temp = if (downloading()) 0L else (sizeOf(File(tdFiles, "temp")) - tracked).coerceAtLeast(0)
+        // Con descargas en pausa, la carpeta temporal guarda lo ya bajado: no se toca.
+        val temp = if (downloading() || keep.isNotEmpty()) 0L
+        else (sizeOf(File(tdFiles, "temp")) - tracked).coerceAtLeast(0)
         Orphans(partial.map { it.id }, tracked, temp)
     }
 
     suspend fun cleanOrphans(orphans: Orphans): Long {
-        orphans.fileIds.forEach { tg.deleteFile(it) }
+        val keep = pendingIds()
+        orphans.fileIds.filter { it !in keep }.forEach { runCatching { tg.deleteFile(it) } }
         val temp = withContext(Dispatchers.IO) {
-            if (downloading()) 0L else clearContents(File(tdFiles, "temp"))
+            if (downloading() || keep.isNotEmpty()) 0L else clearContents(File(tdFiles, "temp"))
         }
         return orphans.bytes + temp
     }
@@ -85,7 +99,9 @@ class StorageTools(private val context: Context, private val tg: TelegramClient)
     suspend fun deleteAllDownloads(): Long {
         if (downloading()) throw IllegalStateException("Hay descargas en curso")
         tg.files.value.values.filter { it.local.isDownloadingCompleted || it.local.downloadedSize > 0 }
-            .forEach { tg.deleteFile(it.id) }
+            .forEach { runCatching { tg.deleteFile(it.id) } }
+        // Las descargas en pausa también se han borrado: que no sigan saliendo en TAREAS.
+        installs.pendingSaves().forEach { installs.removePendingSave(it.pkgKey) }
         return withContext(Dispatchers.IO) {
             tdFilesDirs.sumOf { clearContents(File(it, "documents")) + clearContents(File(it, "temp")) }
         }

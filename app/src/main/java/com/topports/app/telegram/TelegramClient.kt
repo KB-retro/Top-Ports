@@ -30,7 +30,11 @@ class TelegramClient(private val context: Context) {
     private val _authState = MutableStateFlow<TdApi.AuthorizationState?>(null)
     val authState: StateFlow<TdApi.AuthorizationState?> = _authState.asStateFlow()
 
-    /** Último estado conocido de cada archivo (progreso de descarga incluido). */
+    /**
+     * Último estado conocido de cada archivo que la app sigue (juegos, vídeos, actualización de la
+     * app), progreso de descarga incluido. Las carátulas y miniaturas no entran: son cientos, cada
+     * aviso suyo copiaría el mapa entero y haría redibujar todo lo que mira las descargas.
+     */
     private val _files = MutableStateFlow<Map<Int, TdApi.File>>(emptyMap())
     val files: StateFlow<Map<Int, TdApi.File>> = _files.asStateFlow()
 
@@ -62,7 +66,8 @@ class TelegramClient(private val context: Context) {
     private fun onUpdate(update: TdApi.Object) {
         when (update) {
             is TdApi.UpdateAuthorizationState -> onAuthorizationState(update.authorizationState)
-            is TdApi.UpdateFile -> rememberFile(update.file)
+            // Solo los archivos que ya se siguen (ver [files]).
+            is TdApi.UpdateFile -> if (update.file.id in _files.value) rememberFile(update.file)
             is TdApi.UpdateNewMessage -> _newMessages.tryEmit(update.message)
             is TdApi.UpdateMessageInteractionInfo -> _interactions.tryEmit(update)
             // Post editado (texto o archivo cambiado): se vuelve a leer y se trata como nuevo,
@@ -193,10 +198,15 @@ class TelegramClient(private val context: Context) {
 
     // --- Archivos ---
 
-    /** Descarga un archivo pequeño (fotos) y devuelve su ruta local. */
-    suspend fun downloadNow(fileId: Int, priority: Int = 16): String? {
+    /**
+     * Descarga un archivo y espera a que termine; devuelve su ruta local. [track]: seguir su
+     * progreso en [files] (vídeos, APK de la app); las imágenes no hace falta.
+     */
+    suspend fun downloadNow(fileId: Int, priority: Int = 16, track: Boolean = true): String? {
+        // Se apunta antes de pedirlo, para que lleguen también los avisos de progreso.
+        if (track && fileId !in _files.value) runCatching { refreshFile(fileId) }
         val file = send(TdApi.DownloadFile(fileId, priority, 0, 0, true))
-        rememberFile(file)
+        if (track) rememberFile(file)
         return file.local.path.takeIf { file.local.isDownloadingCompleted && it.isNotEmpty() }
     }
 

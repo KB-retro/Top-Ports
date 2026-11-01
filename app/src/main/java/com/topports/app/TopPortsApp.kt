@@ -29,7 +29,7 @@ class AppGraph(app: Application) {
     val installs = InstallRegistry(app)
     val tasks = TaskCenter(app, telegram, scope, installs)
     val updates = UpdateService(app, installs, channel, scope)
-    val storage = StorageTools(app, telegram)
+    val storage = StorageTools(app, telegram, installs)
     val gameData = GameData(app, telegram, installs)
 }
 

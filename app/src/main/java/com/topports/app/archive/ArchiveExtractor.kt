@@ -101,22 +101,33 @@ class ArchiveExtractor {
 
     /**
      * Extrae todo en [dest]. Devuelve las rutas relativas de los archivos creados y lo escrito.
-     * [checkSpace] recibe lo que ocupará descomprimido (según la cabecera del archivo) antes de
-     * escribir nada; [onProgress] recibe bytes procesados y total; [isCancelled] permite abortar.
+     * [checkSpace] recibe, antes de escribir nada, lo que hará falta de más en el disco según la
+     * cabecera del archivo (descontando los archivos que ya están y se sobrescriben), o null si la
+     * cabecera no trae tamaños; [onProgress] recibe bytes procesados y total; [isCancelled] permite abortar.
      * Cada llamada lleva su propio estado: se pueden extraer varios archivos a la vez.
      */
     fun extract(
         volumes: VolumeSet,
         dest: File,
         password: String? = null,
-        checkSpace: (unpackedBytes: Long) -> Unit = {},
+        checkSpace: (neededBytes: Long?) -> Unit = {},
         onProgress: (done: Long, total: Long) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false },
     ): ExtractResult = open(volumes, password) { archive ->
         // Con 7z y rar el tamaño de cada archivo está en la cabecera: así se sabe antes de
         // empezar si cabe, en vez de fallar a mitad con varios GB ya escritos.
-        val unpacked = (0 until archive.numberOfItems).sumOf { (archive.getProperty(it, PropID.SIZE) as? Long) ?: 0L }
-        if (unpacked > 0) checkSpace(unpacked)
+        // Al reinstalar encima, lo que ya existe se sobrescribe y no ocupa de más.
+        var unpacked = 0L
+        var needed = 0L
+        for (i in 0 until archive.numberOfItems) {
+            if ((archive.getProperty(i, PropID.IS_FOLDER) as? Boolean) == true) continue
+            val size = (archive.getProperty(i, PropID.SIZE) as? Long) ?: 0L
+            val path = archive.getStringProperty(i, PropID.PATH)?.replace('\\', '/')
+            val existing = path?.let { File(dest, it) }?.takeIf { it.isFile }?.length() ?: 0L
+            unpacked += size
+            needed += (size - existing).coerceAtLeast(0)
+        }
+        checkSpace(if (unpacked > 0) needed else null)
         dest.mkdirs()
         val callback = ExtractCallback(archive, dest, password, onProgress, isCancelled)
         val indices = IntArray(archive.numberOfItems) { it }

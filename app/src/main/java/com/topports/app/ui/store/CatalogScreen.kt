@@ -436,7 +436,7 @@ fun TdImage(fileId: Int, modifier: Modifier = Modifier, contentScale: ContentSca
     val context = LocalContext.current
     val path by produceState<String?>(null, fileId) {
         val graph = (context.applicationContext as TopPortsApp).graph
-        value = runCatching { graph.telegram.downloadNow(fileId) }.getOrNull()
+        value = runCatching { graph.telegram.downloadNow(fileId, track = false) }.getOrNull()
     }
     val current = path
     if (current != null) {

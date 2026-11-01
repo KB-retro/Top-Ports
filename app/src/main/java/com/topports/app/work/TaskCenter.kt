@@ -233,7 +233,7 @@ class TaskCenter(
                 val free = Storage.freeBytes(tg.filesDir)
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
 
-                val dir = Storage.gameDir(context, game.title)
+                val dir = installs.gameDir(context, game.id, game.title)
                 installs.addPendingSave(
                     InstallRegistry.PendingSave(pkg.key, game.id, dir.path, pkg.parts.map { it.id to it.name }),
                 )
@@ -301,7 +301,12 @@ class TaskCenter(
                     val source = if (parts.size == 1) ApkInstaller.fromFile(parts[0].second)
                     else ApkInstaller.fromParts(pkg.name, FileNames.sortVolumes(parts) { it.first }.map { it.second })
                     if (parts.size == 1) remember(parts[0].second, game, pkg)
-                    installApks(taskId, listOf(source))
+                    installApks(taskId, listOf(source)) { sessionId ->
+                        // Partido en .001/.002…: el paquete se sabe cuando Android lo instala.
+                        if (parts.size > 1) {
+                            installs.rememberSession(sessionId, InstallRecord("", pkg.name, pkg.parts.first().id, game.id, pkg.size))
+                        }
+                    }
                     finish(taskId, "Instalación lanzada. Acepta el aviso de Android.")
                 }
                 PackageKind.OBB -> {
@@ -486,10 +491,19 @@ class TaskCenter(
 
     fun dismiss(taskId: Int) {
         _tasks.update { list -> list.filterNot { it.id == taskId } }
+        forget(taskId)
     }
 
     fun clearFinished() {
+        val gone = _tasks.value.filterNot { it.running }
         _tasks.update { list -> list.filter { it.running } }
+        gone.forEach { forget(it.id) }
+    }
+
+    /** Lo que se guarda por tarea, para que no se acumule tras quitarla de la lista. */
+    private fun forget(taskId: Int) {
+        retries.remove(taskId)
+        lastProgressAt.remove(taskId)
     }
 
     private fun launchTask(title: String, password: String? = null, block: suspend (Int, String?) -> Unit) {
@@ -517,18 +531,16 @@ class TaskCenter(
 
     private suspend fun extract(taskId: Int, volumes: VolumeSet, dest: File, password: String?): ExtractResult {
         val coroutineContext = kotlin.coroutines.coroutineContext
-        // Tamaño comprimido como estimación mínima de lo que ocupará lo extraído.
-        val estimate = volumes.allFiles().sumOf { it.length() }
-        val free = Storage.freeBytes(dest)
-        if (estimate > free) throw NotEnoughSpaceException(estimate, free)
         update(taskId, "Extrayendo en ${dest.path}", 0f)
         val result = extractor.extract(
             volumes = volumes,
             dest = dest,
             password = password,
             checkSpace = { needed ->
-                val freeNow = Storage.freeBytes(dest)
-                if (needed > freeNow) throw NotEnoughSpaceException(needed, freeNow)
+                // Sin tamaños en la cabecera, el comprimido como estimación mínima.
+                val bytes = needed ?: volumes.allFiles().sumOf { it.length() }
+                val free = Storage.freeBytes(dest)
+                if (bytes > free) throw NotEnoughSpaceException(bytes, free)
             },
             onProgress = { done, total ->
                 if (total > 0) update(taskId, "Extrayendo… ${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}", done.toFloat() / total)
@@ -613,13 +625,22 @@ class TaskCenter(
         finish(taskId, notes.joinToString("\n"), dest.path)
     }
 
-    private suspend fun installApks(taskId: Int, sources: List<ApkInstaller.Source>) {
+    private suspend fun installApks(
+        taskId: Int,
+        sources: List<ApkInstaller.Source>,
+        beforeCommit: (sessionId: Int) -> Unit = {},
+    ) {
         if (!ApkInstaller.canInstall(context)) {
             withContext(Dispatchers.Main) { context.startActivity(ApkInstaller.unknownSourcesIntent(context)) }
             throw IOException("Permite \"Instalar apps desconocidas\" para Top Ports y vuelve a intentarlo")
         }
         update(taskId, "Preparando instalación…", 0f)
-        ApkInstaller.install(context, sources) { update(taskId, "Preparando instalación…", it) }
+        ApkInstaller.install(
+            context,
+            sources,
+            onProgress = { update(taskId, "Preparando instalación…", it) },
+            beforeCommit = beforeCommit,
+        )
     }
 
     private suspend fun copyObb(taskId: Int, file: File, originalName: String): String {

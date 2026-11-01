@@ -2,7 +2,9 @@ package com.topports.app.updates
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import com.topports.app.storage.Storage
 import com.topports.app.telegram.ChannelRepository
+import com.topports.core.FileNames
 import com.topports.core.InstallRecord
 import com.topports.core.InstalledFinder
 import com.topports.core.GamePackage
@@ -127,7 +129,62 @@ class InstallRegistry(context: Context) {
     fun isIgnored(packageName: String, pkg: GamePackage): Boolean =
         prefs.getString("ignored_$packageName", null) == "${pkg.name}|${pkg.size}"
 
-    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_")
+    /**
+     * Carpeta /TopPorts/<juego> de un juego. Dos posts con el mismo título no comparten carpeta:
+     * el segundo va a "<juego> (2)". Se recuerda el nombre (no la ruta) porque /TopPorts cambia
+     * de sitio al dar o quitar el permiso de archivos.
+     */
+    fun gameDir(context: Context, gameId: Long, title: String): File {
+        val name = gameFolderName(gameId, title)
+        if (prefs.getString("gamedir_$gameId", null) != name) prefs.edit().putString("gamedir_$gameId", name).apply()
+        return File(Storage.topPortsDir(context), name).apply { mkdirs() }
+    }
+
+    /** Nombre de la carpeta de [gameDir] sin crearla (para enseñarla en la interfaz). */
+    @Synchronized
+    fun gameFolderName(gameId: Long, title: String): String {
+        prefs.getString("gamedir_$gameId", null)?.let { return it }
+        val taken = prefs.all.filterKeys { it.startsWith("gamedir_") }.values.map { (it as String).lowercase() }.toSet()
+        val base = FileNames.safeFolderName(title)
+        var name = base
+        var i = 2
+        while (name.lowercase() in taken) name = "$base (${i++})"
+        return name
+    }
+
+    /**
+     * Instalación de un APK partido (.apk.001…) a la espera de que Android la confirme: hasta
+     * entonces no se sabe su nombre de paquete. [completeSession] lo apunta con el que da Android.
+     */
+    fun rememberSession(sessionId: Int, record: InstallRecord) {
+        val json = JSONObject()
+            .put("fileName", record.fileName)
+            .put("fileId", record.fileId)
+            .put("gameId", record.gameId)
+            .put("fileSize", record.fileSize)
+        prefs.edit().putString("session_$sessionId", json.toString()).apply()
+    }
+
+    fun completeSession(sessionId: Int, packageName: String?) {
+        val value = prefs.getString("session_$sessionId", null) ?: return
+        prefs.edit().remove("session_$sessionId").apply()
+        if (packageName.isNullOrBlank()) return
+        runCatching {
+            val json = JSONObject(value)
+            record(
+                InstallRecord(
+                    packageName, json.getString("fileName"), json.getInt("fileId"), json.getLong("gameId"),
+                    json.optLong("fileSize", 0),
+                ),
+            )
+        }
+    }
+
+    fun forgetSession(sessionId: Int) {
+        prefs.edit().remove("session_$sessionId").apply()
+    }
+
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_", "gamedir_", "session_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {

@@ -54,6 +54,10 @@ class ChannelRepository(
 
     private val messages = LinkedHashMap<Long, ChannelMessage>()
     private val publishLock = Any()
+    private val throttleLock = Any()
+    private var publishJob: Job? = null
+    @Volatile
+    private var lastPublishAt = 0L
 
     /** Corazones por id de mensaje (solo los que tienen alguno). */
     private val _hearts = MutableStateFlow<Map<Long, Hearts>>(emptyMap())
@@ -148,7 +152,7 @@ class ChannelRepository(
             emptyPages = 0
             page.messages.forEach { add(it) }
             fromId = page.messages.last().id
-            publish()
+            publishSoon()
         }
         publish()
         fillFromServerSearch(chatId)
@@ -173,11 +177,12 @@ class ChannelRepository(
                     tg.send(TdApi.SearchChatMessages(chatId, null, "", null, from, 0, 100, filter))
                 }.getOrNull() ?: break
                 found.messages.forEach { add(it) }
-                publish()
+                publishSoon()
                 if (found.messages.isEmpty() || found.nextFromMessageId == 0L) break
                 from = found.nextFromMessageId
             }
         }
+        publish()
     }
 
     private fun listenForNewPosts(chatId: Long) {
@@ -249,11 +254,32 @@ class ChannelRepository(
     }
 
     /**
+     * Como [publish], pero como mucho una vez por segundo: al leer el canal llegan páginas de 100
+     * mensajes seguidas y rehacer el catálogo entero con cada una crece mal con canales grandes.
+     * La primera página se ve al momento; las siguientes se juntan.
+     */
+    private fun publishSoon() {
+        synchronized(throttleLock) {
+            if (publishJob?.isActive == true) return
+            val wait = PUBLISH_INTERVAL_MS - (System.currentTimeMillis() - lastPublishAt)
+            if (wait > 0) {
+                publishJob = scope.launch {
+                    delay(wait)
+                    publish()
+                }
+                return
+            }
+        }
+        publish()
+    }
+
+    /**
      * Rehace el catálogo con todos los mensajes. Se llama desde varias corrutinas a la vez (lectura
      * del historial, posts nuevos, recarga): va en exclusiva para que un catálogo calculado con
      * menos mensajes no pise a uno más nuevo (un juego recién publicado "desaparecía").
      */
     private fun publish() = synchronized(publishLock) {
+        lastPublishAt = System.currentTimeMillis()
         val snapshot = synchronized(messages) { messages.values.toList() }
         // Los APK de la propia tienda no son juegos (se ofrecen en Ajustes) y los avisos de
         // novedades tampoco (se muestran una vez al abrir la app).
@@ -314,6 +340,9 @@ class ChannelRepository(
 
     companion object {
         const val MAX_MESSAGES = 20_000
+
+        /** Tiempo mínimo entre dos catálogos rehechos mientras se lee el canal. */
+        const val PUBLISH_INTERVAL_MS = 1000L
 
         /** Páginas vacías seguidas antes de dar por terminado el historial (unos 10 s en total). */
         const val EMPTY_PAGE_RETRIES = 6

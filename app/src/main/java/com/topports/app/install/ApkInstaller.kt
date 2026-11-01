@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -33,14 +34,17 @@ object ApkInstaller {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /**
-     * Instala [sources] en una sola sesión (una app, con sus splits si los hay).
-     * Android muestra después el diálogo de confirmación.
+     * Instala [sources] en una sola sesión (una app, con sus splits si los hay) y devuelve el id
+     * de la sesión. Android muestra después el diálogo de confirmación. Si se cancela la tarea
+     * mientras se copia el APK, la sesión se abandona. [beforeCommit] recibe el id justo antes de
+     * enviarla: si Android no pide confirmación, el resultado puede llegar antes de que vuelva.
      */
     suspend fun install(
         context: Context,
         sources: List<Source>,
         onProgress: (Float) -> Unit = {},
-    ) = withContext(Dispatchers.IO) {
+        beforeCommit: (sessionId: Int) -> Unit = {},
+    ): Int = withContext(Dispatchers.IO) {
         require(sources.isNotEmpty()) { "No hay APK que instalar" }
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
@@ -59,6 +63,7 @@ object ApkInstaller {
                         source.open().use { input ->
                             val buffer = ByteArray(1 shl 20)
                             while (true) {
+                                ensureActive()
                                 val n = input.read(buffer)
                                 if (n < 0) break
                                 out.write(buffer, 0, n)
@@ -74,11 +79,13 @@ object ApkInstaller {
                 val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
                 val pending = PendingIntent.getBroadcast(context, sessionId, intent, flags)
+                beforeCommit(sessionId)
                 session.commit(pending.intentSender)
             } catch (e: Exception) {
                 session.abandon()
                 throw e
             }
         }
+        sessionId
     }
 }

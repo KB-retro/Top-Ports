@@ -30,13 +30,18 @@ class InstallResultReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_SUCCESS -> {
                 cancelConfirm(context, sessionId)
                 Toast.makeText(context, "¡Instalado!", Toast.LENGTH_SHORT).show()
-                (context.applicationContext as? TopPortsApp)?.graph?.updates?.refresh()
+                val graph = (context.applicationContext as? TopPortsApp)?.graph
+                // APK partido: ahora que está instalado se sabe su paquete, para avisar de versiones nuevas.
+                graph?.installs?.completeSession(sessionId, intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME))
+                graph?.updates?.refresh()
             }
             PackageInstaller.STATUS_FAILURE_ABORTED -> {
+                (context.applicationContext as? TopPortsApp)?.graph?.installs?.forgetSession(sessionId)
                 cancelConfirm(context, sessionId)
                 Toast.makeText(context, "Instalación cancelada", Toast.LENGTH_SHORT).show()
             }
             else -> {
+                (context.applicationContext as? TopPortsApp)?.graph?.installs?.forgetSession(sessionId)
                 cancelConfirm(context, sessionId)
                 val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "error desconocido"
                 Toast.makeText(context, "No se pudo instalar: $msg", Toast.LENGTH_LONG).show()
