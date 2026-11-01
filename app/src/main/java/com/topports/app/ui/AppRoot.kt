@@ -69,6 +69,7 @@ import com.topports.app.ui.updates.UpdatesScreen
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
+import com.topports.app.ui.components.pxBackdrop
 
 @Composable
 fun AppRoot(vm: AppViewModel = viewModel()) {
@@ -76,7 +77,7 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Px.night)
+            .pxBackdrop()
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         if (!vm.graph.telegram.isConfigured) {

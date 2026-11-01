@@ -54,8 +54,9 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `ui/AppViewModel.kt` | Estado de la UI, pestañas con historial, vuelta a la ficha al salir de TAREAS (`switchTab`). |
 | `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1, L2/R2, X, Y, SELECT y stick derecho. `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
 | `ui/store/*` | Tienda (`CatalogScreen`), ficha (`GameScreen`) y popup de novedades. |
-| `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Almacenamiento, Tema, Mando, Cuenta, Privacidad, Legal. |
-| `ui/theme/PixelTheme.kt` | Estilo pixel y 12+ temas (PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…). |
+| `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Almacenamiento, Apariencia, Mando, Cuenta, Privacidad, Legal. |
+| `ui/theme/PixelTheme.kt` | Temas de colores (PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **estilos de interfaz** (`UiStyle`: Pixel, Terminal, Ondas, Plano, RPG 16 bits), que se combinan. Un estilo (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. |
+| `ui/components/PixelComponents.kt` | `pixelFrame` dibuja cada recuadro según `Px.style`; `pxBackdrop` es el fondo (barrido, ondas, degradado). Usar `pxCaps()` en vez de `uppercase()` para títulos. |
 
 ## Compilar
 
@@ -85,6 +86,7 @@ Android en local.
   - `demo_section` (`THEME`…)
   - `demo_game` (booleano)
   - `demo_gamepad` (booleano)
+  - `demo_style` (`PIXEL`, `TERMINAL`, `WAVES`, `FLAT`, `RPG`) y `demo_theme` (`SNES`…)
 - Lanzar el workflow a mano (Run workflow) genera las capturas:
   - 3 pantallas × 12 formatos: 16:9, 16:10, 4:3, 1:1, 8:7, 21:9 y 21:10, en horizontal y vertical.
   - Se publican en la rama **`capturas`**, que se sobrescribe en cada ejecución y no lanza compilaciones.

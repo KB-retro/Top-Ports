@@ -72,6 +72,7 @@ import com.topports.core.Game
 import com.topports.core.PackageKind
 import androidx.compose.runtime.produceState
 import java.io.File
+import com.topports.app.ui.theme.pxCaps
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -337,7 +338,7 @@ private fun GameCard(game: Game, installed: Boolean, hearts: Hearts, onClick: ()
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            game.title.uppercase(),
+            game.title.pxCaps(),
             style = PxText.label,
             maxLines = 2,
             minLines = 2,

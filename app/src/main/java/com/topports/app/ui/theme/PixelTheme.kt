@@ -11,6 +11,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.topports.app.R
 
@@ -198,6 +203,9 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
  */
 object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
+
+    /** Estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier [theme]. */
+    var style by mutableStateOf(UiStyle.PIXEL)
     private val p get() = theme.palette
 
     val black get() = p.black
@@ -225,13 +233,160 @@ val PixelFont = FontFamily(Font(R.font.press_start_2p))
 /** Fuente de terminal, más legible para textos largos. */
 val TermFont = FontFamily(Font(R.font.vt323))
 
+/** Pixel de 16 bits, redondeada y legible (estilo RPG). */
+val PixelifyFont = FontFamily(Font(R.font.pixelify_sans))
+
+/** Pixel fina en versalitas, para botones y etiquetas pequeñas (estilo RPG). */
+val SilkFont = FontFamily(Font(R.font.silkscreen))
+
+/** Cómo se dibuja un recuadro (panel, botón, tarjeta…). */
+enum class FrameKind {
+    /** Borde de un "píxel gordo" sin esquinas y sombra dura. */
+    PIXEL,
+
+    /** Doble línea fina y esquinas rectas, como los menús de texto. */
+    DOUBLE_LINE,
+
+    /** Cristal: relleno translúcido, esquinas muy redondas y borde tenue. */
+    GLASS,
+
+    /** Bloque plano sin borde; el seleccionado se marca con un borde de color. */
+    FLAT,
+
+    /** Ventana de RPG: degradado, borde claro entre dos líneas oscuras y esquinas romas. */
+    WINDOW,
+}
+
+/** Decoración del fondo de la app. */
+enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT }
+
+/** Tamaño y altura de línea de un tipo de texto. */
+data class TextSize(val size: TextUnit, val line: TextUnit)
+
+/** Todo lo que cambia un estilo de interfaz, además de los colores. */
+data class StyleSpec(
+    val headFont: FontFamily,
+    val headWeight: FontWeight = FontWeight.Normal,
+    /** Fuente de botones y etiquetas (label/tiny). */
+    val labelFont: FontFamily = headFont,
+    val labelWeight: FontWeight = headWeight,
+    val bodyFont: FontFamily,
+    /** Fuente del campo de texto (EditText): recurso o null para la del sistema. */
+    val bodyFontRes: Int?,
+    val title: TextSize,
+    val heading: TextSize,
+    val label: TextSize,
+    val tiny: TextSize,
+    val body: TextSize,
+    val small: TextSize,
+    /** Espaciado extra de títulos (en em). */
+    val headSpacing: Float = 0f,
+    /** Títulos y botones en mayúsculas. */
+    val uppercase: Boolean = true,
+    val frame: FrameKind,
+    /** Grosor del borde (en los estilos que no son pixel). */
+    val stroke: Dp = 3.dp,
+    val radius: Dp = 0.dp,
+    /** Sombra dura desplazada bajo los recuadros. */
+    val shadow: Boolean = false,
+    /** Barra de progreso por bloques (si no, continua). */
+    val blocks: Boolean = true,
+    val backdrop: Backdrop = Backdrop.NONE,
+    /** Marca delante de los títulos de sección; null = cuadrado. */
+    val marker: String? = null,
+)
+
+/**
+ * Estilos de interfaz elegibles en Ajustes. Inspirados en los menús de RetroArch y de las
+ * consolas: cambian las letras, los recuadros, las barras y el fondo, no los colores.
+ */
+enum class UiStyle(val label: String, val description: String, val spec: StyleSpec) {
+    PIXEL(
+        "Pixel",
+        "8 bits: letra gruesa, marcos sin esquinas y sombra dura.",
+        StyleSpec(
+            headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
+            title = TextSize(14.sp, 20.sp), heading = TextSize(11.sp, 16.sp), label = TextSize(9.sp, 13.sp),
+            tiny = TextSize(7.sp, 10.sp), body = TextSize(21.sp, 22.sp), small = TextSize(18.sp, 19.sp),
+            frame = FrameKind.PIXEL, shadow = true,
+        ),
+    ),
+    TERMINAL(
+        "Terminal",
+        "Menú de texto, como RGUI: todo en letra de terminal, doble línea y líneas de barrido.",
+        StyleSpec(
+            headFont = TermFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
+            title = TextSize(28.sp, 28.sp), heading = TextSize(24.sp, 24.sp), label = TextSize(20.sp, 20.sp),
+            tiny = TextSize(17.sp, 17.sp), body = TextSize(21.sp, 22.sp), small = TextSize(18.sp, 19.sp),
+            headSpacing = 0.05f, frame = FrameKind.DOUBLE_LINE, stroke = 1.5.dp,
+            backdrop = Backdrop.SCANLINES, marker = ">",
+        ),
+    ),
+    WAVES(
+        "Ondas",
+        "Suave y moderno, como XMB: letra fina, cristal, esquinas redondas y ondas de fondo.",
+        StyleSpec(
+            headFont = FontFamily.SansSerif, headWeight = FontWeight.Light,
+            labelFont = FontFamily.SansSerif, labelWeight = FontWeight.Medium,
+            bodyFont = FontFamily.SansSerif, bodyFontRes = null,
+            title = TextSize(22.sp, 28.sp), heading = TextSize(17.sp, 22.sp), label = TextSize(13.sp, 17.sp),
+            tiny = TextSize(11.sp, 14.sp), body = TextSize(16.sp, 22.sp), small = TextSize(14.sp, 19.sp),
+            headSpacing = 0.04f, uppercase = false, frame = FrameKind.GLASS, stroke = 1.dp, radius = 14.dp,
+            blocks = false, backdrop = Backdrop.WAVES, marker = "◆",
+        ),
+    ),
+    FLAT(
+        "Plano",
+        "Limpio, como Ozone: letra del sistema, bloques planos sin borde y barra lisa.",
+        StyleSpec(
+            headFont = FontFamily.Default, headWeight = FontWeight.SemiBold,
+            labelWeight = FontWeight.Medium,
+            bodyFont = FontFamily.Default, bodyFontRes = null,
+            title = TextSize(20.sp, 26.sp), heading = TextSize(16.sp, 21.sp), label = TextSize(13.sp, 17.sp),
+            tiny = TextSize(11.sp, 14.sp), body = TextSize(16.sp, 22.sp), small = TextSize(14.sp, 19.sp),
+            uppercase = false, frame = FrameKind.FLAT, stroke = 2.dp, radius = 6.dp, blocks = false,
+        ),
+    ),
+    RPG(
+        "RPG 16 bits",
+        "Ventanas de RPG: degradado, borde doble, esquinas romas y letra pixel fina.",
+        StyleSpec(
+            headFont = PixelifyFont, labelFont = SilkFont,
+            bodyFont = PixelifyFont, bodyFontRes = R.font.pixelify_sans,
+            title = TextSize(19.sp, 24.sp), heading = TextSize(15.sp, 20.sp), label = TextSize(11.sp, 15.sp),
+            tiny = TextSize(9.sp, 12.sp), body = TextSize(17.sp, 21.sp), small = TextSize(15.sp, 18.sp),
+            frame = FrameKind.WINDOW, stroke = 2.dp, radius = 5.dp, shadow = true, blocks = false,
+            backdrop = Backdrop.GRADIENT, marker = "▶",
+        ),
+    ),
+    ;
+
+    companion object {
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: PIXEL
+    }
+}
+
+/** Títulos y botones: en mayúsculas solo si el estilo lo pide. */
+fun String.pxCaps(): String = if (Px.style.spec.uppercase) uppercase() else this
+
 object PxText {
-    val title get() = TextStyle(fontFamily = PixelFont, fontSize = 14.sp, lineHeight = 20.sp, color = Px.white)
-    val heading get() = TextStyle(fontFamily = PixelFont, fontSize = 11.sp, lineHeight = 16.sp, color = Px.white)
-    val label get() = TextStyle(fontFamily = PixelFont, fontSize = 9.sp, lineHeight = 13.sp, color = Px.white)
-    val tiny get() = TextStyle(fontFamily = PixelFont, fontSize = 7.sp, lineHeight = 10.sp, color = Px.white)
-    val body get() = TextStyle(fontFamily = TermFont, fontSize = 21.sp, lineHeight = 22.sp, color = Px.white)
-    val small get() = TextStyle(fontFamily = TermFont, fontSize = 18.sp, lineHeight = 19.sp, color = Px.grey)
+    private val s get() = Px.style.spec
+
+    private fun head(t: TextSize) = TextStyle(
+        fontFamily = s.headFont, fontWeight = s.headWeight, fontSize = t.size, lineHeight = t.line,
+        letterSpacing = s.headSpacing.em, color = Px.white,
+    )
+
+    private fun label(t: TextSize) = TextStyle(
+        fontFamily = s.labelFont, fontWeight = s.labelWeight, fontSize = t.size, lineHeight = t.line, color = Px.white,
+    )
+
+    val title get() = head(s.title)
+    val heading get() = head(s.heading)
+    val label get() = label(s.label)
+    val tiny get() = label(s.tiny)
+    val body get() = TextStyle(fontFamily = s.bodyFont, fontSize = s.body.size, lineHeight = s.body.line, color = Px.white)
+    val small get() = TextStyle(fontFamily = s.bodyFont, fontSize = s.small.size, lineHeight = s.small.line, color = Px.grey)
 }
 
 private fun colors() = darkColorScheme(

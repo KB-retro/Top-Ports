@@ -14,6 +14,7 @@ import com.topports.app.TopPortsApp
 import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
 import kotlinx.coroutines.launch
+import com.topports.app.ui.theme.UiStyle
 
 enum class Tab(val label: String) {
     STORE("Tienda"), INSTALLED("Instalados"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
@@ -21,7 +22,7 @@ enum class Tab(val label: String) {
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Tema"), GAMEPAD("Mando"),
+    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Apariencia"), GAMEPAD("Mando"),
     ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
 }
 
@@ -102,6 +103,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Sistema elegido en la tienda ("N64", "X360"…); null = todos. */
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
+
+    /** Estilo de interfaz (letras y recuadros); se aplica al momento y se recuerda. */
+    fun setStyle(style: UiStyle) {
+        Px.style = style
+        prefs.edit().putString("uiStyle", style.name).apply()
+    }
 
     /** Tema de colores; se aplica al momento y se recuerda. */
     fun setTheme(theme: AppTheme) {

@@ -105,6 +105,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import com.topports.app.ui.theme.pxCaps
 
 private val urlRegex = Regex("""https?://[^\s)]+""")
 
@@ -202,7 +203,7 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     val hearts = vm.graph.channel.heartsOf(game, allHearts).second
     val heartScope = rememberCoroutineScope()
     val header: @Composable () -> Unit = {
-        Text(game.title.uppercase(), style = PxText.title.copy(color = Px.yellow))
+        Text(game.title.pxCaps(), style = PxText.title.copy(color = Px.yellow))
         if (game.tags.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { game.tags.forEach { SystemTag(it) } }

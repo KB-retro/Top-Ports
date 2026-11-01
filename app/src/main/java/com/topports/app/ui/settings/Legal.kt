@@ -44,6 +44,8 @@ val LICENSES = listOf(
     License("Kotlin y kotlinx.coroutines", "Apache 2.0", "https://github.com/Kotlin/kotlinx.coroutines/blob/master/LICENSE.txt"),
     License("Press Start 2P (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Press+Start+2P/license"),
     License("VT323 (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/VT323/license"),
+    License("Pixelify Sans (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Pixelify+Sans/license"),
+    License("Silkscreen (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Silkscreen/license"),
     License(
         "Robot de Android (logo)", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/",
         "El robot de Android se reproduce o modifica a partir de trabajo creado y compartido por Google.",

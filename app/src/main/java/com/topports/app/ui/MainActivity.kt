@@ -15,6 +15,7 @@ import androidx.activity.viewModels
 import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.TopPortsTheme
+import com.topports.app.ui.theme.UiStyle
 
 class MainActivity : ComponentActivity() {
 
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
         // Preferencias guardadas en Ajustes: tema de colores y botones A/B.
         val prefs = getSharedPreferences("ui", MODE_PRIVATE)
         Px.theme = AppTheme.fromName(prefs.getString("theme", null))
+        Px.style = UiStyle.fromName(prefs.getString("uiStyle", null))
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         lockSquareScreensToLandscape()
         enableEdgeToEdge()
@@ -82,6 +84,9 @@ class MainActivity : ComponentActivity() {
      */
     private fun openDemoScreen() {
         Gamepad.forceGamepad = intent.getBooleanExtra("demo_gamepad", false)
+        // Capturas de cada estilo y tema: --es demo_style WAVES --es demo_theme SNES
+        intent.getStringExtra("demo_style")?.let { Px.style = UiStyle.fromName(it) }
+        intent.getStringExtra("demo_theme")?.let { Px.theme = AppTheme.fromName(it) }
         intent.getStringExtra("demo_tab")?.let { name -> Tab.entries.firstOrNull { it.name == name }?.let { vm.tab = it } }
         intent.getStringExtra("demo_section")?.let { name ->
             SettingsSection.entries.firstOrNull { it.name == name }?.let { vm.settingsSection = it }

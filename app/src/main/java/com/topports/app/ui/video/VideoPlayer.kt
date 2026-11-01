@@ -49,6 +49,7 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import kotlinx.coroutines.delay
 import java.io.File
+import com.topports.app.ui.theme.pxCaps
 
 /**
  * Reproductor integrado. Se abre en una ventana centrada (la mitad del ancho en
@@ -111,7 +112,7 @@ fun VideoPlayerDialog(file: File, title: String, onClose: () -> Unit) {
             }
             Column(frame, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!fullscreen) {
-                    Text(title.uppercase(), style = PxText.label.copy(color = Px.pink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(title.pxCaps(), style = PxText.label.copy(color = Px.pink), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 val videoModifier = if (fullscreen) Modifier.fillMaxWidth().weight(1f)
                 else Modifier.fillMaxWidth().aspectRatio(16f / 9f)

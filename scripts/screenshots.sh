@@ -53,6 +53,27 @@ done 3<<'FORMATS'
 21x10-vertical      914 1920 320 false
 FORMATS
 
+# Cada estilo de interfaz (con un tema de colores distinto), en consola horizontal y móvil vertical.
+while read -r style theme <&3; do
+  case "$style" in ""|"#"*) continue ;; esac
+  for fmt in "16x9-horizontal 1920 1080 400 true" "16x9-vertical 1080 1920 400 false"; do
+    read -r name w h d pad <<<"$fmt"
+    echo "== estilo $style ($name)"
+    adb shell wm size "${w}x${h}"
+    adb shell wm density "$d"
+    sleep 2
+    shot "estilo-$style-$name-1-tienda" --es demo_tab STORE --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad "$pad"
+    shot "estilo-$style-$name-2-ficha" --es demo_tab STORE --ez demo_game true --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad "$pad"
+    shot "estilo-$style-$name-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad "$pad"
+  done
+done 3<<'STYLES'
+PIXEL      PICO8
+TERMINAL   GRUVBOX
+WAVES      SYNTHWAVE
+FLAT       DREAMCAST
+RPG        SNES
+STYLES
+
 adb shell wm size reset
 adb shell wm density reset
 ls -1 "$OUT" | wc -l

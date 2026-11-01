@@ -32,6 +32,7 @@ import com.topports.app.ui.store.TdImage
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
+import com.topports.app.ui.theme.pxCaps
 
 /** Apps instaladas con una versión más nueva publicada en el canal. */
 @Composable
@@ -71,7 +72,7 @@ fun UpdatesScreen(vm: AppViewModel) {
                     }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(update.game.title.uppercase(), style = PxText.label, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(update.game.title.pxCaps(), style = PxText.label, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(
                             "${update.appLabel}: ${update.installedVersion ?: "instalada"} → ${update.newVersion ?: "nueva versión"}",
                             style = PxText.body.copy(color = Px.green),

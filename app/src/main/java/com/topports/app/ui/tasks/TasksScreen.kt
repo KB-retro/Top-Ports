@@ -36,6 +36,7 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.app.work.TaskState
 import com.topports.core.FileNames
+import com.topports.app.ui.theme.pxCaps
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -74,7 +75,7 @@ fun TasksScreen(vm: AppViewModel) {
             val game = catalog.games.firstOrNull { it.id == p.gameId }
             PixelPanel(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    game?.let { Text(it.title.uppercase(), style = PxText.label) }
+                    game?.let { Text(it.title.pxCaps(), style = PxText.label) }
                     Text(
                         p.parts.first().second + if (p.parts.size > 1) " · ${p.parts.size} partes" else "",
                         style = PxText.body,
@@ -132,7 +133,7 @@ fun TasksScreen(vm: AppViewModel) {
             }
             PixelPanel(Modifier.fillMaxWidth(), border = border) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(task.title.uppercase(), style = PxText.label)
+                    Text(task.title.pxCaps(), style = PxText.label)
                     Text(task.message, style = PxText.body.copy(color = if (task.failed) Px.red else Px.white))
                     if (task.running) PixelProgress(task.progress, Modifier.fillMaxWidth())
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

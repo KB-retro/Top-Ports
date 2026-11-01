@@ -58,6 +58,8 @@ import com.topports.app.ui.components.PixelProgress
 import com.topports.app.ui.components.PixelTag
 import com.topports.app.ui.components.SectionTitle
 import com.topports.app.ui.theme.AppTheme
+import com.topports.app.ui.theme.UiStyle
+import com.topports.app.ui.components.pixelFrame
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
@@ -293,6 +295,19 @@ fun SettingsScreen(vm: AppViewModel) {
 
         // --- Apariencia ---
         if (vm.settingsSection == SettingsSection.THEME) {
+            item { SectionTitle("Estilo de interfaz", Px.blue) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Cambia las letras, los recuadros, las barras y el fondo. Se combina con cualquier tema de colores.",
+                        style = PxText.small,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UiStyle.entries.forEach { style -> StyleChip(style, selected = Px.style == style) { vm.setStyle(style) } }
+                    }
+                    Text(Px.style.description, style = PxText.small.copy(color = Px.white))
+                }
+            }
             item { SectionTitle("Tema de colores", Px.pink) }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -481,6 +496,34 @@ private fun PermissionRow(title: String, description: String, granted: Boolean, 
                 PixelButton("Dar permiso", onClick = onRequest, color = Px.yellow, small = true)
             }
         }
+    }
+}
+
+/** Muestra de un estilo de interfaz: un recuadro dibujado con él y "Aa" en su letra. */
+@Composable
+private fun StyleChip(style: UiStyle, selected: Boolean, onClick: () -> Unit) {
+    val spec = style.spec
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            Modifier.size(width = 112.dp, height = 56.dp)
+                .pixelFrame(fill = Px.navy, border = if (selected) Px.yellow else Px.white, style = style),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Aa",
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = spec.headFont, fontWeight = spec.headWeight,
+                    fontSize = spec.title.size, color = if (selected) Px.yellow else Px.white,
+                ),
+            )
+        }
+        PixelButton(
+            if (selected) "✓ ${style.label}" else style.label,
+            onClick = onClick,
+            color = if (selected) Px.orange else Px.navyDark,
+            textColor = if (selected) Px.black else Px.white,
+            small = true,
+        )
     }
 }
 

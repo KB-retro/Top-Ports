@@ -39,6 +39,7 @@ import com.topports.app.ui.components.PixelTextField
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
+import com.topports.app.ui.theme.pxCaps
 
 /** Logo de Top Ports (escudo con el androide porteador). */
 @Composable
@@ -59,7 +60,7 @@ private fun LoginScaffold(subtitle: String, content: @Composable () -> Unit) {
         Spacer(Modifier.height(8.dp))
         TopPortsLogo()
         Spacer(Modifier.height(4.dp))
-        Text(subtitle.uppercase(), style = PxText.tiny.copy(color = Px.blue), textAlign = TextAlign.Center)
+        Text(subtitle.pxCaps(), style = PxText.tiny.copy(color = Px.blue), textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         PixelPanel(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
@@ -85,7 +86,7 @@ fun SplashScreen() {
 @Composable
 fun MessageScreen(title: String, message: String) {
     LoginScaffold("Tienda de ports") {
-        Text(title.uppercase(), style = PxText.heading.copy(color = Px.red))
+        Text(title.pxCaps(), style = PxText.heading.copy(color = Px.red))
         Text(message, style = PxText.body)
     }
 }

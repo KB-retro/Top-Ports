@@ -49,6 +49,7 @@ import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
 import com.topports.core.InstalledGame
 import kotlinx.coroutines.launch
+import com.topports.app.ui.theme.pxCaps
 
 /** Juegos del canal que están instalados: abrir, desinstalar y borrar sus datos. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -98,7 +99,7 @@ fun InstalledScreen(vm: AppViewModel) {
                     }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(item.game.title.uppercase(), style = PxText.label, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(item.game.title.pxCaps(), style = PxText.label, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         item.apps.forEach { app ->
                             Text(
                                 "${app.label} ${app.versionName ?: ""}".trim(),
@@ -150,7 +151,7 @@ fun InstalledScreen(vm: AppViewModel) {
     cleaning?.let { (item, entries) ->
         val downloaded = item.game.packages.sumOf { it.size }
         PixelDialog("Borrar datos", onDismiss = { if (!busy) cleaning = null }, wide = true, widthFraction = 0.7f) {
-            Text(item.game.title.uppercase(), style = PxText.label.copy(color = Px.yellow))
+            Text(item.game.title.pxCaps(), style = PxText.label.copy(color = Px.yellow))
             Spacer(Modifier.size(8.dp))
             // Con muchas carpetas la lista se desplaza y los botones siguen visibles.
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {

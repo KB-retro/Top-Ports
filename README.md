@@ -127,8 +127,10 @@ scripts/build-tdlib.sh   Compila TDLib para Android
 
 - [TDLib](https://github.com/tdlib/td) (Boost Software License)
 - [7-Zip-JBinding-4Android](https://github.com/omicronapps/7-Zip-JBinding-4Android) (LGPL, con la restricción unRAR para RAR)
-- Fuentes [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) y
-  [VT323](https://fonts.google.com/specimen/VT323) (SIL OFL, ver `licenses/`)
+- Fuentes [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P),
+  [VT323](https://fonts.google.com/specimen/VT323),
+  [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) y
+  [Silkscreen](https://fonts.google.com/specimen/Silkscreen) (SIL OFL, ver `licenses/`)
 - Jetpack Compose, AndroidX, Media3, Coil y kotlinx.coroutines (Apache 2.0)
 - El robot de Android del logo se reproduce o modifica a partir de trabajo creado y compartido
   por Google y se usa según la licencia Creative Commons 3.0 Attribution

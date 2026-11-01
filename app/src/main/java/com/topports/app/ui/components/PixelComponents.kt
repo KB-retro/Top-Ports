@@ -12,7 +12,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.widget.doAfterTextChanged
-import com.topports.app.R
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -74,23 +73,186 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.SideEffect
 import com.topports.app.ui.GamepadWindowCallback
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import com.topports.app.ui.theme.Backdrop
+import com.topports.app.ui.theme.FrameKind
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
+import com.topports.app.ui.theme.UiStyle
+import com.topports.app.ui.theme.pxCaps
 
-/** Marco de píxel: borde de 1 "píxel gordo" sin esquinas y sombra dura desplazada. */
+/**
+ * Recuadro de panel, botón o tarjeta, dibujado según el estilo de interfaz ([Px.style]): en
+ * Pixel, borde de 1 "píxel gordo" sin esquinas y sombra dura desplazada; en los demás, doble
+ * línea, cristal, bloque plano o ventana de RPG. [focused] (por defecto, borde amarillo) es el
+ * elemento seleccionado con el mando.
+ */
 fun Modifier.pixelFrame(
     fill: Color = Px.navy,
     border: Color = Px.white,
     shadow: Color? = Px.black,
     px: Dp = 3.dp,
-): Modifier = this
-    .padding(end = if (shadow != null) px else 0.dp, bottom = if (shadow != null) px else 0.dp)
-    .drawBehind {
-        val p = px.toPx()
-        if (shadow != null) drawPixelBox(shadow, shadow, p, Offset(p, p))
-        drawPixelBox(border, fill, p, Offset.Zero)
+    focused: Boolean = border == Px.yellow,
+    style: UiStyle = Px.style,
+): Modifier {
+    val spec = style.spec
+    if (spec.frame == FrameKind.PIXEL) {
+        return this
+            .padding(end = if (shadow != null) px else 0.dp, bottom = if (shadow != null) px else 0.dp)
+            .drawBehind {
+                val p = px.toPx()
+                if (shadow != null) drawPixelBox(shadow, shadow, p, Offset(p, p))
+                drawPixelBox(border, fill, p, Offset.Zero)
+            }
+            .padding(px)
     }
-    .padding(px)
+    // Sombra solo en los estilos que la tienen (RPG); un botón pulsado no la lleva.
+    val drop = if (spec.shadow && shadow != null) 3.dp else 0.dp
+    val inset = frameInset(style)
+    return this
+        .drawBehind {
+            val d = drop.toPx()
+            val box = Size(size.width - d, size.height - d)
+            if (d > 0f) drawRoundRect(Color.Black.copy(alpha = 0.55f), Offset(d, d), box, CornerRadius(spec.radius.toPx()))
+            when (spec.frame) {
+                FrameKind.DOUBLE_LINE -> drawDoubleLine(fill, border, spec.stroke.toPx(), box)
+                FrameKind.GLASS -> drawGlass(fill, border, focused, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.FLAT -> drawFlat(fill, border, focused, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.WINDOW -> drawWindow(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.PIXEL -> Unit
+            }
+        }
+        .padding(start = inset, top = inset, end = inset + drop, bottom = inset + drop)
+}
+
+/** Grosor del borde de cada estilo: lo que el contenido se separa del filo del recuadro. */
+private fun frameInset(style: UiStyle): Dp {
+    val spec = style.spec
+    return when (spec.frame) {
+        FrameKind.PIXEL -> 3.dp
+        FrameKind.DOUBLE_LINE -> spec.stroke * 2 + 2.dp
+        FrameKind.GLASS, FrameKind.FLAT -> spec.stroke
+        FrameKind.WINDOW -> spec.stroke + 2.dp
+    }
+}
+
+/** Doble línea fina y esquinas rectas (menú de texto). */
+private fun DrawScope.drawDoubleLine(fill: Color, border: Color, t: Float, box: Size) {
+    drawRect(fill, Offset.Zero, box)
+    val gap = 2.dp.toPx()
+    drawRect(border, Offset(t / 2, t / 2), Size(box.width - t, box.height - t), style = Stroke(t))
+    val i = t + gap + t / 2
+    drawRect(border, Offset(i, i), Size(box.width - 2 * i, box.height - 2 * i), style = Stroke(t))
+}
+
+/** Cristal: los fondos oscuros se vuelven translúcidos; al seleccionarlo, borde y halo. */
+private fun DrawScope.drawGlass(fill: Color, border: Color, focused: Boolean, t: Float, r: Float, box: Size) {
+    val glass = if (fill.luminance() < 0.3f) fill.copy(alpha = 0.55f) else fill
+    drawRoundRect(glass, Offset.Zero, box, CornerRadius(r))
+    // Brillo arriba, como el cristal de XMB.
+    drawRoundRect(
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent), endY = box.height * 0.6f),
+        Offset.Zero, box, CornerRadius(r),
+    )
+    if (focused) {
+        drawRoundRect(border.copy(alpha = 0.25f), Offset(-t * 2, -t * 2), Size(box.width + t * 4, box.height + t * 4), CornerRadius(r + t * 2), style = Stroke(t * 3))
+    }
+    val w = if (focused) t * 2 else t
+    drawRoundRect(
+        if (focused) border else border.copy(alpha = 0.3f),
+        Offset(w / 2, w / 2), Size(box.width - w, box.height - w), CornerRadius(r), style = Stroke(w),
+    )
+}
+
+/** Bloque plano: sin borde; seleccionado, borde de color; con borde de color, barra de acento. */
+private fun DrawScope.drawFlat(fill: Color, border: Color, focused: Boolean, t: Float, r: Float, box: Size) {
+    drawRoundRect(fill, Offset.Zero, box, CornerRadius(r))
+    when {
+        focused -> drawRoundRect(border, Offset(t / 2, t / 2), Size(box.width - t, box.height - t), CornerRadius(r), style = Stroke(t))
+        border != Px.white && border != Px.black ->
+            drawRoundRect(border, Offset.Zero, Size(t * 2, box.height), CornerRadius(r))
+    }
+}
+
+/** Ventana de RPG: línea oscura, borde de color, línea oscura y relleno en degradado. */
+private fun DrawScope.drawWindow(fill: Color, border: Color, t: Float, r: Float, box: Size) {
+    val line = 1.dp.toPx()
+    val dark = Color.Black.copy(alpha = 0.8f)
+    drawRoundRect(dark, Offset.Zero, box, CornerRadius(r))
+    drawRoundRect(border, Offset(line, line), Size(box.width - 2 * line, box.height - 2 * line), CornerRadius(r - line))
+    val i = line + t
+    drawRoundRect(dark, Offset(i, i), Size(box.width - 2 * i, box.height - 2 * i), CornerRadius((r - i).coerceAtLeast(0f)))
+    val j = i + line
+    drawRoundRect(
+        Brush.verticalGradient(listOf(lerp(fill, Color.White, 0.16f), lerp(fill, Color.Black, 0.3f)), startY = j, endY = box.height - j),
+        Offset(j, j), Size(box.width - 2 * j, box.height - 2 * j), CornerRadius((r - j).coerceAtLeast(0f)),
+    )
+}
+
+/**
+ * Fondo de la app según el estilo: liso, líneas de barrido (Terminal), ondas animadas (Ondas)
+ * o degradado (RPG).
+ */
+fun Modifier.pxBackdrop(): Modifier = composed {
+    val night = Px.night
+    when (Px.style.spec.backdrop) {
+        Backdrop.NONE -> background(night)
+        Backdrop.SCANLINES -> background(night).drawBehind {
+            val step = 3.dp.toPx()
+            val line = Color.Black.copy(alpha = 0.35f)
+            var y = 0f
+            while (y < size.height) {
+                drawRect(line, Offset(0f, y), Size(size.width, 1.dp.toPx()))
+                y += step
+            }
+        }
+        Backdrop.GRADIENT -> background(Brush.verticalGradient(listOf(Px.navyDark, night, Px.black)))
+        Backdrop.WAVES -> {
+            val transition = rememberInfiniteTransition(label = "waves")
+            val phase by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = (2 * Math.PI).toFloat(),
+                animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Restart),
+                label = "wavePhase",
+            )
+            val top = Px.navyDark
+            val colors = listOf(Px.lavender, Px.blue, Px.pink)
+            background(Brush.verticalGradient(listOf(top, night))).drawBehind {
+                colors.forEachIndexed { k, c -> drawWave(c.copy(alpha = 0.10f + 0.04f * k), phase * (1 + k * 0.35f) + k * 1.7f, 0.55f + k * 0.08f, k) }
+            }
+        }
+    }
+}
+
+/** Una onda suave que cruza la pantalla, como el fondo de XMB. */
+private fun DrawScope.drawWave(color: Color, phase: Float, baseline: Float, k: Int) {
+    val amp = size.height * (0.06f + 0.02f * k)
+    val y0 = size.height * baseline
+    val path = Path()
+    val step = 12.dp.toPx()
+    var x = 0f
+    path.moveTo(0f, y0)
+    while (x <= size.width + step) {
+        val t = x / size.width * (2 * Math.PI).toFloat() * (1.2f + 0.3f * k)
+        path.lineTo(x, y0 + amp * kotlin.math.sin(t + phase))
+        x += step
+    }
+    // Banda: la misma curva un poco más abajo, de vuelta.
+    while (x >= -step) {
+        val t = x / size.width * (2 * Math.PI).toFloat() * (1.2f + 0.3f * k)
+        path.lineTo(x, y0 + amp * 0.6f + amp * kotlin.math.sin(t + phase * 1.1f + 0.8f))
+        x -= step
+    }
+    path.close()
+    drawPath(path, color)
+}
 
 private fun DrawScope.drawPixelBox(border: Color, fill: Color, p: Float, at: Offset) {
     val w = size.width
@@ -132,23 +294,26 @@ fun PixelButton(
     // Con mando o cruceta, el botón seleccionado se marca en amarillo.
     val focused by interaction.collectIsFocusedAsState()
     val px = 3.dp
+    val sinks = Px.style.spec.shadow
     Box(
         modifier
             .alpha(if (enabled) 1f else 0.4f)
-            // Al pulsar, el botón "baja" y tapa su sombra.
-            .offset(x = if (pressed) px else 0.dp, y = if (pressed) px else 0.dp)
+            // Al pulsar, el botón "baja" y tapa su sombra (en los estilos con sombra).
+            .offset(x = if (pressed && sinks) px else 0.dp, y = if (pressed && sinks) px else 0.dp)
+            .alpha(if (pressed && !sinks) 0.75f else 1f)
             .pixelFrame(
                 fill = color,
                 border = if (focused) Px.yellow else Px.black,
                 shadow = if (pressed) null else if (focused) Px.yellow else Px.black,
                 px = px,
+                focused = focused,
             )
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
             .padding(horizontal = if (small) 8.dp else 12.dp, vertical = if (small) 6.dp else 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text.uppercase(),
+            text.pxCaps(),
             style = (textStyle ?: if (small) PxText.tiny else PxText.label).copy(color = textColor),
             textAlign = TextAlign.Center,
         )
@@ -163,6 +328,10 @@ fun PixelProgress(
     color: Color = Px.green,
     blocks: Int = 20,
 ) {
+    if (!Px.style.spec.blocks) {
+        SmoothProgress(progress, modifier, color)
+        return
+    }
     val transition = rememberInfiniteTransition(label = "progress")
     val scan by transition.animateFloat(
         initialValue = 0f,
@@ -188,6 +357,39 @@ fun PixelProgress(
                     Size(bw, size.height),
                 )
             }
+        }
+    }
+}
+
+/** Barra continua (Ondas, Plano, RPG). Indeterminada: un tramo que la recorre. */
+@Composable
+private fun SmoothProgress(progress: Float?, modifier: Modifier, color: Color) {
+    val spec = Px.style.spec
+    val transition = rememberInfiniteTransition(label = "smoothProgress")
+    val sweep by transition.animateFloat(
+        initialValue = -0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+        label = "sweep",
+    )
+    val window = spec.frame == FrameKind.WINDOW
+    val track = Px.navyDark
+    val edge = Px.white
+    Canvas(modifier.height(if (window) 14.dp else 8.dp)) {
+        val r = CornerRadius(if (window) 3.dp.toPx() else size.height / 2)
+        val inset = if (window) 2.dp.toPx() else 0f
+        if (window) {
+            drawRoundRect(Color.Black.copy(alpha = 0.8f), cornerRadius = r)
+            drawRoundRect(edge, Offset(1.dp.toPx(), 1.dp.toPx()), Size(size.width - 2.dp.toPx(), size.height - 2.dp.toPx()), r, style = Stroke(1.dp.toPx()))
+        }
+        val inner = Size(size.width - 2 * inset, size.height - 2 * inset)
+        drawRoundRect(track.copy(alpha = if (spec.frame == FrameKind.GLASS) 0.6f else 1f), Offset(inset, inset), inner, r)
+        val (from, to) = if (progress == null) sweep.coerceAtLeast(0f) to (sweep + 0.3f).coerceAtMost(1f)
+        else 0f to progress.coerceIn(0f, 1f)
+        if (to > from) {
+            val brush = if (window) Brush.verticalGradient(listOf(lerp(color, Color.White, 0.35f), color, lerp(color, Color.Black, 0.3f)))
+            else Brush.horizontalGradient(listOf(color.copy(alpha = 0.85f), color))
+            drawRoundRect(brush, Offset(inset + inner.width * from, inset), Size(inner.width * (to - from), inner.height), r)
         }
     }
 }
@@ -225,8 +427,6 @@ fun PixelTextField(
                     background = null
                     val pad = (8 * ctx.resources.displayMetrics.density).toInt()
                     setPadding(pad + pad / 4, pad / 2, pad + pad / 4, pad / 2)
-                    typeface = ResourcesCompat.getFont(ctx, R.font.vt323)
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
                     setTextColor(Px.white.toArgb())
                     setHintTextColor(Px.darkGrey.toArgb())
                     hint = placeholder
@@ -246,6 +446,11 @@ fun PixelTextField(
                 }
             },
             update = { field ->
+                // La letra del estilo de interfaz (o la del sistema en Ondas y Plano).
+                val spec = Px.style.spec
+                field.typeface = spec.bodyFontRes?.let { ResourcesCompat.getFont(field.context, it) }
+                    ?: android.graphics.Typeface.DEFAULT
+                field.setTextSize(TypedValue.COMPLEX_UNIT_SP, spec.body.size.value)
                 if (field.text.toString() != value) {
                     field.setText(value)
                     field.setSelection(value.length)
@@ -276,9 +481,15 @@ private fun imeActionFor(action: ImeAction): Int = when (action) {
 /** Etiqueta de color tipo cartucho: "APK", "7Z", "RAR"… */
 @Composable
 fun PixelTag(text: String, color: Color, modifier: Modifier = Modifier, textColor: Color = Px.black) {
+    val spec = Px.style.spec
+    // En Terminal, como en un menú de texto: [APK] en su color, sin fondo.
+    if (spec.frame == FrameKind.DOUBLE_LINE) {
+        Text("[$text]", style = PxText.tiny.copy(color = color), modifier = modifier)
+        return
+    }
     Box(
         modifier
-            .background(color)
+            .background(color, RoundedCornerShape(spec.radius / 2))
             .padding(horizontal = 5.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -338,7 +549,7 @@ fun PixelDialog(
             border = Px.orange,
         ) {
             Column {
-                Text(title.uppercase(), style = PxText.heading.copy(color = Px.orange))
+                Text(title.pxCaps(), style = PxText.heading.copy(color = Px.orange))
                 Spacer(Modifier.height(12.dp))
                 content()
             }
@@ -362,9 +573,11 @@ fun DialogButtons(content: @Composable () -> Unit) {
 @Composable
 fun SectionTitle(text: String, color: Color = Px.yellow, modifier: Modifier = Modifier) {
     Row(modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(8.dp).height(8.dp).background(color))
+        val marker = Px.style.spec.marker
+        if (marker == null) Box(Modifier.width(8.dp).height(8.dp).background(color))
+        else Text(marker, style = PxText.label.copy(color = color))
         Spacer(Modifier.width(8.dp))
-        Text(text.uppercase(), style = PxText.label.copy(color = color))
+        Text(text.pxCaps(), style = PxText.label.copy(color = color))
     }
 }
 
@@ -391,6 +604,7 @@ fun Modifier.pixelCard(
             fill = fill,
             border = if (focused) Px.yellow else border,
             shadow = if (focused) Px.yellow else shadow,
+            focused = focused,
         )
         .combinedClickable(
             interactionSource = interaction,
