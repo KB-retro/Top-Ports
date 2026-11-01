@@ -152,7 +152,8 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0x88C070), white = c(0xE0F8D0), red = c(0x346856), orange = c(0x88C070),
             yellow = c(0xE0F8D0), green = c(0x88C070), blue = c(0x6FA88A), lavender = c(0x88C070),
             pink = c(0xB8E0A0),
-            focus = c(0x88C070),
+            // El tono más claro: con solo cuatro verdes, es el que más destaca sobre el fondo.
+            focus = c(0xE0F8D0),
         ),
     ),
 
