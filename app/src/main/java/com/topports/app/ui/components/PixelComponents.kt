@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import com.topports.app.ui.theme.Backdrop
+import com.topports.app.ui.theme.FocusPulse
 import com.topports.app.ui.theme.FrameKind
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
@@ -91,18 +92,21 @@ import com.topports.app.ui.theme.pxCaps
 /**
  * Recuadro de panel, botón o tarjeta, dibujado según el estilo de interfaz ([Px.style]): en
  * Pixel, borde de 1 "píxel gordo" sin esquinas y sombra dura desplazada; en los demás, doble
- * línea, cristal, bloque plano o ventana de RPG. [focused] (por defecto, borde amarillo) es el
- * elemento seleccionado con el mando.
+ * línea, cristal, bloque plano o ventana de RPG. [focused] es el elemento seleccionado con el
+ * mando: además del borde, lleva un tinte y un anillo exterior que late (ver [drawFocusRing]).
  */
 fun Modifier.pixelFrame(
     fill: Color = Px.navy,
     border: Color = Px.white,
     shadow: Color? = Px.black,
     px: Dp = 3.dp,
-    focused: Boolean = border == Px.yellow,
+    focused: Boolean = false,
     style: UiStyle = Px.style,
 ): Modifier {
     val spec = style.spec
+    val focus = Px.focus
+    // Un poco del color de selección en el relleno: se nota aunque la paleta sea de un solo tono.
+    val fill = if (focused) lerp(fill, focus, 0.22f) else fill
     if (spec.frame == FrameKind.PIXEL) {
         return this
             .padding(end = if (shadow != null) px else 0.dp, bottom = if (shadow != null) px else 0.dp)
@@ -110,6 +114,7 @@ fun Modifier.pixelFrame(
                 val p = px.toPx()
                 if (shadow != null) drawPixelBox(shadow, shadow, p, Offset(p, p))
                 drawPixelBox(border, fill, p, Offset.Zero)
+                if (focused) drawFocusRing(focus, size, 0f)
             }
             .padding(px)
     }
@@ -128,8 +133,33 @@ fun Modifier.pixelFrame(
                 FrameKind.WINDOW -> drawWindow(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.PIXEL -> Unit
             }
+            if (focused) drawFocusRing(focus, box, spec.radius.toPx())
         }
         .padding(start = inset, top = inset, end = inset + drop, bottom = inset + drop)
+}
+
+/**
+ * Anillo de lo seleccionado, por fuera del recuadro: una línea oscura que lo separa de lo que
+ * haya debajo y otra gruesa del color de selección que late. Así el cursor se ve con cualquier
+ * paleta, también en las de un solo tono (Game Boy, GB DMG, Virtual Boy), y con cualquier tema.
+ */
+private fun DrawScope.drawFocusRing(color: Color, box: Size, radius: Float) {
+    val gap = 2.dp.toPx()
+    val ring = 3.dp.toPx()
+    val pulse = FocusPulse.value
+    // Separación oscura pegada al recuadro.
+    val g = gap / 2
+    drawRoundRect(
+        Color.Black.copy(alpha = 0.85f), Offset(-g, -g), Size(box.width + gap, box.height + gap),
+        CornerRadius(if (radius > 0f) radius + g else 0f), style = Stroke(gap),
+    )
+    // Anillo de color: siempre bien visible, y más intenso y algo más ancho al latir.
+    val w = ring * (0.8f + 0.4f * pulse)
+    val o = gap + w / 2
+    drawRoundRect(
+        color.copy(alpha = 0.6f + 0.4f * pulse), Offset(-o, -o), Size(box.width + 2 * o, box.height + 2 * o),
+        CornerRadius(if (radius > 0f) radius + o else 0f), style = Stroke(w),
+    )
 }
 
 /** Grosor del borde de cada estilo: lo que el contenido se separa del filo del recuadro. */
@@ -161,9 +191,6 @@ private fun DrawScope.drawGlass(fill: Color, border: Color, focused: Boolean, t:
         Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent), endY = box.height * 0.6f),
         Offset.Zero, box, CornerRadius(r),
     )
-    if (focused) {
-        drawRoundRect(border.copy(alpha = 0.25f), Offset(-t * 2, -t * 2), Size(box.width + t * 4, box.height + t * 4), CornerRadius(r + t * 2), style = Stroke(t * 3))
-    }
     val w = if (focused) t * 2 else t
     drawRoundRect(
         if (focused) border else border.copy(alpha = 0.3f),
@@ -303,8 +330,8 @@ fun PixelButton(
             .alpha(if (pressed && !sinks) 0.75f else 1f)
             .pixelFrame(
                 fill = color,
-                border = if (focused) Px.yellow else Px.black,
-                shadow = if (pressed) null else if (focused) Px.yellow else Px.black,
+                border = if (focused) Px.focus else Px.black,
+                shadow = if (pressed) null else if (focused) Px.focus else Px.black,
                 px = px,
                 focused = focused,
             )
@@ -602,8 +629,8 @@ fun Modifier.pixelCard(
     this
         .pixelFrame(
             fill = fill,
-            border = if (focused) Px.yellow else border,
-            shadow = if (focused) Px.yellow else shadow,
+            border = if (focused) Px.focus else border,
+            shadow = if (focused) Px.focus else shadow,
             focused = focused,
         )
         .combinedClickable(

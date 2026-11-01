@@ -5,6 +5,8 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -38,6 +40,11 @@ data class PxPalette(
     val blue: Color,
     val lavender: Color,
     val pink: Color,
+    /**
+     * Lo seleccionado con el mando. Por defecto el amarillo, pero en las paletas donde el
+     * amarillo es casi el blanco de los bordes (Game Boy, Virtual Boy…) se usa otro.
+     */
+    val focus: Color = yellow,
 )
 
 private fun c(hex: Long) = Color(0xFF000000 or hex)
@@ -62,6 +69,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0x8BAC0F), white = c(0xCADC9F), red = c(0x306230), orange = c(0x9BBC0F),
             yellow = c(0xCADC9F), green = c(0x9BBC0F), blue = c(0x8BAC0F), lavender = c(0x8BAC0F),
             pink = c(0xB5CC5A),
+            focus = c(0x9BBC0F),
         ),
     ),
     NES(
@@ -72,6 +80,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0xBCBCBC), white = c(0xFCFCFC), red = c(0xD82800), orange = c(0xFCA044),
             yellow = c(0xF8D878), green = c(0x58D854), blue = c(0x3CBCFC), lavender = c(0x9878F8),
             pink = c(0xF878F8),
+            focus = c(0xFFE000),
         ),
     ),
     SYNTHWAVE(
@@ -82,6 +91,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0xC9B6E4), white = c(0xF8F0FF), red = c(0xFF2A6D), orange = c(0xFF6AD5),
             yellow = c(0xFFF56D), green = c(0x05FFA1), blue = c(0x01CDFE), lavender = c(0x9D8CFF),
             pink = c(0xFF71CE),
+            focus = c(0xFFE600),
         ),
     ),
     VIRTUAL_BOY(
@@ -92,6 +102,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0xC83232), white = c(0xFF6060), red = c(0x8C0000), orange = c(0xFF3030),
             yellow = c(0xFF7070), green = c(0xE02020), blue = c(0xB01818), lavender = c(0xA82828),
             pink = c(0xFF4C4C),
+            focus = c(0xFF1A1A),
         ),
     ),
 
@@ -128,6 +139,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0xAAAAAA), white = c(0xFFFFFF), red = c(0xAA0000), orange = c(0xFF5500),
             yellow = c(0xFFFF55), green = c(0x55FF55), blue = c(0x55AAFF), lavender = c(0xAAAAFF),
             pink = c(0xFF55AA),
+            focus = c(0xFFFF00),
         ),
     ),
 
@@ -140,6 +152,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0x88C070), white = c(0xE0F8D0), red = c(0x346856), orange = c(0x88C070),
             yellow = c(0xE0F8D0), green = c(0x88C070), blue = c(0x6FA88A), lavender = c(0x88C070),
             pink = c(0xB8E0A0),
+            focus = c(0x88C070),
         ),
     ),
 
@@ -188,6 +201,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             grey = c(0xC9B79C), white = c(0xF2E6D0), red = c(0xD23A26), orange = c(0xE8862A),
             yellow = c(0xF2C641), green = c(0x5CA845), blue = c(0x4A8FD0), lavender = c(0xB39A7A),
             pink = c(0xE07A5A),
+            focus = c(0xFFB000),
         ),
     ),
     ;
@@ -225,6 +239,16 @@ object Px {
     val blue get() = p.blue
     val lavender get() = p.lavender
     val pink get() = p.pink
+    val focus get() = p.focus
+}
+
+/**
+ * Latido del marco de lo seleccionado (0..1), como un cursor. Lo mueve [TopPortsTheme] a
+ * saltos (unas 10 veces por segundo) y solo se lee al dibujar: redibuja el elemento
+ * seleccionado, sin recomponer la pantalla.
+ */
+object FocusPulse {
+    var value by mutableFloatStateOf(1f)
 }
 
 /** Fuente de 8 bits para títulos y botones. */
@@ -413,6 +437,14 @@ private fun colors() = darkColorScheme(
 
 @Composable
 fun TopPortsTheme(content: @Composable () -> Unit) {
+    LaunchedEffect(Unit) {
+        var step = 0
+        while (true) {
+            FocusPulse.value = 0.5f + 0.5f * kotlin.math.cos(step * (2 * Math.PI / 12)).toFloat()
+            step = (step + 1) % 12
+            kotlinx.coroutines.delay(100)
+        }
+    }
     MaterialTheme(
         colorScheme = colors(),
         typography = Typography(

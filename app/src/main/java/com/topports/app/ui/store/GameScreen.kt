@@ -371,8 +371,9 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifi
             .focusable(interactionSource = interaction)
             .pixelFrame(
                 fill = Px.navyDark,
-                border = if (focused) Px.yellow else Px.white,
-                shadow = if (focused) Px.yellow else Px.black,
+                border = if (focused) Px.focus else Px.white,
+                shadow = if (focused) Px.focus else Px.black,
+                focused = focused,
             ),
     ) {
         Box(
@@ -392,7 +393,7 @@ private fun DescriptionPanel(text: String, scroll: ScrollState, modifier: Modifi
                 val visible = size.height / (size.height + scroll.maxValue)
                 val thumbH = (size.height * visible).coerceAtLeast(12.dp.toPx())
                 val y = (size.height - thumbH) * scroll.value / scroll.maxValue
-                drawRect(if (focused) Px.yellow else Px.blue, Offset(x, y), Size(w, thumbH))
+                drawRect(if (focused) Px.focus else Px.blue, Offset(x, y), Size(w, thumbH))
             }
             if (scroll.canScrollForward) {
                 Text(

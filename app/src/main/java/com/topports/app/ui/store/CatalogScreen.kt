@@ -286,7 +286,7 @@ fun CatalogScreen(vm: AppViewModel) {
         LazyVerticalGrid(
             columns = CatalogColumns,
             state = vm.catalogGrid,
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp), // sitio para el anillo de selección
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             // Abajo en la última fila no salta al menú lateral; arriba sí sube a Buscar/Orden.

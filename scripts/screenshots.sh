@@ -74,6 +74,17 @@ FLAT       DREAMCAST
 RPG        SNES
 STYLES
 
+# Lo seleccionado con el mando (la primera carátula) en las paletas de un solo tono, donde
+# más cuesta verlo, con un tema de marco grueso y otro fino.
+adb shell wm size 1920x1080
+adb shell wm density 400
+sleep 2
+for theme in GAMEBOY GB_DMG VIRTUAL_BOY NES SYNTHWAVE; do
+  for style in PIXEL WAVES; do
+    shot "seleccion-$theme-$style" --es demo_tab STORE --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad true
+  done
+done
+
 adb shell wm size reset
 adb shell wm density reset
 ls -1 "$OUT" | wc -l
