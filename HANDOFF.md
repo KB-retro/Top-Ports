@@ -40,14 +40,14 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | Archivo | Qué hace |
 |---|---|
 | `TopPortsApp.kt` | Grafo de dependencias (`graph`): telegram, channel, tasks, installs, updates, storage. |
-| `telegram/TelegramClient.kt` | Envoltorio de TDLib: auth, archivos (`files` flow), descargas, `setOnline`, reacciones. En `DEMO` no arranca TDLib. |
+| `telegram/TelegramClient.kt` | Envoltorio de TDLib: auth, archivos (`files` flow: solo los que pide la app, no carátulas), descargas, `setOnline`, reacciones. En `DEMO` no arranca TDLib. |
 | `telegram/ChannelRepository.kt` | Lee el canal (historial + pasada de `SearchChatMessages` en servidor para no perder juegos), `syncRecent()` al volver a la app, corazones (❤ = reacción del canal), `publish()` sincronizado. |
 | `telegram/DemoCatalog.kt` | Catálogo falso para el modo demo y las capturas. |
 | `work/TaskCenter.kt` | Descargas y tareas: mover a `/TopPorts/<juego>` al terminar, **extracción automática**, instalar, guardar sin extraer, cancelar, copiar OBB, autoactualización. |
 | `work/WorkService.kt` | Servicio en primer plano (dataSync) mientras hay trabajo; `onTimeout` para el límite diario de Android 15. |
 | `archive/ArchiveExtractor.kt` | 7-Zip-JBinding. `VolumeSet` resuelve las partes por nombre lógico (TDLib puede renombrar). Comprobación zip-slip. |
 | `install/ApkInstaller.kt`, `InstallResultReceiver.kt` | PackageInstaller (APK, partido, split, XAPK). Si la app está en segundo plano, notificación "Listo para instalar". |
-| `updates/Updates.kt` (`InstallRegistry`) | SharedPreferences `installs`: instalados, extraídos por juego, guardados (`saved_`), extraídos solos (`unpacked_`), descargas pendientes de mover (`pending_`), avisos ignorados. |
+| `updates/Updates.kt` (`InstallRegistry`) | SharedPreferences `installs`: instalados, extraídos por juego, guardados (`saved_`), extraídos solos (`unpacked_`), descargas pendientes de mover (`pending_`), avisos ignorados, carpeta de cada juego (`gamedir_`, "Juego (2)" si se repite el título) y APK partidos esperando a que Android confirme su paquete (`session_`). |
 | `settings/StorageTools.kt` | Uso de espacio, borrar caché (`OptimizeStorage` de TDLib), huérfanos. |
 | `storage/Storage.kt` | Rutas: `/TopPorts` si hay permiso de todos los archivos; si no, carpeta privada. |
 | `ui/AppRoot.kt` | Menú lateral (horizontal y pantallas casi cuadradas) o barra inferior (vertical). |
