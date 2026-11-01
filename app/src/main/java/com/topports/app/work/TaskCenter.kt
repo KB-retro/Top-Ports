@@ -4,6 +4,7 @@ import android.content.Context
 import com.topports.app.archive.ArchiveEntry
 import com.topports.app.archive.ArchiveExtractor
 import com.topports.app.archive.ExtractCancelledException
+import com.topports.app.archive.ExtractResult
 import com.topports.app.archive.PasswordRequiredException
 import com.topports.app.archive.VolumeSet
 import com.topports.app.install.ApkInstaller
@@ -23,6 +24,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -108,6 +112,14 @@ class TaskCenter(
     init {
         // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
         scope.launch { tg.files.collect { files -> movePendingDownloads(files) } }
+        // Si la app se cerró justo al terminar una descarga (o a mitad de extraerla), TDLib no
+        // vuelve a avisar de esas partes y se quedarían sin mover. Al conectar se pregunta por
+        // ellas: las ya completas se mueven o extraen solas.
+        scope.launch {
+            tg.authState.map { it is TdApi.AuthorizationStateReady }.distinctUntilChanged().filter { it }.collect {
+                installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }
+            }
+        }
     }
 
     private fun movePendingDownloads(files: Map<Int, TdApi.File>) {
@@ -255,7 +267,7 @@ class TaskCenter(
         scope.launch {
             p.parts.forEach { (id, _) ->
                 runCatching { tg.pauseDownload(id) }
-                tg.deleteFile(id)
+                runCatching { tg.deleteFile(id) }
             }
         }
     }
@@ -269,7 +281,7 @@ class TaskCenter(
         scope.launch {
             pkg.parts.forEach {
                 runCatching { tg.pauseDownload(it.id) }
-                tg.deleteFile(it.id)
+                runCatching { tg.deleteFile(it.id) }
             }
             withContext(Dispatchers.IO) { savedFiles(pkg)?.forEach { it.second.delete() } }
             installs.forgetSaved(pkg.key)
@@ -372,10 +384,10 @@ class TaskCenter(
             if (installAfter) {
                 extractAndInstall(taskId, volumes, dest, password)
             } else {
-                val files = extract(taskId, volumes, dest, password)
+                val result = extract(taskId, volumes, dest, password)
                 finish(
                     taskId,
-                    "Extraídos ${files.size} archivos (${FileNames.formatSize(extractor.lastWrittenBytes)}) en ${dest.path}",
+                    "Extraídos ${result.files.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${dest.path}",
                     dest.path,
                 )
             }
@@ -503,17 +515,21 @@ class TaskCenter(
         jobs[taskId] = job
     }
 
-    private suspend fun extract(taskId: Int, volumes: VolumeSet, dest: File, password: String?): List<String> {
+    private suspend fun extract(taskId: Int, volumes: VolumeSet, dest: File, password: String?): ExtractResult {
         val coroutineContext = kotlin.coroutines.coroutineContext
         // Tamaño comprimido como estimación mínima de lo que ocupará lo extraído.
         val estimate = volumes.allFiles().sumOf { it.length() }
         val free = Storage.freeBytes(dest)
         if (estimate > free) throw NotEnoughSpaceException(estimate, free)
         update(taskId, "Extrayendo en ${dest.path}", 0f)
-        val files = extractor.extract(
+        val result = extractor.extract(
             volumes = volumes,
             dest = dest,
             password = password,
+            checkSpace = { needed ->
+                val freeNow = Storage.freeBytes(dest)
+                if (needed > freeNow) throw NotEnoughSpaceException(needed, freeNow)
+            },
             onProgress = { done, total ->
                 if (total > 0) update(taskId, "Extrayendo… ${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}", done.toFloat() / total)
             },
@@ -521,7 +537,7 @@ class TaskCenter(
         )
         // Partes .001/.002 de un archivo sin extensión conocida: lo que sale es el .7z/.zip/.rar
         // unido. Se extrae también y se borra, para no tener que hacerlo a mano.
-        val inner = files.singleOrNull()?.let { File(dest, it) }
+        val inner = result.files.singleOrNull()?.let { File(dest, it) }
         if (FileNames.volumeOf(volumes.firstName).style == FileNames.SplitStyle.NUMBERED &&
             inner != null && inner.isFile && FileNames.kindOf(inner.name) == PackageKind.ARCHIVE
         ) {
@@ -529,7 +545,7 @@ class TaskCenter(
             inner.delete()
             return nested
         }
-        return files
+        return result
     }
 
     /** Anota de qué archivo del canal sale un APK, para avisar luego de sus actualizaciones. */
@@ -549,7 +565,8 @@ class TaskCenter(
     ) {
         dest.mkdirs()
         // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
-        val extracted = extract(taskId, volumes, dest, password)
+        val result = extract(taskId, volumes, dest, password)
+        val extracted = result.files
         // Recordar qué se extrajo de este juego (primer nivel) para poder borrarlo en Instalados.
         if (gameId != null) {
             installs.recordExtracted(
@@ -562,7 +579,7 @@ class TaskCenter(
         }
         val plan = InstallPlanner.plan(extracted)
         val notes = mutableListOf(
-            "Extraídos ${extracted.size} archivos (${FileNames.formatSize(extractor.lastWrittenBytes)}) en ${dest.path}",
+            "Extraídos ${extracted.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${dest.path}",
         )
 
         for (obb in plan.obbs) {

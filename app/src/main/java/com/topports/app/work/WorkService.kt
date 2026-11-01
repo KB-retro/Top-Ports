@@ -31,12 +31,20 @@ class WorkService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         ensureChannel(this)
-        ServiceCompat.startForeground(
-            this,
-            NOTIFICATION_ID,
-            buildNotification("Preparando…", null),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-        )
+        try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                buildNotification("Preparando…", null),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        } catch (e: Exception) {
+            // Android 12+ no deja pasar a primer plano desde segundo plano, y Android 15 tampoco
+            // tras agotar las 6 h diarias de dataSync. Sin esto la app se cerraría con un error;
+            // así solo se pierde la notificación y las tareas siguen mientras la app esté abierta.
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!observing) {
             observing = true
             observe()

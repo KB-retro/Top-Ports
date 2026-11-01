@@ -1,6 +1,7 @@
 package com.topports.app
 
 import android.app.Application
+import android.util.Log
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.telegram.TelegramClient
 import com.topports.app.settings.StorageTools
@@ -8,13 +9,21 @@ import com.topports.app.updates.GameData
 import com.topports.app.updates.InstallRegistry
 import com.topports.app.updates.UpdateService
 import com.topports.app.work.TaskCenter
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 /** Objetos compartidos por toda la app. */
 class AppGraph(app: Application) {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * Un error que se escape de una corrutina (p. ej. TDLib reiniciándose mientras se borra una
+     * descarga) se apunta en el log en vez de cerrar la app entera.
+     */
+    val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, e -> Log.e("TopPorts", "Error en segundo plano", e) },
+    )
     val telegram = TelegramClient(app)
     val channel = ChannelRepository(telegram, scope)
     val installs = InstallRegistry(app)

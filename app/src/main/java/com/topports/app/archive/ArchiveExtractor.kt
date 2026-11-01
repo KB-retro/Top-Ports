@@ -82,13 +82,11 @@ class VolumeSet private constructor(
 
 data class ArchiveEntry(val path: String, val size: Long, val isDirectory: Boolean)
 
+/** Resultado de una extracción: rutas relativas creadas y bytes escritos. */
+data class ExtractResult(val files: List<String>, val writtenBytes: Long)
+
 /** Extractor basado en 7-Zip: ZIP, 7z, RAR4/RAR5, TAR… incluidos multivolumen. */
 class ArchiveExtractor {
-
-    /** Bytes escritos en la última extracción (para el resumen de la tarea). */
-    @Volatile
-    var lastWrittenBytes = 0L
-        private set
 
     fun list(volumes: VolumeSet, password: String? = null): List<ArchiveEntry> =
         open(volumes, password) { archive ->
@@ -102,22 +100,31 @@ class ArchiveExtractor {
         }
 
     /**
-     * Extrae todo en [dest]. Devuelve las rutas relativas de los archivos creados.
-     * [onProgress] recibe bytes procesados y total; [isCancelled] permite abortar.
+     * Extrae todo en [dest]. Devuelve las rutas relativas de los archivos creados y lo escrito.
+     * [checkSpace] recibe lo que ocupará descomprimido (según la cabecera del archivo) antes de
+     * escribir nada; [onProgress] recibe bytes procesados y total; [isCancelled] permite abortar.
+     * Cada llamada lleva su propio estado: se pueden extraer varios archivos a la vez.
      */
     fun extract(
         volumes: VolumeSet,
         dest: File,
         password: String? = null,
+        checkSpace: (unpackedBytes: Long) -> Unit = {},
         onProgress: (done: Long, total: Long) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false },
-    ): List<String> = open(volumes, password) { archive ->
+    ): ExtractResult = open(volumes, password) { archive ->
+        // Con 7z y rar el tamaño de cada archivo está en la cabecera: así se sabe antes de
+        // empezar si cabe, en vez de fallar a mitad con varios GB ya escritos.
+        val unpacked = (0 until archive.numberOfItems).sumOf { (archive.getProperty(it, PropID.SIZE) as? Long) ?: 0L }
+        if (unpacked > 0) checkSpace(unpacked)
         dest.mkdirs()
         val callback = ExtractCallback(archive, dest, password, onProgress, isCancelled)
         val indices = IntArray(archive.numberOfItems) { it }
         try {
             archive.extract(indices, false, callback)
         } catch (e: SevenZipException) {
+            // El archivo que se estaba escribiendo queda a medias: no se deja en el disco.
+            callback.closeCurrent(deletePartial = true)
             if (isCancelled()) throw ExtractCancelledException()
             if (callback.encrypted && password == null) throw PasswordRequiredException()
             throw IOException(e.message ?: "Error al extraer", e)
@@ -144,8 +151,7 @@ class ArchiveExtractor {
                 )
             }
         }
-        lastWrittenBytes = callback.writtenBytes
-        callback.extracted
+        ExtractResult(callback.extracted, callback.writtenBytes)
     }
 
     private fun <R> open(volumes: VolumeSet, password: String?, block: (IInArchive) -> R): R {
@@ -160,6 +166,13 @@ class ArchiveExtractor {
                     .takeWhile { it != null }
                     .filterNotNull()
                     .toList()
+                // Si falta una parte del medio (.001 y .003 sin .002), 7-Zip da un error confuso
+                // de "archivo dañado": mejor decir cuál falta.
+                // (Solo cuentan las partes numeradas: junto a ellas puede estar ya el .7z unido.)
+                val known = volumes.allFiles().count { FileNames.volumeOf(it.name).style == FileNames.SplitStyle.NUMBERED }
+                if (parts.size < known) {
+                    throw IOException("Falta la parte .${(parts.size + 1).toString().padStart(3, '0')} de ${v.baseName}")
+                }
                 val stream = MultiFileInStream(parts).also { opened += it }
                 // Con el nombre "juego.7z.001" 7-Zip elige su formato "Split" y solo une las partes
                 // (sale juego.7z sin extraer). Con "juego.7z" detecta el formato real y lo extrae.
@@ -231,6 +244,8 @@ class ArchiveExtractor {
         var encrypted = false
         private var total = 0L
         private var out: OutputStream? = null
+        private var outFile: File? = null
+        private var outPath: String? = null
         // Rutas normalizadas (sin resolver enlaces): en el almacenamiento de Android las rutas
         // canónicas pueden no coincidir (enlaces, mayúsculas) y se descartaría todo en silencio.
         private val destPath = dest.absoluteFile.toPath().normalize()
@@ -257,6 +272,8 @@ class ArchiveExtractor {
             target.parentFile?.mkdirs()
             val stream = BufferedOutputStream(target.outputStream(), 1 shl 20)
             out = stream
+            outFile = target
+            outPath = path.trimStart('/')
             extracted += path.trimStart('/')
             return ISequentialOutStream { data ->
                 try {
@@ -292,9 +309,16 @@ class ArchiveExtractor {
             return password ?: throw SevenZipException("password required")
         }
 
-        fun closeCurrent() {
+        /** Cierra el archivo en curso; con [deletePartial] lo borra porque no se terminó. */
+        fun closeCurrent(deletePartial: Boolean = false) {
             out?.let { runCatching { it.close() } }
+            if (deletePartial) {
+                outFile?.delete()
+                outPath?.let { extracted.remove(it) }
+            }
             out = null
+            outFile = null
+            outPath = null
         }
     }
 }
