@@ -206,33 +206,23 @@ private fun MainScreen(vm: AppViewModel) {
             // la ayuda y encogen el logo; si aun así no caben, las pestañas se desplazan.
             val compactWidth = maxWidth < 640.dp
             // La ayuda de botones sale siempre que haya mando (consolas); en móviles sin mando no.
-            val showHelp = hasGamepad || maxHeight >= 470.dp
             val railWidth = if (compactWidth) 136.dp else 164.dp
             // El menú es un panel con el marco del tema (esquinas, borde y sombra), separado del borde.
             val railMargin = 8.dp
             val railPadding = if (compactWidth) 6.dp else 10.dp
-            // Misma altura de pestaña en todos los temas (el logo y los huecos no cambian al cambiar
-            // de tema), según lo alta que sea la pantalla: en la Odin 2 Portal (≈430 dp) caben las
-            // seis pestañas, el logo y la ayuda sin desplazar.
-            // 38 dp es lo mínimo para que quepa el texto con el marco más grueso (doble línea, ventana).
-            // 16:9 y 16:10 (pantallas bajas para su ancho): menos hueco entre pestañas y la ayuda de
-            // controles más pequeña y en 4 líneas, para que el logo no quede diminuto.
-            val wideScreen = screenWidth / screenHeight >= 1.5f
-            val tabSpacing = when {
-                wideScreen -> 4.dp
-                maxHeight >= 600.dp -> 14.dp
-                maxHeight >= 470.dp -> 8.dp
-                else -> 4.dp
-            }
+            // Misma altura de pestaña en todos los temas. 38 dp es lo mínimo para que quepa el texto
+            // con el marco más grueso (doble línea, ventana).
             val tabHeight = if (maxHeight >= 600.dp) 42.dp else 38.dp
-            // El logo ocupa el espacio que dejan libre las pestañas y la ayuda (medidas de verdad,
-            // no por tramos): grande en 16:9 y 4:3, pequeño solo cuando de verdad no cabe.
-            var tabsHeight by remember { mutableStateOf(0.dp) }
-            var helpHeight by remember { mutableStateOf(0.dp) }
+            // Logo igual de grande en todos los formatos (16:9, 16:10, 4:3): siempre el máximo (el
+            // ancho del menú) y las pestañas se reparten el alto que sobre; solo si de verdad no
+            // cabe, encoge. La ayuda de controles está en Ajustes → Versión → Controles.
+            val logoMax = minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2)
+            val tabsBlock = tabHeight * Tab.entries.size + 12.dp
+            val available = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - 16.dp
+            val logoSize = (available - tabsBlock - 4.dp * (Tab.entries.size - 1)).coerceIn(44.dp, logoMax)
+            val tabSpacing = ((available - tabsBlock - logoSize) / Tab.entries.size).coerceIn(4.dp, 14.dp)
             val density = LocalDensity.current
-            val free = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - tabsHeight -
-                (if (showHelp) helpHeight else 0.dp) - (if (wideScreen) 20.dp else 32.dp)
-            val logoSize = (free * (if (wideScreen) 0.95f else 0.8f)).coerceIn(44.dp, minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2))
+            var tabsHeight by remember { mutableStateOf(0.dp) }
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
@@ -258,21 +248,6 @@ private fun MainScreen(vm: AppViewModel) {
                         ) {
                             Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth().height(tabHeight)) }
                         }
-                    }
-                    if (showHelp) {
-                        val tiny = PxText.tiny
-                        Text(
-                            // En Favoritos, SELECT quita el juego seleccionado.
-                            "L1/R1  FILA\nL2/R2  PESTAÑA\n" +
-                                (if (vm.tab == Tab.STORE && vm.systemFilter == FAVORITES_FILTER) "SELECT QUITAR ★" else "SELECT SISTEMA") +
-                                if (wideScreen) "\nA ACEPTAR · B INICIO" else "\nA  ACEPTAR\nB  INICIO",
-                            style = if (wideScreen) {
-                                tiny.copy(color = Px.darkGrey, fontSize = tiny.fontSize * 0.85f, lineHeight = tiny.lineHeight * 0.8f)
-                            } else {
-                                tiny.copy(color = Px.darkGrey)
-                            },
-                            modifier = Modifier.onSizeChanged { helpHeight = with(density) { it.height.toDp() } },
-                        )
                     }
                 }
                 content(Modifier.weight(1f).fillMaxHeight())

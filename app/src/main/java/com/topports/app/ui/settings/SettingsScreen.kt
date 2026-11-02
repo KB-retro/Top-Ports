@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -332,6 +333,28 @@ fun SettingsScreen(vm: AppViewModel) {
                 }
             }
 
+        }
+
+        // Controles del mando (dentro de Versión, plegados), con su dibujo.
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item {
+                var open by remember { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PixelButton(
+                        if (open) "▲ Controles" else "▼ Controles",
+                        onClick = { open = !open },
+                        color = Px.navyDark,
+                        textColor = Px.white,
+                        small = true,
+                    )
+                    if (open) {
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val wide = maxWidth >= 560.dp
+                            PixelPanel(Modifier.fillMaxWidth()) { ControlsHelp(vm.swapAB, wide) }
+                        }
+                    }
+                }
+            }
         }
 
         // Restablecer ajustes, al final del todo de Versión.
