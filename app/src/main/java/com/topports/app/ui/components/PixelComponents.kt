@@ -560,6 +560,7 @@ fun PixelTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
     val currentOnChange by rememberUpdatedState(onValueChange)
     val currentActions by rememberUpdatedState(keyboardActions)
     val actionScope = remember {
@@ -597,7 +598,8 @@ fun PixelTextField(
                 val spec = Px.style.spec
                 field.typeface = spec.bodyFontRes?.let { ResourcesCompat.getFont(field.context, it) }
                     ?: android.graphics.Typeface.DEFAULT
-                field.setTextSize(TypedValue.COMPLEX_UNIT_SP, spec.body.size.value)
+                // En dp con la escala ya limitada (MAX_FONT_SCALE), igual que el resto de la app.
+                field.setTextSize(TypedValue.COMPLEX_UNIT_DIP, spec.body.size.value * fontScale)
                 if (field.text.toString() != value) {
                     field.setText(value)
                     field.setSelection(value.length)
@@ -688,7 +690,7 @@ fun PixelDialog(
     val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.9f).dp
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = !wide)) {
         DialogGamepadSupport()
-        PixelPanel(
+        com.topports.app.ui.theme.LimitFontScale { PixelPanel(
             // En 21:9 y pantallas grandes no se estira de lado a lado: líneas de texto legibles.
             modifier = (if (wide) Modifier.widthIn(max = 820.dp).fillMaxWidth(widthFraction) else Modifier)
                 .heightIn(max = maxHeight),
@@ -700,7 +702,7 @@ fun PixelDialog(
                 Spacer(Modifier.height(12.dp))
                 content()
             }
-        }
+        } }
     }
 }
 

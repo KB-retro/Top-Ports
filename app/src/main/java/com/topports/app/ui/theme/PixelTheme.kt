@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -547,8 +548,30 @@ private fun colors() = darkColorScheme(
     outline = Px.white,
 )
 
+/**
+ * Tope al tamaño de letra del sistema (Ajustes de Android → Tamaño de la fuente). Quien la tenga
+ * grande la ve algo mayor, pero sin pasar de aquí: más allá, las filas de botones se parten y
+ * las pestañas del menú lateral, de altura fija, cortan el texto.
+ */
+const val MAX_FONT_SCALE = 1.15f
+
 @Composable
 fun TopPortsTheme(content: @Composable () -> Unit) {
+    LimitFontScale { TopPortsThemeContent(content) }
+}
+
+/** Aplica [MAX_FONT_SCALE]. Los diálogos son otra ventana y lo vuelven a aplicar. */
+@Composable
+fun LimitFontScale(content: @Composable () -> Unit) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val limited = remember(density) {
+        androidx.compose.ui.unit.Density(density.density, density.fontScale.coerceAtMost(MAX_FONT_SCALE))
+    }
+    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides limited, content = content)
+}
+
+@Composable
+private fun TopPortsThemeContent(content: @Composable () -> Unit) {
     LaunchedEffect(Unit) {
         var step = 0
         while (true) {

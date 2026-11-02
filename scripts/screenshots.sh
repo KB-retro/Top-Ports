@@ -100,6 +100,31 @@ for style in PIXEL TERMINAL WAVES FLAT RPG NEON BEVEL KEYCAP; do
   shot "rg477m-$style-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --ez demo_gamepad true
 done
 
+# Letra del sistema grande (130 %): la app la limita al 115 % (MAX_FONT_SCALE) y nada se
+# tiene que cortar ni partir de más. En consola horizontal y móvil vertical.
+adb shell settings put system font_scale 1.3
+for fmt in "16x9-horizontal 1920 1080 400 true" "16x9-vertical 1080 1920 400 false"; do
+  read -r name w h d pad <<<"$fmt"
+  adb shell wm size "${w}x${h}"
+  adb shell wm density "$d"
+  sleep 2
+  shot "letra-grande-$name-1-tienda" --es demo_tab STORE --ez demo_gamepad "$pad"
+  shot "letra-grande-$name-2-ficha" --es demo_tab STORE --ez demo_game true --ez demo_gamepad "$pad"
+  shot "letra-grande-$name-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --ez demo_gamepad "$pad"
+done
+adb shell settings put system font_scale 1.0
+
+# Pantalla pequeña de 640x480 (consolas sencillas): con el tema Pixel, el de letra más
+# pequeña en los botones, y con Ondas.
+adb shell wm size 640x480
+adb shell wm density 160
+sleep 2
+for style in PIXEL WAVES; do
+  shot "640x480-$style-1-tienda" --es demo_tab STORE --es demo_style "$style" --ez demo_gamepad true
+  shot "640x480-$style-2-ficha" --es demo_tab STORE --ez demo_game true --es demo_style "$style" --ez demo_gamepad true
+  shot "640x480-$style-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --ez demo_gamepad true
+done
+
 # Lo seleccionado con el mando (la primera carátula) en las paletas de un solo tono, donde
 # más cuesta verlo, con un tema de marco grueso y otro fino.
 adb shell wm size 1920x1080
