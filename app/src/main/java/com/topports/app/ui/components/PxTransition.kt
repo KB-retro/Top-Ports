@@ -8,6 +8,7 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,15 +77,15 @@ fun <T> PxTransition(
         },
         label = "pxTransition",
     ) { state ->
-        if (anim == UiAnim.NONE || anim == UiAnim.FADE || anim == UiAnim.SLIDE) {
-            content(state)
-            return@AnimatedContent
-        }
+        // Siempre la misma estructura (Box + máscara), sea cual sea la animación: si cambiara al
+        // elegir otra en Ajustes, Compose rehacía la pantalla entera y el cursor saltaba arriba.
+        val reveal = anim == UiAnim.WIPE || anim == UiAnim.BLINDS || anim == UiAnim.PIXELS
         val progress by transition.animateFloat(
             transitionSpec = {
                 when (anim) {
                     UiAnim.WIPE -> tween(380, easing = FastOutSlowInEasing)
-                    else -> tween(440, easing = LinearEasing)
+                    UiAnim.BLINDS, UiAnim.PIXELS -> tween(440, easing = LinearEasing)
+                    else -> snap<Float>()
                 }
             },
             label = "reveal",
@@ -94,9 +95,9 @@ fun <T> PxTransition(
         Box(
             Modifier
                 .fillMaxSize()
-                .pxBackdrop()
+                .then(if (reveal) Modifier.pxBackdrop() else Modifier)
                 .drawWithContent {
-                    if (!entering || progress >= 1f) {
+                    if (!reveal || !entering || progress >= 1f) {
                         drawContent()
                     } else {
                         when (anim) {
