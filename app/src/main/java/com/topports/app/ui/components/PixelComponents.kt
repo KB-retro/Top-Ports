@@ -73,6 +73,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.SideEffect
 import com.topports.app.ui.GamepadWindowCallback
+import com.topports.app.ui.RetroSound
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.CornerRadius
@@ -455,7 +456,10 @@ fun PixelButton(
                 px = px,
                 focused = focused,
             )
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled) {
+                RetroSound.play(RetroSound.Kind.ACCEPT)
+                onClick()
+            }
             .padding(horizontal = Px.style.spec.buttonPad + if (small) 0.dp else 4.dp, vertical = if (small) 6.dp else 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -759,7 +763,10 @@ fun Modifier.pixelCard(
             interactionSource = interaction,
             indication = null,
             onLongClick = onLongClick,
-            onClick = onClick,
+            onClick = {
+                RetroSound.play(RetroSound.Kind.ACCEPT)
+                onClick()
+            },
         )
 }
 

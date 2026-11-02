@@ -54,6 +54,7 @@ import com.topports.app.TopPortsApp
 import com.topports.app.telegram.ChannelRepository
 import com.topports.app.ui.AppViewModel
 import com.topports.app.ui.SortMode
+import com.topports.app.ui.FAVORITES_FILTER
 import java.text.Collator
 import java.util.Locale
 import com.topports.app.ui.components.PixelButton
@@ -84,10 +85,13 @@ fun CatalogScreen(vm: AppViewModel) {
     val hearts by vm.hearts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val query = vm.search.trim()
-    val games = remember(state.games, query, vm.sortMode, vm.systemFilter) {
+    val favorites = vm.favorites
+    // Los corazones solo cuentan para ordenar por "Más corazones" (cambian a menudo).
+    val heartsForSort = if (vm.sortMode == SortMode.POPULAR) hearts else null
+    val games = remember(state.games, query, vm.sortMode, vm.systemFilter, favorites, heartsForSort) {
         val filter = vm.systemFilter
         val found = state.games.filter { game ->
-            (filter == null || filter in game.tags) &&
+            (filter == null || (if (filter == FAVORITES_FILTER) game.id in favorites else filter in game.tags)) &&
                 (
                     query.isEmpty() || game.title.contains(query, true) ||
                         game.description.contains(query, true) || game.tags.any { it.contains(query, true) }
@@ -106,6 +110,11 @@ fun CatalogScreen(vm: AppViewModel) {
                     .thenComparator { a, b -> collator.compare(a.tags.firstOrNull().orEmpty(), b.tags.firstOrNull().orEmpty()) }
                     .thenComparator { a, b -> collator.compare(a.title, b.title) },
             )
+            SortMode.POPULAR -> found.sortedWith(
+                compareByDescending<Game> { vm.graph.channel.heartsOf(it, hearts).second.count }.thenByDescending { it.id },
+            )
+            SortMode.SMALLEST -> found.sortedBy { it.size }
+            SortMode.LARGEST -> found.sortedByDescending { it.size }
         }
     }
     // Sistemas del canal con cuántos juegos tiene cada uno, para el selector.
@@ -180,12 +189,16 @@ fun CatalogScreen(vm: AppViewModel) {
             )
             if (systems.isNotEmpty()) {
                 PixelButton(
-                    "Sistema: ${vm.systemFilter ?: "Todos"} (Sel)",
+                    "Sistema: ${vm.systemFilter?.let { if (it == FAVORITES_FILTER) "★ Favoritos" else it } ?: "Todos"} (Sel)",
                     onClick = { vm.systemPickerOpen = true },
                     color = if (vm.systemFilter == null) Px.navyDark else Px.yellow,
                     textColor = if (vm.systemFilter == null) Px.grey else Px.black,
                     small = true,
                 )
+            }
+            // Abre un juego cualquiera de los que se ven (con el filtro y la búsqueda actuales).
+            if (games.isNotEmpty()) {
+                PixelButton("Al azar", onClick = { vm.openGame(games.random().id) }, color = Px.green, small = true)
             }
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
@@ -296,6 +309,7 @@ fun CatalogScreen(vm: AppViewModel) {
                 GameCard(
                     game,
                     installed = game.id in installedIds,
+                    favorite = game.id in favorites,
                     hearts = vm.graph.channel.heartsOf(game, hearts).second,
                     onClick = { vm.openGame(game.id) },
                     modifier = Modifier
@@ -313,7 +327,14 @@ fun CatalogScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun GameCard(game: Game, installed: Boolean, hearts: Hearts, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun GameCard(
+    game: Game,
+    installed: Boolean,
+    favorite: Boolean,
+    hearts: Hearts,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier
             .fillMaxWidth()
@@ -329,6 +350,7 @@ private fun GameCard(game: Game, installed: Boolean, hearts: Hearts, onClick: ()
             }
             if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
             if (recentlyUpdated(game)) PixelTag("ACTUALIZADO", Px.yellow, Modifier.align(Alignment.TopStart).padding(4.dp))
+            if (favorite) PixelTag("★", Px.yellow, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         }
         Spacer(Modifier.height(6.dp))
         // Etiquetas de sistema junto al título; la fila ocupa siempre lo mismo para que las
@@ -403,6 +425,15 @@ private fun SystemPickerDialog(vm: AppViewModel, systems: List<Pair<String, Int>
                     textColor = if (vm.systemFilter == null) Px.black else Px.white,
                     small = true,
                 )
+                if (vm.favorites.isNotEmpty()) {
+                    PixelButton(
+                        "★ Favoritos (${vm.favorites.size})",
+                        onClick = { vm.systemFilter = FAVORITES_FILTER; close() },
+                        color = if (vm.systemFilter == FAVORITES_FILTER) Px.orange else Px.yellow,
+                        textColor = Px.black,
+                        small = true,
+                    )
+                }
                 systems.forEach { (tag, count) ->
                     PixelButton(
                         "#$tag ($count)",

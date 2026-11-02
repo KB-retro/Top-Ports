@@ -277,6 +277,35 @@ fun SettingsScreen(vm: AppViewModel) {
                                 small = true,
                             )
                         }
+                        // Cola de descargas: cuántas a la vez y si solo con WiFi.
+                        Text("Descargas a la vez", style = PxText.body)
+                        Text("Las demás esperan en cola, por orden de petición.", style = PxText.small)
+                        var parallel by remember { mutableIntStateOf(vm.graph.tasks.maxParallel) }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1, 2, 3, 0).forEach { n ->
+                                PixelButton(
+                                    if (n == 0) "Sin límite" else n.toString(),
+                                    onClick = { parallel = n; vm.graph.tasks.maxParallel = n },
+                                    color = if (parallel == n) Px.orange else Px.navyDark,
+                                    textColor = if (parallel == n) Px.black else Px.white,
+                                    small = true,
+                                )
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Solo con WiFi", style = PxText.body)
+                                Text("Con datos móviles las descargas esperan y siguen solas al volver la WiFi.", style = PxText.small)
+                            }
+                            var wifi by remember { mutableStateOf(vm.graph.tasks.wifiOnly) }
+                            PixelButton(
+                                if (wifi) "Sí" else "No",
+                                onClick = { wifi = !wifi; vm.graph.tasks.wifiOnly = wifi },
+                                color = if (wifi) Px.green else Px.darkGrey,
+                                textColor = if (wifi) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
                         if (busy) PixelProgress(null, Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PixelButton("Borrar caché", onClick = {
@@ -355,6 +384,25 @@ fun SettingsScreen(vm: AppViewModel) {
                             )
                         }
                     }
+                }
+            }
+            item { SectionTitle("Sonidos", Px.yellow) }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sonidos de menú", style = PxText.body)
+                        Text(
+                            "Bips de 8 bits al mover el cursor, aceptar y volver. Suenan distinto en cada tema.",
+                            style = PxText.small,
+                        )
+                    }
+                    PixelButton(
+                        if (vm.sounds) "Sí" else "No",
+                        onClick = { vm.setSounds(!vm.sounds) },
+                        color = if (vm.sounds) Px.green else Px.darkGrey,
+                        textColor = if (vm.sounds) Px.black else Px.white,
+                        small = true,
+                    )
                 }
             }
             item { SectionTitle("Paleta de colores", Px.pink) }

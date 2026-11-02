@@ -221,6 +221,13 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
 object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
 
+    /**
+     * Tamaño mínimo (sp) de Press Start 2P: 8 píxeles reales. Está dibujada sobre una cuadrícula
+     * de 8 px y por debajo se emborrona; solo se nota en pantallas de baja densidad (640x480).
+     * Lo calcula [LimitFontScale] con la densidad de la pantalla.
+     */
+    var minPressStartSp by mutableFloatStateOf(0f)
+
     /** Animación al cambiar de pestaña, abrir un juego o abrir la app. */
     var anim by mutableStateOf(UiAnim.FADE)
 
@@ -514,13 +521,17 @@ fun String.pxCaps(): String = if (Px.style.spec.uppercase) uppercase() else this
 object PxText {
     private val s get() = Px.style.spec
 
+    /** Press Start 2P nunca por debajo de 8 píxeles reales ([Px.minPressStartSp]). */
+    private fun sized(font: FontFamily, t: TextSize): TextUnit =
+        if (font == PixelFont && t.size.value < Px.minPressStartSp) Px.minPressStartSp.sp else t.size
+
     private fun head(t: TextSize) = TextStyle(
-        fontFamily = s.headFont, fontWeight = s.headWeight, fontSize = t.size, lineHeight = t.line,
+        fontFamily = s.headFont, fontWeight = s.headWeight, fontSize = sized(s.headFont, t), lineHeight = t.line,
         letterSpacing = s.headSpacing.em, color = Px.white,
     )
 
     private fun label(t: TextSize) = TextStyle(
-        fontFamily = s.labelFont, fontWeight = s.labelWeight, fontSize = t.size, lineHeight = t.line, color = Px.white,
+        fontFamily = s.labelFont, fontWeight = s.labelWeight, fontSize = sized(s.labelFont, t), lineHeight = t.line, color = Px.white,
     )
 
     val title get() = head(s.title)
@@ -565,7 +576,9 @@ fun TopPortsTheme(content: @Composable () -> Unit) {
 fun LimitFontScale(content: @Composable () -> Unit) {
     val density = androidx.compose.ui.platform.LocalDensity.current
     val limited = remember(density) {
-        androidx.compose.ui.unit.Density(density.density, density.fontScale.coerceAtMost(MAX_FONT_SCALE))
+        val scale = density.fontScale.coerceAtMost(MAX_FONT_SCALE)
+        Px.minPressStartSp = 8f / (density.density * scale)
+        androidx.compose.ui.unit.Density(density.density, scale)
     }
     androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides limited, content = content)
 }

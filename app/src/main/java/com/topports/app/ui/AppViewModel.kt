@@ -27,9 +27,13 @@ enum class SettingsSection(val label: String) {
     ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
 }
 
+/** Filtro especial de la tienda: solo los juegos marcados como favoritos. */
+const val FAVORITES_FILTER = "★"
+
 /** Orden de la tienda. */
 enum class SortMode(val label: String) {
     NEWEST("Más nuevos"), UPDATED("Actualizados"), ALPHABETICAL("A-Z"), SYSTEM("Sistema"),
+    POPULAR("Más corazones"), SMALLEST("Más ligeros"), LARGEST("Más pesados"),
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -94,16 +98,44 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     )
         private set
 
-    /** Botón ORDEN o X del mando: más nuevos → actualizados → A-Z → por sistema. */
+    /** Botón ORDEN o X del mando: pasa al siguiente orden (ver [SortMode]). */
     fun toggleSort() {
         val modes = SortMode.entries
         sortMode = modes[(sortMode.ordinal + 1) % modes.size]
         prefs.edit().putString("sort", sortMode.name).apply()
     }
 
-    /** Sistema elegido en la tienda ("N64", "X360"…); null = todos. */
+    /** L1 / R1 en Ajustes: sección anterior o siguiente (da la vuelta al llegar al final). */
+    fun cycleSettingsSection(dir: Int) {
+        val all = SettingsSection.entries
+        settingsSection = all[Math.floorMod(settingsSection.ordinal + dir, all.size)]
+    }
+
+    /** Juegos marcados como favoritos (ids); se recuerdan entre sesiones. */
+    var favorites by mutableStateOf(
+        prefs.getStringSet("favorites", emptySet()).orEmpty().mapNotNull { it.toLongOrNull() }.toSet(),
+    )
+        private set
+
+    fun toggleFavorite(gameId: Long) {
+        favorites = if (gameId in favorites) favorites - gameId else favorites + gameId
+        prefs.edit().putStringSet("favorites", favorites.map { it.toString() }.toSet()).apply()
+    }
+
+    /** Sistema elegido en la tienda ("N64", "X360"…); null = todos; [FAVORITES_FILTER] = favoritos. */
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
+
+    /** Sonidos de menú (Ajustes → Apariencia); se recuerda. */
+    var sounds by mutableStateOf(prefs.getBoolean("sounds", true))
+        private set
+
+    fun setSounds(on: Boolean) {
+        sounds = on
+        RetroSound.enabled = on
+        prefs.edit().putBoolean("sounds", on).apply()
+        if (on) RetroSound.play(RetroSound.Kind.ACCEPT)
+    }
 
     /** Animación de cambio de pantalla; se aplica al momento y se recuerda. */
     fun setAnim(anim: UiAnim) {

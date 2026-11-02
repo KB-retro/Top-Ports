@@ -88,7 +88,16 @@ class InstallRegistry(context: Context) {
     }
 
     /** Descarga que al terminar se mueve sola a la carpeta del juego. */
-    data class PendingSave(val pkgKey: String, val gameId: Long, val dir: String, val parts: List<Pair<Int, String>>)
+    data class PendingSave(
+        val pkgKey: String,
+        val gameId: Long,
+        val dir: String,
+        val parts: List<Pair<Int, String>>,
+        /** Cuándo se pidió: la cola de descargas va por este orden. */
+        val addedAt: Long = 0,
+        /** Pausada a mano: la cola no la vuelve a arrancar sola. */
+        val paused: Boolean = false,
+    )
 
     // En memoria: se consulta con cada aviso de progreso de TDLib.
     @Volatile
@@ -99,8 +108,14 @@ class InstallRegistry(context: Context) {
     fun addPendingSave(save: PendingSave) {
         val parts = org.json.JSONArray(save.parts.map { (id, name) -> JSONObject().put("id", id).put("name", name) })
         val json = JSONObject().put("gameId", save.gameId).put("dir", save.dir).put("parts", parts)
+            .put("addedAt", save.addedAt).put("paused", save.paused)
         prefs.edit().putString("pending_${save.pkgKey}", json.toString()).apply()
         pending = pending.filter { it.pkgKey != save.pkgKey } + save
+    }
+
+    /** Marca una descarga pendiente como pausada a mano (o no). */
+    fun setPendingPaused(pkgKey: String, paused: Boolean) {
+        pending.firstOrNull { it.pkgKey == pkgKey }?.let { addPendingSave(it.copy(paused = paused)) }
     }
 
     fun removePendingSave(pkgKey: String) {
@@ -117,6 +132,8 @@ class InstallRegistry(context: Context) {
                 json.getLong("gameId"),
                 json.getString("dir"),
                 List(arr.length()) { arr.getJSONObject(it).let { p -> p.getInt("id") to p.getString("name") } },
+                addedAt = json.optLong("addedAt", 0),
+                paused = json.optBoolean("paused", false),
             )
         }.getOrNull()
     }

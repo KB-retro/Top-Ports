@@ -48,6 +48,8 @@ fun TasksScreen(vm: AppViewModel) {
 
     val catalog by vm.catalog.collectAsStateWithLifecycle()
     var confirmCancel by remember { mutableStateOf<InstallRegistry.PendingSave?>(null) }
+    val queuedKeys by vm.graph.tasks.queued.collectAsStateWithLifecycle()
+    val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
 
     // Descargas de la tienda, una por paquete (todas sus partes juntas) con sus botones.
     val pending = vm.graph.tasks.pendingDownloads()
@@ -72,6 +74,7 @@ fun TasksScreen(vm: AppViewModel) {
             val total = parts.sumOf { f -> f?.let { if (it.size > 0) it.size else it.expectedSize } ?: 0L }
             val done = parts.sumOf { it?.local?.downloadedSize ?: 0L }
             val active = parts.any { it?.local?.isDownloadingActive == true }
+            val queued = !active && p.pkgKey in queuedKeys
             val game = catalog.games.firstOrNull { it.id == p.gameId }
             PixelPanel(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -82,11 +85,16 @@ fun TasksScreen(vm: AppViewModel) {
                     )
                     PixelProgress(if (total > 0) done.toFloat() / total else null, Modifier.fillMaxWidth(), color = Px.blue)
                     Text(
-                        "${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}" + if (active) "" else " · en pausa",
+                        "${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}" + when {
+                            active -> ""
+                            queued && waitingWifi -> " · esperando WiFi"
+                            queued -> " · en cola"
+                            else -> " · en pausa"
+                        },
                         style = PxText.small,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (active) {
+                        if (active || queued) {
                             PixelButton("Pausar", onClick = { vm.graph.tasks.pauseDownload(p) }, color = Px.yellow, small = true)
                         } else {
                             PixelButton("Continuar", onClick = { vm.graph.tasks.resumeDownload(p) }, color = Px.orange, small = true)

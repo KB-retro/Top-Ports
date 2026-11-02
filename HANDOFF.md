@@ -44,6 +44,8 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `telegram/ChannelRepository.kt` | Lee el canal (historial + pasada de `SearchChatMessages` en servidor para no perder juegos), `syncRecent()` al volver a la app, corazones (❤ = reacción del canal), `publish()` sincronizado. |
 | `telegram/DemoCatalog.kt` | Catálogo falso para el modo demo y las capturas. |
 | `work/TaskCenter.kt` | Descargas y tareas: mover a `/TopPorts/<juego>` al terminar, **extracción automática**, instalar, guardar sin extraer, cancelar, copiar OBB, autoactualización. |
+| `work/TaskCenter.kt` (cola) | Cola de descargas: `maxParallel` (1, 2, 3 o sin límite) y `wifiOnly`; `schedule()` arranca por orden de petición (`PendingSave.addedAt`) y respeta las pausadas a mano (`paused`). Expone `queued` y `waitingWifi` para la ficha y TAREAS. |
+| `ui/RetroSound.kt` | Sonidos de menú sintetizados (sin archivos): mover, aceptar y volver, con un timbre por tema. Se activan en Ajustes → Apariencia. |
 | `work/WorkService.kt` | Servicio en primer plano (dataSync) mientras hay trabajo; `onTimeout` para el límite diario de Android 15. |
 | `archive/ArchiveExtractor.kt` | 7-Zip-JBinding. `VolumeSet` resuelve las partes por nombre lógico (TDLib puede renombrar). Comprobación zip-slip. |
 | `install/ApkInstaller.kt`, `InstallResultReceiver.kt` | PackageInstaller (APK, partido, split, XAPK). Si la app está en segundo plano, notificación "Listo para instalar". |
@@ -51,8 +53,9 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `settings/StorageTools.kt` | Uso de espacio, borrar caché (`OptimizeStorage` de TDLib), huérfanos. |
 | `storage/Storage.kt` | Rutas: `/TopPorts` si hay permiso de todos los archivos; si no, carpeta privada. |
 | `ui/AppRoot.kt` | Menú lateral (horizontal y pantallas casi cuadradas) o barra inferior (vertical). |
+| `ui/AppViewModel.kt` (tienda) | Favoritos (`favorites`, prefs `ui`; filtro `FAVORITES_FILTER` en el selector de sistema), órdenes (`SortMode`: nuevos, actualizados, A-Z, sistema, más corazones, más ligeros, más pesados) y botón "Al azar" en la tienda. |
 | `ui/AppViewModel.kt` | Estado de la UI, pestañas con historial, vuelta a la ficha al salir de TAREAS (`switchTab`). |
-| `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1, L2/R2, X, Y, SELECT y stick derecho. `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
+| `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1 (filas en la tienda, secciones en Ajustes), L2/R2, X, Y, SELECT y stick derecho (descripción de la ficha y Ajustes). `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
 | `ui/store/*` | Tienda (`CatalogScreen`), ficha (`GameScreen`) y popup de novedades. |
 | `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Almacenamiento, Apariencia, Mando, Cuenta, Privacidad, Legal. |
 | `ui/theme/PixelTheme.kt` | **Paletas de colores** (`AppTheme`: PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **temas** (`UiStyle`: Pixel, Terminal, Ondas, Plano, RPG 16 bits, Neón, Relieve, Cartucho), que se combinan. En la interfaz se llaman "Paleta de colores" y "Temas". Un tema (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. Todos los temas comparten el alto de línea (botones, pestañas y logo miden igual) y los tamaños de letra salen de igualar el **ancho** de un texto de muestra con la letra del sistema, para que quepan las mismas opciones por línea. `UiAnim` son las animaciones de cambio de pantalla. |

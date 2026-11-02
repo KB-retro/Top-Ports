@@ -244,6 +244,15 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 style = PxText.small,
                 modifier = Modifier.weight(1f),
             )
+            // Favorito: solo en este aparato (la estrella), para encontrarlo luego en la tienda.
+            val favorite = game.id in vm.favorites
+            PixelButton(
+                if (favorite) "★" else "☆",
+                onClick = { vm.toggleFavorite(game.id) },
+                color = if (favorite) Px.yellow else Px.navyDark,
+                textColor = if (favorite) Px.black else Px.white,
+            )
+            Spacer(Modifier.width(8.dp))
             // Corazón del post, el mismo que en el canal de Telegram.
             HeartButton(hearts.count, hearts.mine, onClick = {
                 heartScope.launch {
@@ -462,6 +471,11 @@ private fun PackageRow(
     // Dónde se guardó la última vez (si los archivos siguen ahí).
     val saving by vm.graph.tasks.saving.collectAsStateWithLifecycle()
     val moving = pkg.key in saving
+    // En la cola de descargas, esperando su turno (o la WiFi).
+    val queuedKeys by vm.graph.tasks.queued.collectAsStateWithLifecycle()
+    val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
+    val queued = pkg.key in queuedKeys && !info.active && !info.complete
+    val queueLabel = if (waitingWifi) "Esperando WiFi" else "En cola"
     val savedDir = remember(info.complete, files, moving) {
         if (vm.graph.tasks.savedFiles(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
     }
@@ -496,7 +510,11 @@ private fun PackageRow(
                 PixelProgress(info.fraction, Modifier.fillMaxWidth())
                 Text(
                     "${FileNames.formatSize(info.downloaded)} / ${FileNames.formatSize(info.total)} " +
-                        if (info.active) "· descargando" else "· en pausa",
+                        when {
+                            info.active -> "· descargando"
+                            queued -> "· ${queueLabel.lowercase()}"
+                            else -> "· en pausa"
+                        },
                     style = PxText.small,
                 )
             }
@@ -521,6 +539,8 @@ private fun PackageRow(
                         PackageKind.OTHER -> "Guardar"
                     } to Px.green
                     info.active -> "Pausar" to Px.yellow
+                    // En cola: pulsarlo la saca de la cola (queda en pausa).
+                    queued -> queueLabel to Px.grey
                     info.started -> "Continuar" to Px.orange
                     else -> "Descargar" to Px.orange
                 }
@@ -532,7 +552,7 @@ private fun PackageRow(
                         } else {
                             chooseDest = true
                         }
-                        info.active -> vm.graph.tasks.pause(pkg)
+                        info.active || queued -> vm.graph.tasks.pause(pkg)
                         else -> download(vm, context, game, pkg)
                     }
                 }, color = mainColor, small = true, modifier = primary)

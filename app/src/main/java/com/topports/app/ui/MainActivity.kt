@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
         Px.theme = AppTheme.fromName(prefs.getString("theme", null))
         Px.style = UiStyle.fromName(prefs.getString("uiStyle", null))
         Px.anim = UiAnim.fromName(prefs.getString("anim", null))
+        RetroSound.enabled = prefs.getBoolean("sounds", true)
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         lockSquareScreensToLandscape()
         enableEdgeToEdge()
@@ -123,6 +124,7 @@ class MainActivity : ComponentActivity() {
      * X = ordenar. La cruceta mueve el foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        Gamepad.playSound(event)
         val down = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
         // B: a la pantalla principal de la tienda. (Los diálogos tienen su propia ventana y ahí B
         // los sigue cerrando; el botón atrás del sistema vuelve a la pantalla anterior.)
@@ -144,6 +146,10 @@ class MainActivity : ComponentActivity() {
                         val dir = if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1
                         if (vm.selectedGameId == null) vm.jumpCatalogRows(dir) else vm.scrollDescription(dir)
                     }
+                    return true
+                } else if (vm.tab == Tab.SETTINGS) {
+                    // En Ajustes: sección anterior / siguiente (Versión, Permisos… Legal).
+                    if (down) vm.cycleSettingsSection(if (event.keyCode == KeyEvent.KEYCODE_BUTTON_L1) -1 else 1)
                     return true
                 }
             // Y en la tienda: abrir la búsqueda con el teclado del mando.

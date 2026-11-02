@@ -109,19 +109,6 @@ class TaskCenter(
             prefs.edit().putBoolean("autoExtract", value).apply()
         }
 
-    init {
-        // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
-        scope.launch { tg.files.collect { files -> movePendingDownloads(files) } }
-        // Si la app se cerró justo al terminar una descarga (o a mitad de extraerla), TDLib no
-        // vuelve a avisar de esas partes y se quedarían sin mover. Al conectar se pregunta por
-        // ellas: las ya completas se mueven o extraen solas.
-        scope.launch {
-            tg.authState.map { it is TdApi.AuthorizationStateReady }.distinctUntilChanged().filter { it }.collect {
-                installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }
-            }
-        }
-    }
-
     private fun movePendingDownloads(files: Map<Int, TdApi.File>) {
         for (p in installs.pendingSaves()) {
             if (p.pkgKey in _saving.value) continue
@@ -234,11 +221,17 @@ class TaskCenter(
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
 
                 val dir = installs.gameDir(context, game.id, game.title)
+                // A la cola: la descarga empieza cuando le toque (ver [schedule]).
+                val previous = installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
                 installs.addPendingSave(
-                    InstallRegistry.PendingSave(pkg.key, game.id, dir.path, pkg.parts.map { it.id to it.name }),
+                    InstallRegistry.PendingSave(
+                        pkg.key, game.id, dir.path, pkg.parts.map { it.id to it.name },
+                        addedAt = previous?.addedAt ?: System.currentTimeMillis(),
+                        paused = false,
+                    ),
                 )
                 _downloadNames.update { names -> names + pkg.parts.associate { it.id to it.name } }
-                pkg.parts.forEach { tg.startDownload(it.id) }
+                requestSchedule()
                 WorkService.start(context)
             } catch (e: Exception) {
                 onError(e.message ?: e.toString())
@@ -250,15 +243,18 @@ class TaskCenter(
     fun pendingDownloads(): List<InstallRegistry.PendingSave> =
         installs.pendingSaves().filter { it.pkgKey !in _saving.value }
 
+    /** Pausa a mano: la cola no la vuelve a arrancar hasta que se pulse Continuar. */
     fun pauseDownload(p: InstallRegistry.PendingSave) {
+        installs.setPendingPaused(p.pkgKey, true)
         scope.launch { p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } } }
+        requestSchedule()
     }
 
+    /** Vuelve a la cola (en su sitio de antes); empieza en cuanto haya hueco. */
     fun resumeDownload(p: InstallRegistry.PendingSave) {
-        scope.launch {
-            p.parts.forEach { (id, _) -> runCatching { tg.startDownload(id) } }
-            WorkService.start(context)
-        }
+        installs.setPendingPaused(p.pkgKey, false)
+        requestSchedule()
+        WorkService.start(context)
     }
 
     /** Para la descarga y borra lo ya bajado (no toca lo instalado ni extraído antes). */
@@ -273,7 +269,131 @@ class TaskCenter(
     }
 
     fun pause(pkg: GamePackage) {
-        scope.launch { pkg.parts.forEach { runCatching { tg.pauseDownload(it.id) } } }
+        val p = installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
+        if (p != null) pauseDownload(p) else scope.launch { pkg.parts.forEach { runCatching { tg.pauseDownload(it.id) } } }
+    }
+
+    // --- Cola de descargas ---
+
+    /** Descargas a la vez (0 = sin límite). Ajustes → Almacenamiento. */
+    var maxParallel: Int = prefs.getInt("maxParallel", 2)
+        set(value) {
+            field = value
+            prefs.edit().putInt("maxParallel", value).apply()
+            requestSchedule()
+        }
+
+    /** Descargar solo con WiFi (o cable). Ajustes → Almacenamiento. */
+    var wifiOnly: Boolean = prefs.getBoolean("wifiOnly", false)
+        set(value) {
+            field = value
+            prefs.edit().putBoolean("wifiOnly", value).apply()
+            requestSchedule()
+        }
+
+    /** Paquetes esperando su turno en la cola (clave [GamePackage.key]). */
+    private val _queued = MutableStateFlow<Set<String>>(emptySet())
+    val queued: StateFlow<Set<String>> = _queued.asStateFlow()
+
+    /** Hay descargas paradas porque no hay WiFi y está activado "Solo con WiFi". */
+    private val _waitingWifi = MutableStateFlow(false)
+    val waitingWifi: StateFlow<Boolean> = _waitingWifi.asStateFlow()
+
+    private val onWifi = MutableStateFlow(true)
+    private val scheduleRequests = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
+
+    /** Arrancadas hace poco: TDLib tarda un momento en avisar de que ya están activas. */
+    private val startedAt = ConcurrentHashMap<String, Long>()
+
+    // Va después de las propiedades de la cola: Kotlin inicializa en orden y el init las usa.
+    init {
+        // Al terminar una descarga, el archivo pasa solo a /TopPorts/<juego>.
+        scope.launch {
+            tg.files.collect { files ->
+                movePendingDownloads(files)
+                requestSchedule()
+            }
+        }
+        // La cola: se revisa al cambiar las descargas, la red o los ajustes (como mucho 2 veces por segundo).
+        watchNetwork()
+        scope.launch {
+            for (request in scheduleRequests) {
+                runCatching { schedule() }
+                kotlinx.coroutines.delay(500)
+            }
+        }
+        // Si la app se cerró justo al terminar una descarga (o a mitad de extraerla), TDLib no
+        // vuelve a avisar de esas partes y se quedarían sin mover. Al conectar se pregunta por
+        // ellas: las ya completas se mueven o extraen solas.
+        scope.launch {
+            tg.authState.map { it is TdApi.AuthorizationStateReady }.distinctUntilChanged().filter { it }.collect {
+                installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }
+            }
+        }
+    }
+
+    private fun requestSchedule() {
+        scheduleRequests.trySend(Unit)
+    }
+
+    private fun watchNetwork() {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return
+        fun update(caps: android.net.NetworkCapabilities?) {
+            onWifi.value = caps != null && (
+                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                    caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+                )
+            requestSchedule()
+        }
+        update(cm.getNetworkCapabilities(cm.activeNetwork))
+        runCatching {
+            cm.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) = update(caps)
+                override fun onLost(network: android.net.Network) = update(null)
+            })
+        }
+    }
+
+    /**
+     * Reparte las descargas de la tienda: como mucho [maxParallel] a la vez, por orden de
+     * petición; las demás esperan "en cola". Con [wifiOnly] y sin WiFi, se paran todas (sin
+     * marcarlas como pausadas: siguen solas al volver la WiFi). Las pausadas a mano no se tocan.
+     */
+    private suspend fun schedule() {
+        val files = tg.files.value
+        val now = android.os.SystemClock.uptimeMillis()
+        fun complete(p: InstallRegistry.PendingSave) = p.parts.all { (id, _) -> files[id]?.local?.isDownloadingCompleted == true }
+        fun active(p: InstallRegistry.PendingSave) =
+            p.parts.any { (id, _) -> files[id]?.local?.isDownloadingActive == true } ||
+                now - (startedAt[p.pkgKey] ?: 0L) < 5_000
+        val waiting = installs.pendingSaves().filter { !it.paused && !complete(it) }.sortedBy { it.addedAt }
+
+        if (wifiOnly && !onWifi.value) {
+            waiting.filter { active(it) }.forEach { p ->
+                startedAt.remove(p.pkgKey)
+                p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } }
+            }
+            _waitingWifi.value = waiting.isNotEmpty()
+            _queued.value = waiting.map { it.pkgKey }.toSet()
+            return
+        }
+        _waitingWifi.value = false
+        val limit = if (maxParallel <= 0) Int.MAX_VALUE else maxParallel
+        val running = waiting.filter { active(it) }.toMutableList()
+        // Si se ha bajado el límite, las últimas pedidas vuelven a esperar.
+        while (running.size > limit) {
+            val p = running.removeAt(running.lastIndex)
+            startedAt.remove(p.pkgKey)
+            p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } }
+        }
+        for (p in waiting) {
+            if (running.size >= limit) break
+            if (p in running) continue
+            startedAt[p.pkgKey] = now
+            p.parts.forEach { (id, _) -> runCatching { tg.startDownload(id) } }
+            running += p
+        }
+        _queued.value = (waiting - running.toSet()).map { it.pkgKey }.toSet()
     }
 
     fun deleteDownload(pkg: GamePackage) {

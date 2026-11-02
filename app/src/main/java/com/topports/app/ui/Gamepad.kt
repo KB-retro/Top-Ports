@@ -46,6 +46,23 @@ object Gamepad {
     /** Joystick derecho mientras hay un diálogo abierto (su ventana no pasa por MainActivity). */
     var dialogStick by mutableFloatStateOf(0f)
 
+    /**
+     * Sonido de menú de una tecla: mover (cruceta, L1/R1, L2/R2) o volver (B). El de aceptar lo
+     * ponen los propios botones al pulsarse, así suena también con la pantalla táctil.
+     */
+    fun playSound(event: KeyEvent) {
+        if (event.action != KeyEvent.ACTION_DOWN) return
+        when {
+            isBackButton(event) -> if (event.repeatCount == 0) RetroSound.play(RetroSound.Kind.BACK)
+            event.keyCode in moveKeys -> RetroSound.play(RetroSound.Kind.MOVE)
+        }
+    }
+
+    private val moveKeys = setOf(
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+    )
+
     /** ¿Es el botón B del mando (o A si están intercambiados)? */
     fun isBackButton(event: KeyEvent): Boolean =
         event.keyCode == if (swapAB) KeyEvent.KEYCODE_BUTTON_A else KeyEvent.KEYCODE_BUTTON_B
@@ -70,7 +87,10 @@ object Gamepad {
 
 /** Aplica [Gamepad.remap] a una ventana aparte, como la de los diálogos. */
 class GamepadWindowCallback(private val base: Window.Callback) : Window.Callback by base {
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean = base.dispatchKeyEvent(Gamepad.remap(event))
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        Gamepad.playSound(event)
+        return base.dispatchKeyEvent(Gamepad.remap(event))
+    }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         val y = Gamepad.rightStickY(event)
