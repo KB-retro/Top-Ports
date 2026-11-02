@@ -91,6 +91,15 @@ BEVEL      MASTER_SYSTEM
 KEYCAP     GAMEBOY
 STYLES
 
+# Consola 4:3 como la RG477M (1280x960 a ~280 ppp): la fila de secciones de Ajustes tiene que
+# caber en una línea en todos los temas.
+adb shell wm size 1280x960
+adb shell wm density 280
+sleep 2
+for style in PIXEL TERMINAL WAVES FLAT RPG NEON BEVEL KEYCAP; do
+  shot "rg477m-$style-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --ez demo_gamepad true
+done
+
 # Lo seleccionado con el mando (la primera carátula) en las paletas de un solo tono, donde
 # más cuesta verlo, con un tema de marco grueso y otro fino.
 adb shell wm size 1920x1080
