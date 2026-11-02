@@ -15,7 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.dp
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
@@ -23,7 +23,11 @@ import kotlinx.coroutines.delay
 
 private val keyRows = listOf("1234567890", "QWERTYUIOP", "ASDFGHJKLÑ", "ZXCVBNM-:.")
 
-/** Teclas grandes, cómodas en pantallas pequeñas como la de la RG477M. */
+/**
+ * Teclas grandes, cómodas en pantallas pequeñas como la de la RG477M. Es una altura MÍNIMA: en
+ * los temas de marco grueso (RPG, Cartucho, Espiral) la tecla crece lo justo para que la letra
+ * no se corte.
+ */
 private val KEY_HEIGHT = 42.dp
 // Teclas algo más grandes que un título de sección, en la letra del tema.
 private val keyText get() = PxText.heading.let { it.copy(fontSize = it.fontSize * 1.25f, lineHeight = it.lineHeight * 1.25f) }
@@ -64,13 +68,15 @@ fun PixelKeyboardDialog(
                             color = Px.navyDark,
                             textColor = Px.white,
                             textStyle = keyText,
-                            modifier = Modifier.weight(1f).height(KEY_HEIGHT).then(focus),
+                            // Relleno de botón pequeño: la letra grande ya llena la tecla.
+                            small = true,
+                            modifier = Modifier.weight(1f).heightIn(min = KEY_HEIGHT).then(focus),
                         )
                     }
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                val m = Modifier.height(KEY_HEIGHT)
+                val m = Modifier.heightIn(min = KEY_HEIGHT)
                 PixelButton("Espacio", onClick = { onValueChange("$value ") }, color = Px.grey, modifier = m.weight(3f))
                 PixelButton("Borrar", onClick = { onValueChange(value.dropLast(1)) }, color = Px.yellow, modifier = m.weight(2f))
                 PixelButton("Limpiar", onClick = { onValueChange("") }, color = Px.red, textColor = Px.white, modifier = m.weight(2f))
