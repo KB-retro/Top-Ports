@@ -220,7 +220,7 @@ object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
 
     /** Animación al cambiar de pestaña, abrir un juego o abrir la app. */
-    var anim by mutableStateOf(UiAnim.WIPE)
+    var anim by mutableStateOf(UiAnim.FADE)
 
     /** Tema: estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier paleta ([theme]). */
     var style by mutableStateOf(UiStyle.PIXEL)
@@ -476,7 +476,7 @@ enum class UiAnim(val label: String, val description: String) {
     ;
 
     companion object {
-        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: WIPE
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: FADE
     }
 }
 
