@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import com.topports.app.ui.components.PxTransition
+import androidx.compose.ui.graphics.graphicsLayer
 import com.topports.app.ui.components.pixelFrame
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.widthIn
@@ -77,12 +78,11 @@ import com.topports.app.ui.components.pxBackdrop
 @Composable
 fun AppRoot(vm: AppViewModel = viewModel()) {
     val auth by vm.auth.collectAsStateWithLifecycle()
-    Box(
-        Modifier
-            .fillMaxSize()
-            .pxBackdrop()
-            .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        // Fondo del tema en su propia capa: si está animado (Ondas, Neón) solo se repinta él, no
+        // toda la app en cada fotograma.
+        Box(Modifier.fillMaxSize().graphicsLayer().pxBackdrop())
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         if (!vm.graph.telegram.isConfigured) {
             MessageScreen(
                 title = "Falta configurar",
@@ -113,6 +113,7 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
                 RootStage.MAIN -> MainScreen(vm)
             }
         }
+    }
     }
 }
 

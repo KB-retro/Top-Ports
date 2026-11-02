@@ -75,6 +75,7 @@ import androidx.compose.runtime.SideEffect
 import com.topports.app.ui.GamepadWindowCallback
 import com.topports.app.ui.RetroSound
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
@@ -299,25 +300,72 @@ fun Modifier.pxBackdrop(): Modifier = composed {
             background(night).background(brush)
         }
         Backdrop.GRADIENT -> background(Brush.verticalGradient(listOf(Px.navyDark, night, Px.black)))
-        // Rejilla de recreativa: horizonte y líneas que se pierden hacia el fondo.
+        // Synthwave: sol de franjas en el horizonte, estrellas y una rejilla que avanza hacia
+        // la pantalla con perspectiva, como si se fuera volando sobre ella.
         Backdrop.GRID -> {
+            val transition = rememberInfiniteTransition(label = "grid")
+            val travel by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
+                label = "gridTravel",
+            )
+            val twinkle by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+                label = "gridTwinkle",
+            )
             val line = Px.pink
+            val sunTop = Px.yellow
+            val sunBottom = Px.pink
+            val star = Px.white
             background(Brush.verticalGradient(listOf(Px.black, night, Px.navyDark))).drawBehind {
-                val horizon = size.height * 0.55f
-                val c = line.copy(alpha = 0.22f)
-                val w = 1.dp.toPx()
-                var gap = 6.dp.toPx()
-                var y = horizon
-                while (y < size.height) {
-                    drawRect(c, Offset(0f, y), Size(size.width, w))
-                    y += gap
-                    gap *= 1.35f
+                val w = size.width
+                val h = size.height
+                val horizon = h * 0.55f
+                // Estrellas fijas que parpadean (posiciones siempre iguales).
+                for (k in 0 until 40) {
+                    val x = (blockHash(k, 7) * w)
+                    val y = (blockHash(k, 13) * horizon * 0.9f)
+                    val a = 0.25f + 0.55f * (0.5f + 0.5f * kotlin.math.sin((twinkle + blockHash(k, 3)) * 2 * Math.PI.toFloat()))
+                    drawRect(star.copy(alpha = a), Offset(x, y), Size(2.dp.toPx(), 2.dp.toPx()))
                 }
-                val cx = size.width / 2
-                for (i in -12..12) {
-                    drawLine(c, Offset(cx + i * size.width / 24f, horizon), Offset(cx + i * size.width / 4f, size.height), w)
+                // Sol: semicírculo con degradado y franjas cada vez más anchas hacia abajo.
+                val r = minOf(w, h) * 0.22f
+                val center = Offset(w / 2, horizon)
+                val sunBrush = Brush.verticalGradient(listOf(sunTop, sunBottom), startY = horizon - r, endY = horizon)
+                clipRect(0f, horizon - r, w, horizon) {
+                    drawCircle(sunBrush, r, center)
+                    var y = horizon - r * 0.45f
+                    var gap = r * 0.035f
+                    while (y < horizon) {
+                        drawRect(night, Offset(0f, y), Size(w, gap))
+                        y += gap * 2.2f
+                        gap *= 1.25f
+                    }
                 }
-                drawRect(line.copy(alpha = 0.45f), Offset(0f, horizon), Size(size.width, 2.dp.toPx()))
+                // Suelo: oscuro bajo el horizonte para que la rejilla resalte.
+                drawRect(Brush.verticalGradient(listOf(Px.black, night), startY = horizon, endY = h), Offset(0f, horizon), Size(w, h - horizon))
+                val c = line.copy(alpha = 0.55f)
+                val stroke = 1.5.dp.toPx()
+                // Líneas horizontales en perspectiva: a distancia z quedan a horizonte + alto / z.
+                // Al restar [travel] a z se acercan; cada vuelta es una línea más, sin salto.
+                val depth = h - horizon
+                for (k in 0 until 24) {
+                    val z = k + 1f - travel
+                    if (z <= 0.05f) continue
+                    val y = horizon + depth / z
+                    if (y > h) continue
+                    val fade = (1f - k / 24f).coerceIn(0f, 1f)
+                    drawRect(c.copy(alpha = c.alpha * fade), Offset(0f, y), Size(w, stroke))
+                }
+                // Líneas que salen del punto de fuga.
+                val cx = w / 2
+                for (i in -14..14) {
+                    drawLine(c, Offset(cx + i * w / 28f, horizon), Offset(cx + i * w / 3f, h), stroke)
+                }
+                drawRect(line.copy(alpha = 0.9f), Offset(0f, horizon - stroke), Size(w, stroke * 2))
             }
         }
         // Trama de puntos alternos, como los fondos de los escritorios antiguos.
@@ -377,6 +425,14 @@ private fun tileBrush(tile: Dp, vararg keys: Any, draw: DrawScope.(cell: Float) 
             ),
         )
     }
+}
+
+/** Número fijo entre 0 y 1 para cada [k] (posiciones de las estrellas de Neón). */
+private fun blockHash(k: Int, salt: Int): Float {
+    var h = k * 73856093 xor salt * 19349663
+    h = (h xor (h ushr 13)) * 1274126177
+    h = h xor (h ushr 16)
+    return (h and 0xFFFF) / 65536f
 }
 
 /** Una onda suave que cruza la pantalla, como el fondo de XMB. */
