@@ -207,12 +207,6 @@ private fun MainScreen(vm: AppViewModel) {
             val compactWidth = maxWidth < 640.dp
             // La ayuda de botones sale siempre que haya mando (consolas); en móviles sin mando no.
             val showHelp = hasGamepad || maxHeight >= 470.dp
-            // Pantallas bajas (16:9 en consola): la ayuda de botones sale del menú lateral a una
-            // línea al pie de la pantalla, donde sobra ancho, y su hueco es para el logo.
-            val helpAtBottom = showHelp && maxHeight < 500.dp
-            val helpText = "L1/R1 FILA · L2/R2 PESTAÑA · " +
-                (if (vm.tab == Tab.STORE && vm.systemFilter == FAVORITES_FILTER) "SELECT QUITAR ★" else "SELECT SISTEMA") +
-                " · A ACEPTAR · B INICIO"
             val railWidth = if (compactWidth) 136.dp else 164.dp
             // El menú es un panel con el marco del tema (esquinas, borde y sombra), separado del borde.
             val railMargin = 8.dp
@@ -233,9 +227,8 @@ private fun MainScreen(vm: AppViewModel) {
             var helpHeight by remember { mutableStateOf(0.dp) }
             val density = LocalDensity.current
             val free = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - tabsHeight -
-                (if (showHelp && !helpAtBottom) helpHeight else 0.dp) - 24.dp
-            // Tan grande como quepa: a lo ancho del menú como mucho.
-            val logoSize = (free * 0.9f).coerceIn(44.dp, minOf(150.dp, railWidth - railMargin - 12.dp - railPadding * 2))
+                (if (showHelp) helpHeight else 0.dp) - 32.dp
+            val logoSize = (free * 0.8f).coerceIn(44.dp, minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2))
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
@@ -262,7 +255,7 @@ private fun MainScreen(vm: AppViewModel) {
                             Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth().height(tabHeight)) }
                         }
                     }
-                    if (showHelp && !helpAtBottom) {
+                    if (showHelp) {
                         Text(
                             // En Favoritos, SELECT quita el juego seleccionado.
                             "L1/R1  FILA\nL2/R2  PESTAÑA\n" +
@@ -273,20 +266,7 @@ private fun MainScreen(vm: AppViewModel) {
                         )
                     }
                 }
-                if (helpAtBottom) {
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        content(Modifier.weight(1f).fillMaxWidth())
-                        Text(
-                            helpText,
-                            style = PxText.tiny.copy(color = Px.darkGrey),
-                            maxLines = 1,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                        )
-                    }
-                } else {
-                    content(Modifier.weight(1f).fillMaxHeight())
-                }
+                content(Modifier.weight(1f).fillMaxHeight())
             }
         } else {
             Column(Modifier.fillMaxSize()) {
