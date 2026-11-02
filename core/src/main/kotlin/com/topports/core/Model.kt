@@ -11,6 +11,8 @@ data class RemoteFile(
 data class PhotoRef(
     val thumbFileId: Int,
     val fullFileId: Int,
+    /** Ancho / alto de la foto (0 si no se sabe): la ficha la enseña entera, sin recortar. */
+    val aspect: Float = 0f,
 )
 
 /** Vídeo de un post (normalmente un tutorial de instalación o configuración). */

@@ -421,5 +421,6 @@ private fun TdApi.Photo.toRef(): PhotoRef? {
     if (sorted.isEmpty()) return null
     // ~800 px: nítida en las tarjetas grandes de la tienda sin bajar la foto original.
     val thumb = sorted.firstOrNull { it.width >= 600 } ?: sorted.last()
-    return PhotoRef(thumbFileId = thumb.photo.id, fullFileId = sorted.last().photo.id)
+    val aspect = if (thumb.height > 0) thumb.width.toFloat() / thumb.height else 0f
+    return PhotoRef(thumbFileId = thumb.photo.id, fullFileId = sorted.last().photo.id, aspect = aspect)
 }

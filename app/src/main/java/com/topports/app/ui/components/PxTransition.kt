@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -58,7 +59,8 @@ fun <T> PxTransition(
     }
     AnimatedContent(
         targetState = target,
-        modifier = modifier,
+        // Nada de la animación sale de su zona: el menú lateral nunca queda tapado.
+        modifier = modifier.clipToBounds(),
         transitionSpec = {
             val dir = memo.dir
             when (anim) {

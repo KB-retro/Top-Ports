@@ -26,6 +26,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -161,16 +162,38 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             }, color = Px.blue, small = true)
         }
     }
+    // Capturas con su proporción real (la que da Telegram), enteras y sin recortar, en cualquier
+    // formato de pantalla: una sola ocupa todo el ancho; varias van en fila a la misma altura.
     val gallery: @Composable () -> Unit = {
         if (game.images.isNotEmpty()) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(game.images) { image ->
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val available = maxWidth
+                val aspects = game.images.map { it.aspect.takeIf { a -> a > 0.2f } ?: (16f / 9f) }
+                if (game.images.size == 1) {
+                    val image = game.images.first()
                     Box(
                         Modifier
-                            .size(width = 260.dp, height = 150.dp)
+                            .fillMaxWidth()
+                            // Una foto vertical no ocupa media pantalla: se encaja con bandas.
+                            .aspectRatio(aspects.first().coerceAtLeast(1.2f))
                             .pixelCard(onClick = { zoomed = image.fullFileId }, fill = Px.black),
                     ) {
-                        TdImage(image.thumbFileId, Modifier.fillMaxSize())
+                        TdImage(image.thumbFileId, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    }
+                } else {
+                    // Altura común: la primera captura ocupa casi todo el ancho y asoma la siguiente.
+                    val height = (available * 0.82f / aspects.first()).coerceIn(110.dp, 240.dp)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(game.images.size) { i ->
+                            val image = game.images[i]
+                            Box(
+                                Modifier
+                                    .size(width = height * aspects[i], height = height)
+                                    .pixelCard(onClick = { zoomed = image.fullFileId }, fill = Px.black),
+                            ) {
+                                TdImage(image.thumbFileId, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            }
+                        }
                     }
                 }
             }

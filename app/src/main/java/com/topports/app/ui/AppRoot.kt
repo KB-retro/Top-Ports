@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import com.topports.app.ui.components.PxTransition
+import com.topports.app.ui.components.pixelFrame
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.safeDrawing
@@ -205,28 +206,38 @@ private fun MainScreen(vm: AppViewModel) {
             val compactWidth = maxWidth < 640.dp
             // La ayuda de botones sale siempre que haya mando (consolas); en móviles sin mando no.
             val showHelp = hasGamepad || maxHeight >= 470.dp
-            val railWidth = if (compactWidth) 124.dp else 150.dp
+            val railWidth = if (compactWidth) 136.dp else 164.dp
+            // El menú es un panel con el marco del tema (esquinas, borde y sombra), separado del borde.
+            val railMargin = 8.dp
             val railPadding = if (compactWidth) 6.dp else 10.dp
+            // Misma altura de pestaña en todos los temas (el logo y los huecos no cambian al cambiar
+            // de tema), según lo alta que sea la pantalla: en la Odin 2 Portal (≈430 dp) caben las
+            // seis pestañas, el logo y la ayuda sin desplazar.
             val tabSpacing = when {
-                maxHeight >= 600.dp -> 16.dp
-                maxHeight >= 380.dp -> 10.dp
+                maxHeight >= 600.dp -> 14.dp
+                maxHeight >= 470.dp -> 10.dp
                 else -> 6.dp
             }
-            // Misma altura de pestaña en todos los temas: el logo y los huecos no cambian al cambiar de tema.
-            val tabHeight = if (maxHeight >= 380.dp) 40.dp else 34.dp
+            val tabHeight = when {
+                maxHeight >= 600.dp -> 40.dp
+                maxHeight >= 470.dp -> 36.dp
+                else -> 30.dp
+            }
             // El logo ocupa el espacio que dejan libre las pestañas y la ayuda (medidas de verdad,
             // no por tramos): grande en 16:9 y 4:3, pequeño solo cuando de verdad no cabe.
             var tabsHeight by remember { mutableStateOf(0.dp) }
             var helpHeight by remember { mutableStateOf(0.dp) }
             val density = LocalDensity.current
-            val free = screenHeight - railPadding * 2 - tabsHeight - (if (showHelp) helpHeight else 0.dp) - 32.dp
-            val logoSize = (free * 0.8f).coerceIn(44.dp, minOf(140.dp, railWidth - railPadding * 2))
+            val free = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - tabsHeight -
+                (if (showHelp) helpHeight else 0.dp) - 32.dp
+            val logoSize = (free * 0.8f).coerceIn(44.dp, minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2))
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
                         .fillMaxHeight()
                         .width(railWidth)
-                        .background(Px.navy)
+                        .padding(start = railMargin, top = railMargin, bottom = railMargin)
+                        .pixelFrame(fill = Px.navy, border = Px.white)
                         .padding(railPadding),
                     // El hueco que sobre se reparte por igual arriba, entre bloques y abajo.
                     verticalArrangement = Arrangement.SpaceEvenly,
@@ -253,7 +264,6 @@ private fun MainScreen(vm: AppViewModel) {
                         )
                     }
                 }
-                Box(Modifier.fillMaxHeight().width(3.dp).background(Px.black))
                 content(Modifier.weight(1f).fillMaxHeight())
             }
         } else {
