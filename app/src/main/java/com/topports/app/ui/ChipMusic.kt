@@ -255,8 +255,14 @@ object ChipMusic {
 
         fun render(out: ShortArray) {
             val volume = when (level) { 1 -> 0.12f; 2 -> 0.22f; 3 -> 0.35f; else -> 0f }
-            val soft = RetroSound.soft
-            val wave = if (soft) SINE else SQUARE
+            // Instrumentos según el tipo de sonido: melodía, arpegio y cuánto se sostiene la nota.
+            val (wave, arpWave, sustain) = when (RetroSound.type) {
+                RetroSound.SoundType.BIT8 -> Triple(SQUARE, PULSE, 0.9f)
+                RetroSound.SoundType.SOFT -> Triple(SINE, SINE, 0.9f)
+                RetroSound.SoundType.ARCADE -> Triple(SAW, SQUARE, 0.85f)
+                RetroSound.SoundType.BEEPER -> Triple(NARROW, NARROW, 0.95f)
+                RetroSound.SoundType.BELL -> Triple(TRIANGLE, SINE, 0.2f)
+            }
             for (i in out.indices) {
                 if (sampleInStep == 0 && step < song.steps.size) {
                     val s = song.steps[step]
@@ -266,9 +272,9 @@ object ChipMusic {
                     if (s.drum != 0) { drum = s.drum; drumAge = 0 }
                 }
                 var v = 0f
-                v += 0.28f * voice(lead, wave, 0.9f)
+                v += 0.28f * voice(lead, wave, sustain)
                 v += 0.30f * voice(bass, TRIANGLE, 0.95f)
-                v += 0.09f * voice(arp, if (soft) SINE else PULSE, 0.5f)
+                v += 0.09f * voice(arp, arpWave, 0.5f)
                 v += 0.22f * drumSample()
                 out[i] = (v * volume * Short.MAX_VALUE).coerceIn(-32767f, 32767f).toInt().toShort()
                 if (++sampleInStep >= samplesPerStep) {
@@ -306,12 +312,14 @@ object ChipMusic {
     private const val SINE = 2
     private const val TRIANGLE = 3
     private const val SAW = 4
+    private const val NARROW = 5
 
     private fun shape(wave: Int, phase: Float): Float = when (wave) {
         SQUARE -> if (phase < 0.5f) 1f else -1f
         PULSE -> if (phase < 0.25f) 1f else -1f
         SINE -> sin(2 * PI * phase).toFloat()
         TRIANGLE -> 4f * kotlin.math.abs(phase - 0.5f) - 1f
+        NARROW -> if (phase < 0.125f) 1f else -1f
         else -> 2f * phase - 1f
     }
 }

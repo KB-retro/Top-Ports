@@ -188,6 +188,32 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
+        // Restablecer ajustes, al final de Versión.
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item {
+                var confirmReset by remember { mutableStateOf(false) }
+                PixelButton("Restablecer ajustes", onClick = { confirmReset = true }, color = Px.red, textColor = Px.white, small = true)
+                if (confirmReset) {
+                    PixelDialog("¿Restablecer ajustes?", onDismiss = { confirmReset = false }) {
+                        Text(
+                            "Vuelven a como vienen de serie el tema, la paleta, las animaciones, el sonido, la música, " +
+                                "el mando, las descargas y el orden de la tienda. Tus favoritos, tus descargas y tu " +
+                                "sesión de Telegram no se tocan.",
+                            style = PxText.body,
+                        )
+                        DialogButtons {
+                            PixelButton("No", onClick = { confirmReset = false }, color = Px.grey, small = true)
+                            PixelButton("Restablecer", onClick = {
+                                confirmReset = false
+                                vm.resetSettings()
+                                toast("Ajustes restablecidos")
+                            }, color = Px.red, textColor = Px.white, small = true)
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Sonido ---
         if (vm.settingsSection == SettingsSection.SOUND) {
             item { SectionTitle("Sonidos", Px.yellow) }
@@ -218,7 +244,8 @@ fun SettingsScreen(vm: AppViewModel) {
                         style = PxText.small,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("No", "Baja", "Media", "Alta").forEachIndexed { level, label ->
+                        // Alta (la de por defecto) primero.
+                        listOf(3 to "Alta", 2 to "Media", 1 to "Baja", 0 to "No").forEach { (level, label) ->
                             PixelButton(
                                 if (vm.music == level) "✓ $label" else label,
                                 onClick = { vm.changeMusic(level) },
@@ -238,21 +265,17 @@ fun SettingsScreen(vm: AppViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Para los sonidos de menú y la música, con cualquier tema.", style = PxText.small)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(false to "8 bits", true to "Suave").forEach { (soft, label) ->
-                            val selected = vm.softSound == soft
+                        com.topports.app.ui.RetroSound.SoundType.entries.forEach { type ->
+                            val selected = vm.soundType == type
                             PixelButton(
-                                if (selected) "✓ $label" else label,
-                                onClick = { vm.changeSoftSound(soft) },
+                                if (selected) "✓ ${type.label}" else type.label,
+                                onClick = { vm.changeSoundType(type) },
                                 color = if (selected) Px.orange else Px.navyDark,
                                 textColor = if (selected) Px.black else Px.white,
                                 small = true,
                             )
                         }
                     }
-                    Text(
-                        if (vm.softSound) "Suave: ondas redondas, como el tema Ondas." else "8 bits: onda cuadrada, como una consola de los 80.",
-                        style = PxText.small.copy(color = Px.white),
-                    )
                 }
             }
         }
@@ -338,7 +361,7 @@ fun SettingsScreen(vm: AppViewModel) {
                                     style = PxText.small,
                                 )
                             }
-                            var auto by remember { mutableStateOf(vm.graph.tasks.autoExtract) }
+                            var auto by remember(vm.settingsResets) { mutableStateOf(vm.graph.tasks.autoExtract) }
                             PixelButton(
                                 if (auto) "Sí" else "No",
                                 onClick = { auto = !auto; vm.graph.tasks.autoExtract = auto },
@@ -350,9 +373,10 @@ fun SettingsScreen(vm: AppViewModel) {
                         // Cola de descargas: cuántas a la vez y si solo con WiFi.
                         Text("Descargas a la vez", style = PxText.body)
                         Text("Las demás esperan en cola, por orden de petición.", style = PxText.small)
-                        var parallel by remember { mutableIntStateOf(vm.graph.tasks.maxParallel) }
+                        var parallel by remember(vm.settingsResets) { mutableIntStateOf(vm.graph.tasks.maxParallel) }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1, 2, 3, 0).forEach { n ->
+                            // 2 (el de por defecto) primero.
+                            listOf(2, 1, 3, 0).forEach { n ->
                                 PixelButton(
                                     if (n == 0) "Sin límite" else n.toString(),
                                     onClick = { parallel = n; vm.graph.tasks.maxParallel = n },
@@ -367,7 +391,7 @@ fun SettingsScreen(vm: AppViewModel) {
                                 Text("Solo con WiFi", style = PxText.body)
                                 Text("Con datos móviles las descargas esperan y siguen solas al volver la WiFi.", style = PxText.small)
                             }
-                            var wifi by remember { mutableStateOf(vm.graph.tasks.wifiOnly) }
+                            var wifi by remember(vm.settingsResets) { mutableStateOf(vm.graph.tasks.wifiOnly) }
                             PixelButton(
                                 if (wifi) "Sí" else "No",
                                 onClick = { wifi = !wifi; vm.graph.tasks.wifiOnly = wifi },

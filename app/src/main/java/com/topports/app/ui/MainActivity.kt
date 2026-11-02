@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         Px.style = UiStyle.fromName(prefs.getString("uiStyle", null))
         Px.anim = UiAnim.fromName(prefs.getString("anim", null))
         RetroSound.enabled = prefs.getBoolean("sounds", true)
-        RetroSound.soft = prefs.getBoolean("soundSoft", false)
+        RetroSound.type = RetroSound.SoundType.fromName(prefs.getString("soundType", null))
         ChipMusic.init(this)
         ChipMusic.level = prefs.getInt("music", 3)
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)

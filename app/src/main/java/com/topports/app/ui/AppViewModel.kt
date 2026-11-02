@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -128,15 +129,48 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
 
-    /** Tipo de sonido para menú y música: false = 8 bits, true = suave (Ajustes → Sonido). */
-    var softSound by mutableStateOf(prefs.getBoolean("soundSoft", false))
+    /** Tipo de sonido para menú y música (Ajustes → Sonido). */
+    var soundType by mutableStateOf(RetroSound.SoundType.fromName(prefs.getString("soundType", null)))
         private set
 
-    fun changeSoftSound(soft: Boolean) {
-        softSound = soft
-        RetroSound.soft = soft
-        prefs.edit().putBoolean("soundSoft", soft).apply()
+    fun changeSoundType(type: RetroSound.SoundType) {
+        soundType = type
+        RetroSound.type = type
+        prefs.edit().putString("soundType", type.name).apply()
         RetroSound.play(RetroSound.Kind.ACCEPT)
+    }
+
+    /** Cambia con cada "Restablecer ajustes", para que Ajustes vuelva a leer lo guardado. */
+    var settingsResets by mutableIntStateOf(0)
+        private set
+
+    /**
+     * Todos los ajustes como vienen de serie: tema, paleta, animación, sonido, música, mando,
+     * descargas y orden de la tienda. No toca los favoritos, las descargas ni la sesión.
+     */
+    fun resetSettings() {
+        prefs.edit().apply {
+            listOf(
+                "theme", "uiStyle", "anim", "sounds", "soundSoft", "soundType", "music", "swapAB", "sort",
+                "autoExtract", "maxParallel", "wifiOnly",
+            ).forEach { remove(it) }
+        }.apply()
+        Px.theme = AppTheme.fromName(null)
+        Px.style = UiStyle.fromName(null)
+        Px.anim = UiAnim.fromName(null)
+        sounds = true
+        RetroSound.enabled = true
+        soundType = RetroSound.SoundType.BIT8
+        RetroSound.type = soundType
+        music = 3
+        ChipMusic.level = music
+        swapAB = false
+        Gamepad.swapAB = false
+        sortMode = SortMode.NEWEST
+        graph.tasks.autoExtract = true
+        graph.tasks.maxParallel = 2
+        graph.tasks.wifiOnly = false
+        settingsResets++
     }
 
     /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (por defecto) (Ajustes → Sonido). */

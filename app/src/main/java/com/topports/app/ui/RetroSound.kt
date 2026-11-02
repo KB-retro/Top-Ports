@@ -9,7 +9,7 @@ import kotlin.math.sin
 
 /**
  * Sonidos de menú de 8 bits: mover el cursor, aceptar y volver. Se sintetizan al momento (sin
- * archivos de audio), con el tipo de sonido elegido ([soft]): 8 bits o suave. Se activan o quitan
+ * archivos de audio), con el tipo de sonido elegido ([type]). Se activan o quitan
  * en Ajustes → Sonido.
  */
 object RetroSound {
@@ -22,19 +22,36 @@ object RetroSound {
     private const val RATE = 22050
     private const val VOLUME = 0.22f
 
-    private enum class Wave { SQUARE, PULSE, SINE, TRIANGLE, SAW, CLICK }
+    private enum class Wave { SQUARE, PULSE, NARROW, SINE, TRIANGLE, SAW, BELL, CLICK }
 
-    /**
-     * Tipo de sonido (Ajustes → Sonido): false = 8 bits (onda cuadrada), true = suave (senoidal,
-     * como el tema Ondas). Vale para estos sonidos y para la música ([ChipMusic]).
-     */
+    /** Tipos de sonido (Ajustes → Sonido), el de por defecto primero. Valen también para la música. */
+    enum class SoundType(val label: String) {
+        BIT8("8 bits"),
+        SOFT("Suave"),
+        ARCADE("Arcade"),
+        BEEPER("Beeper"),
+        BELL("Campanita"),
+        ;
+
+        companion object {
+            fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: BIT8
+        }
+    }
+
+    /** Tipo de sonido elegido (Ajustes → Sonido). Vale para estos sonidos y para la música ([ChipMusic]). */
     @Volatile
-    var soft = false
+    var type = SoundType.BIT8
 
-    /** Timbre y nota base (Hz) según el tipo de sonido. */
-    private fun voiceOf(soft: Boolean): Pair<Wave, Float> = if (soft) Wave.SINE to 990f else Wave.SQUARE to 880f
+    /** Timbre y nota base (Hz) de cada tipo de sonido. */
+    private fun voiceOf(type: SoundType): Pair<Wave, Float> = when (type) {
+        SoundType.BIT8 -> Wave.SQUARE to 880f
+        SoundType.SOFT -> Wave.SINE to 990f
+        SoundType.ARCADE -> Wave.SAW to 660f
+        SoundType.BEEPER -> Wave.NARROW to 1200f
+        SoundType.BELL -> Wave.BELL to 1320f
+    }
 
-    private val tracks = HashMap<Pair<Boolean, Kind>, AudioTrack>()
+    private val tracks = HashMap<Pair<SoundType, Kind>, AudioTrack>()
     private var lastMove = 0L
 
     fun play(kind: Kind) {
@@ -47,7 +64,7 @@ object RetroSound {
         }
         runCatching {
             val track = synchronized(tracks) {
-                tracks.getOrPut(soft to kind) { build(soft, kind) }
+                tracks.getOrPut(type to kind) { build(type, kind) }
             }
             track.stop()
             track.reloadStaticData()
@@ -55,8 +72,8 @@ object RetroSound {
         }
     }
 
-    private fun build(soft: Boolean, kind: Kind): AudioTrack {
-        val (wave, base) = voiceOf(soft)
+    private fun build(type: SoundType, kind: Kind): AudioTrack {
+        val (wave, base) = voiceOf(type)
         // Notas (frecuencia, duración en ms): mover = un bip corto; aceptar = dos notas que suben;
         // volver = dos notas que bajan.
         val notes = when (kind) {
@@ -94,6 +111,10 @@ object RetroSound {
             val v = when (wave) {
                 Wave.SQUARE -> if (phase < 0.5f) 1f else -1f
                 Wave.PULSE -> if (phase < 0.25f) 1f else -1f
+                // Pulso muy estrecho: el pitido fino de un altavoz de ordenador antiguo.
+                Wave.NARROW -> if (phase < 0.125f) 1f else -1f
+                // Campana: fundamental más un parcial inarmónico que se apaga antes.
+                Wave.BELL -> (sin(2 * PI * phase) + 0.5 * sin(2 * PI * ((t * freq * 2.76f) % 1f)) * (1f - i.toFloat() / n)).toFloat() * 0.7f
                 Wave.SINE -> sin(2 * PI * phase).toFloat()
                 Wave.TRIANGLE -> 4f * kotlin.math.abs(phase - 0.5f) - 1f
                 Wave.SAW -> 2f * phase - 1f
