@@ -64,6 +64,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             pink = c(0xF878F8),
             focus = c(0xFFE000),
         ),
+    ),
     PICO8(
         "PICO-8",
         PxPalette(
@@ -84,7 +85,6 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             pink = c(0xB5CC5A),
             focus = c(0x9BBC0F),
         ),
-    ),
     ),
     SYNTHWAVE(
         "Synthwave",
