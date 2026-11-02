@@ -187,6 +187,75 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
+        // --- Sonido (dentro de Versión) ---
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item { SectionTitle("Sonidos", Px.yellow) }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sonidos de menú", style = PxText.body)
+                        Text(
+                            "Bips al mover el cursor, aceptar y volver.",
+                            style = PxText.small,
+                        )
+                    }
+                    PixelButton(
+                        if (vm.sounds) "Sí" else "No",
+                        onClick = { vm.changeSounds(!vm.sounds) },
+                        color = if (vm.sounds) Px.green else Px.darkGrey,
+                        textColor = if (vm.sounds) Px.black else Px.white,
+                        small = true,
+                    )
+                }
+            }
+            item { SectionTitle("Música", Px.lavender) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Banda sonora chiptune generada al momento: cada canción es nueva y no ocupa nada. " +
+                            "Solo con la app en pantalla.",
+                        style = PxText.small,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("No", "Baja", "Media", "Alta").forEachIndexed { level, label ->
+                            PixelButton(
+                                if (vm.music == level) "✓ $label" else label,
+                                onClick = { vm.changeMusic(level) },
+                                color = if (vm.music == level) Px.orange else Px.navyDark,
+                                textColor = if (vm.music == level) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
+                        if (vm.music > 0) {
+                            PixelButton("Otra canción", onClick = { com.topports.app.ui.ChipMusic.next() }, color = Px.lavender, small = true)
+                        }
+                    }
+                }
+            }
+            item { SectionTitle("Tipo de sonido", Px.lavender) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Para los sonidos de menú y la música, con cualquier tema.", style = PxText.small)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(false to "8 bits", true to "Suave").forEach { (soft, label) ->
+                            val selected = vm.softSound == soft
+                            PixelButton(
+                                if (selected) "✓ $label" else label,
+                                onClick = { vm.changeSoftSound(soft) },
+                                color = if (selected) Px.orange else Px.navyDark,
+                                textColor = if (selected) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
+                    }
+                    Text(
+                        if (vm.softSound) "Suave: ondas redondas, como el tema Ondas." else "8 bits: onda cuadrada, como una consola de los 80.",
+                        style = PxText.small.copy(color = Px.white),
+                    )
+                }
+            }
+        }
+
         // --- Permisos ---
         if (vm.settingsSection == SettingsSection.PERMISSIONS) {
             item { SectionTitle("Permisos", Px.yellow) }
@@ -382,49 +451,6 @@ fun SettingsScreen(vm: AppViewModel) {
                                 textColor = if (selected) Px.black else Px.white,
                                 small = true,
                             )
-                        }
-                    }
-                }
-            }
-            item { SectionTitle("Sonidos", Px.yellow) }
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Sonidos de menú", style = PxText.body)
-                        Text(
-                            "Bips de 8 bits al mover el cursor, aceptar y volver. Suenan distinto en cada tema.",
-                            style = PxText.small,
-                        )
-                    }
-                    PixelButton(
-                        if (vm.sounds) "Sí" else "No",
-                        onClick = { vm.changeSounds(!vm.sounds) },
-                        color = if (vm.sounds) Px.green else Px.darkGrey,
-                        textColor = if (vm.sounds) Px.black else Px.white,
-                        small = true,
-                    )
-                }
-            }
-            item { SectionTitle("Música", Px.lavender) }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Banda sonora chiptune generada al momento: cada canción es nueva, no ocupa nada y suena " +
-                            "con el instrumento del tema. Solo con la app en pantalla.",
-                        style = PxText.small,
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("No", "Baja", "Media", "Alta").forEachIndexed { level, label ->
-                            PixelButton(
-                                if (vm.music == level) "✓ $label" else label,
-                                onClick = { vm.changeMusic(level) },
-                                color = if (vm.music == level) Px.orange else Px.navyDark,
-                                textColor = if (vm.music == level) Px.black else Px.white,
-                                small = true,
-                            )
-                        }
-                        if (vm.music > 0) {
-                            PixelButton("Otra canción", onClick = { com.topports.app.ui.ChipMusic.next() }, color = Px.lavender, small = true)
                         }
                     }
                 }

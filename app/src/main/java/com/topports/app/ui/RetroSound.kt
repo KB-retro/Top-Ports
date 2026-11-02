@@ -4,15 +4,13 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
-import com.topports.app.ui.theme.Px
-import com.topports.app.ui.theme.UiStyle
 import kotlin.math.PI
 import kotlin.math.sin
 
 /**
  * Sonidos de menú de 8 bits: mover el cursor, aceptar y volver. Se sintetizan al momento (sin
- * archivos de audio) y cambian con el tema: onda cuadrada en Pixel, senoidal suave en Ondas,
- * diente de sierra en Neón, un clic en Relieve… Se activan o quitan en Ajustes → Apariencia.
+ * archivos de audio), con el tipo de sonido elegido ([soft]): 8 bits o suave. Se activan o quitan
+ * en Ajustes → Versión.
  */
 object RetroSound {
     enum class Kind { MOVE, ACCEPT, BACK }
@@ -26,19 +24,17 @@ object RetroSound {
 
     private enum class Wave { SQUARE, PULSE, SINE, TRIANGLE, SAW, CLICK }
 
-    /** Timbre de cada tema y nota base (Hz). */
-    private fun voiceOf(style: UiStyle): Pair<Wave, Float> = when (style) {
-        UiStyle.PIXEL -> Wave.SQUARE to 880f
-        UiStyle.TERMINAL -> Wave.PULSE to 660f
-        UiStyle.WAVES -> Wave.SINE to 990f
-        UiStyle.FLAT -> Wave.SINE to 740f
-        UiStyle.RPG -> Wave.SQUARE to 1047f
-        UiStyle.NEON -> Wave.SAW to 830f
-        UiStyle.BEVEL -> Wave.CLICK to 600f
-        UiStyle.KEYCAP -> Wave.TRIANGLE to 520f
-    }
+    /**
+     * Tipo de sonido (Ajustes → Versión): false = 8 bits (onda cuadrada), true = suave (senoidal,
+     * como el tema Ondas). Vale para estos sonidos y para la música ([ChipMusic]).
+     */
+    @Volatile
+    var soft = false
 
-    private val tracks = HashMap<Pair<UiStyle, Kind>, AudioTrack>()
+    /** Timbre y nota base (Hz) según el tipo de sonido. */
+    private fun voiceOf(soft: Boolean): Pair<Wave, Float> = if (soft) Wave.SINE to 990f else Wave.SQUARE to 880f
+
+    private val tracks = HashMap<Pair<Boolean, Kind>, AudioTrack>()
     private var lastMove = 0L
 
     fun play(kind: Kind) {
@@ -51,7 +47,7 @@ object RetroSound {
         }
         runCatching {
             val track = synchronized(tracks) {
-                tracks.getOrPut(Px.style to kind) { build(Px.style, kind) }
+                tracks.getOrPut(soft to kind) { build(soft, kind) }
             }
             track.stop()
             track.reloadStaticData()
@@ -59,8 +55,8 @@ object RetroSound {
         }
     }
 
-    private fun build(style: UiStyle, kind: Kind): AudioTrack {
-        val (wave, base) = voiceOf(style)
+    private fun build(soft: Boolean, kind: Kind): AudioTrack {
+        val (wave, base) = voiceOf(soft)
         // Notas (frecuencia, duración en ms): mover = un bip corto; aceptar = dos notas que suben;
         // volver = dos notas que bajan.
         val notes = when (kind) {

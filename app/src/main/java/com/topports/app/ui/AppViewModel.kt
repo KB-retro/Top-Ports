@@ -126,7 +126,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
 
-    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Apariencia). */
+    /** Tipo de sonido para menú y música: false = 8 bits, true = suave (Ajustes → Versión). */
+    var softSound by mutableStateOf(prefs.getBoolean("soundSoft", false))
+        private set
+
+    fun changeSoftSound(soft: Boolean) {
+        softSound = soft
+        RetroSound.soft = soft
+        prefs.edit().putBoolean("soundSoft", soft).apply()
+        RetroSound.play(RetroSound.Kind.ACCEPT)
+    }
+
+    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Versión). */
     var music by mutableStateOf(prefs.getInt("music", 0))
         private set
 
@@ -136,7 +147,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putInt("music", level).apply()
     }
 
-    /** Sonidos de menú (Ajustes → Apariencia); se recuerda. */
+    /** Sonidos de menú (Ajustes → Versión); se recuerda. */
     var sounds by mutableStateOf(prefs.getBoolean("sounds", true))
         private set
 

@@ -5,8 +5,6 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import com.topports.app.ui.theme.Px
-import com.topports.app.ui.theme.UiStyle
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sin
@@ -16,10 +14,10 @@ import kotlin.random.Random
  * Banda sonora chiptune generada al momento: no ocupa nada y nunca se repite. Cada canción se
  * compone al azar con reglas sencillas (tonalidad mayor o menor, tempo, progresión de acordes,
  * un motivo de melodía que se repite y varía, bajo, arpegio y batería) y dura uno o dos
- * minutos; después empieza otra. La melodía suena con el instrumento del tema.
+ * minutos; después empieza otra. Suena con el tipo de sonido elegido (8 bits o suave).
  *
  * Solo suena con la app en pantalla y se calla mientras se ve un vídeo. Volumen en
- * Ajustes → Apariencia → Música (0 = apagada, por defecto).
+ * Ajustes → Versión → Música (0 = apagada, por defecto).
  */
 object ChipMusic {
 
@@ -257,7 +255,8 @@ object ChipMusic {
 
         fun render(out: ShortArray) {
             val volume = when (level) { 1 -> 0.12f; 2 -> 0.22f; 3 -> 0.35f; else -> 0f }
-            val wave = waveOf(Px.style)
+            val soft = RetroSound.soft
+            val wave = if (soft) SINE else SQUARE
             for (i in out.indices) {
                 if (sampleInStep == 0 && step < song.steps.size) {
                     val s = song.steps[step]
@@ -269,7 +268,7 @@ object ChipMusic {
                 var v = 0f
                 v += 0.28f * voice(lead, wave, 0.9f)
                 v += 0.30f * voice(bass, TRIANGLE, 0.95f)
-                v += 0.09f * voice(arp, PULSE, 0.5f)
+                v += 0.09f * voice(arp, if (soft) SINE else PULSE, 0.5f)
                 v += 0.22f * drumSample()
                 out[i] = (v * volume * Short.MAX_VALUE).coerceIn(-32767f, 32767f).toInt().toShort()
                 if (++sampleInStep >= samplesPerStep) {
@@ -307,15 +306,6 @@ object ChipMusic {
     private const val SINE = 2
     private const val TRIANGLE = 3
     private const val SAW = 4
-
-    /** Instrumento de la melodía según el tema (como los sonidos de menú). */
-    private fun waveOf(style: UiStyle) = when (style) {
-        UiStyle.PIXEL, UiStyle.RPG -> SQUARE
-        UiStyle.TERMINAL, UiStyle.BEVEL -> PULSE
-        UiStyle.WAVES -> SINE
-        UiStyle.FLAT, UiStyle.KEYCAP -> TRIANGLE
-        UiStyle.NEON -> SAW
-    }
 
     private fun shape(wave: Int, phase: Float): Float = when (wave) {
         SQUARE -> if (phase < 0.5f) 1f else -1f
