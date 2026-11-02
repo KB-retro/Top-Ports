@@ -139,8 +139,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         RetroSound.play(RetroSound.Kind.ACCEPT)
     }
 
-    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Sonido). */
-    var music by mutableStateOf(prefs.getInt("music", 0))
+    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (por defecto) (Ajustes → Sonido). */
+    var music by mutableStateOf(prefs.getInt("music", 3))
         private set
 
     fun changeMusic(level: Int) {

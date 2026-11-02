@@ -45,7 +45,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `telegram/DemoCatalog.kt` | Catálogo falso para el modo demo y las capturas. |
 | `work/TaskCenter.kt` | Descargas y tareas: mover a `/TopPorts/<juego>` al terminar, **extracción automática**, instalar, guardar sin extraer, cancelar, copiar OBB, autoactualización. |
 | `work/TaskCenter.kt` (cola) | Cola de descargas: `maxParallel` (1, 2, 3 o sin límite) y `wifiOnly`; `schedule()` arranca por orden de petición (`PendingSave.addedAt`) y respeta las pausadas a mano (`paused`). Expone `queued` y `waitingWifi` para la ficha y TAREAS. |
-| `ui/ChipMusic.kt` | Banda sonora chiptune generada al momento (sin archivos): canciones al azar con acordes, motivo de melodía, bajo, arpegio y batería. Solo con la app en pantalla (`setForeground`), se calla con los vídeos (`hold`). Volumen en Ajustes → Sonido → Música (apagada por defecto). |
+| `ui/ChipMusic.kt` | Banda sonora chiptune generada al momento (sin archivos): canciones al azar con acordes, motivo de melodía, bajo, arpegio y batería. Solo con la app en pantalla (`setForeground`), se calla con los vídeos (`hold`). Volumen en Ajustes → Sonido → Música (alta por defecto). |
 | `ui/RetroSound.kt` | Sonidos de menú sintetizados (sin archivos): mover, aceptar y volver. Tipo de sonido (`RetroSound.soft`: 8 bits o suave, para menú y música) y activarlos en Ajustes → Sonido. |
 | `work/WorkService.kt` | Servicio en primer plano (dataSync) mientras hay trabajo; `onTimeout` para el límite diario de Android 15. |
 | `archive/ArchiveExtractor.kt` | 7-Zip-JBinding. `VolumeSet` resuelve las partes por nombre lógico (TDLib puede renombrar). Comprobación zip-slip. |
@@ -59,7 +59,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1 (filas en la tienda, secciones en Ajustes), L2/R2, X, Y, SELECT y stick derecho (descripción de la ficha y Ajustes). `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
 | `ui/store/*` | Tienda (`CatalogScreen`), ficha (`GameScreen`) y popup de novedades. |
 | `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Descargas, Sonido, Temas, Mando, Cuenta, Privacidad, Legal. |
-| `ui/theme/PixelTheme.kt` | **Paletas de colores** (`AppTheme`: PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **temas** (`UiStyle`: Pixel, Terminal, Ondas, Plano, RPG 16 bits, Neón, Relieve, Cartucho), que se combinan. En la interfaz se llaman "Paleta de colores" y "Temas". Un tema (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. Todos los temas comparten el alto de línea (botones, pestañas y logo miden igual) y los tamaños de letra salen de igualar el **ancho** de un texto de muestra con la letra del sistema, para que quepan las mismas opciones por línea. `UiAnim` son las animaciones de cambio de pantalla. |
+| `ui/theme/PixelTheme.kt` | **Paletas de colores** (`AppTheme`: PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **temas** (`UiStyle`: Ondas —por defecto—, Plano, RPG 16 bits, Neón, Relieve, Cartucho, Híbrida y Espiral), que se combinan. En la interfaz se llaman "Paleta de colores" y "Temas". Un tema (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. Todos los temas comparten el alto de línea (botones, pestañas y logo miden igual) y los tamaños de letra salen de igualar el **ancho** de un texto de muestra con la letra del sistema, para que quepan las mismas opciones por línea. `UiAnim` son las animaciones de cambio de pantalla. |
 | `ui/components/PxTransition.kt` | Animación al cambiar de pestaña, abrir una ficha y abrir la app: Fundido, Deslizar, Cortinilla, Persiana, Píxeles o ninguna. |
 | `ui/components/PixelComponents.kt` | `pixelFrame` dibuja cada recuadro según `Px.style`; `pxBackdrop` es el fondo (barrido, ondas, degradado). Usar `pxCaps()` en vez de `uppercase()` para títulos. |
 
@@ -93,7 +93,7 @@ Android en local.
   - `demo_section` (`THEME`…)
   - `demo_game` (booleano)
   - `demo_gamepad` (booleano)
-  - `demo_style` (`PIXEL`, `TERMINAL`, `WAVES`, `FLAT`, `RPG`, `NEON`, `BEVEL`, `KEYCAP`), `demo_theme` (`SNES`…) y `demo_anim` (por defecto `NONE` en las capturas)
+  - `demo_style` (`WAVES`, `FLAT`, `RPG`, `NEON`, `BEVEL`, `KEYCAP`, `HYBRID`, `SPIRAL`), `demo_theme` (`SNES`…) y `demo_anim` (por defecto `NONE` en las capturas)
 - Lanzar el workflow a mano (Run workflow) genera las capturas:
   - 3 pantallas × 12 formatos: 16:9, 16:10, 4:3, 1:1, 8:7, 21:9 y 21:10, en horizontal y vertical.
   - Se publican en la rama **`capturas`**, que se sobrescribe en cada ejecución y no lanza compilaciones.

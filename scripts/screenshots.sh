@@ -81,14 +81,14 @@ while read -r style theme <&3; do
     shot "estilo-$style-$name-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad "$pad"
   done
 done 3<<'STYLES'
-PIXEL      PICO8
-TERMINAL   GRUVBOX
 WAVES      SYNTHWAVE
 FLAT       DREAMCAST
 RPG        SNES
 NEON       SYNTHWAVE
 BEVEL      MASTER_SYSTEM
 KEYCAP     GAMEBOY
+HYBRID     PSX
+SPIRAL     DREAMCAST
 STYLES
 
 # Consola 4:3 como la RG477M (1280x960 a ~280 ppp): la fila de secciones de Ajustes tiene que
@@ -96,7 +96,7 @@ STYLES
 adb shell wm size 1280x960
 adb shell wm density 280
 sleep 2
-for style in PIXEL TERMINAL WAVES FLAT RPG NEON BEVEL KEYCAP; do
+for style in WAVES FLAT RPG NEON BEVEL KEYCAP HYBRID SPIRAL; do
   shot "rg477m-$style-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --ez demo_gamepad true
 done
 
@@ -114,12 +114,11 @@ for fmt in "16x9-horizontal 1920 1080 400 true" "16x9-vertical 1080 1920 400 fal
 done
 adb shell settings put system font_scale 1.0
 
-# Pantalla pequeña de 640x480 (consolas sencillas): con el tema Pixel, el de letra más
-# pequeña en los botones, y con Ondas.
+# Pantalla pequeña de 640x480 (consolas sencillas): con Ondas y con RPG.
 adb shell wm size 640x480
 adb shell wm density 160
 sleep 2
-for style in PIXEL WAVES; do
+for style in WAVES RPG; do
   shot "640x480-$style-1-tienda" --es demo_tab STORE --es demo_style "$style" --ez demo_gamepad true
   shot "640x480-$style-2-ficha" --es demo_tab STORE --ez demo_game true --es demo_style "$style" --ez demo_gamepad true
   shot "640x480-$style-3-ajustes" --es demo_tab SETTINGS --es demo_section THEME --es demo_style "$style" --ez demo_gamepad true
@@ -131,7 +130,7 @@ adb shell wm size 1920x1080
 adb shell wm density 400
 sleep 2
 for theme in GAMEBOY GB_DMG VIRTUAL_BOY NES SYNTHWAVE; do
-  for style in PIXEL WAVES; do
+  for style in WAVES NEON; do
     shot_key "seleccion-$theme-$style" --es demo_tab STORE --es demo_style "$style" --es demo_theme "$theme" --ez demo_gamepad true
   done
 done

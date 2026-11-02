@@ -128,9 +128,7 @@ scripts/build-tdlib.sh   Compila TDLib para Android
 
 - [TDLib](https://github.com/tdlib/td) (Boost Software License)
 - [7-Zip-JBinding-4Android](https://github.com/omicronapps/7-Zip-JBinding-4Android) (LGPL, con la restricción unRAR para RAR)
-- Fuentes [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P),
-  [VT323](https://fonts.google.com/specimen/VT323),
-  [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans),
+- Fuentes [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans),
   [Silkscreen](https://fonts.google.com/specimen/Silkscreen),
   [Orbitron](https://fonts.google.com/specimen/Orbitron),
   [Share Tech Mono](https://fonts.google.com/specimen/Share+Tech+Mono) y

@@ -221,18 +221,11 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
 object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
 
-    /**
-     * Tamaño mínimo (sp) de Press Start 2P: 8 píxeles reales. Está dibujada sobre una cuadrícula
-     * de 8 px y por debajo se emborrona; solo se nota en pantallas de baja densidad (640x480).
-     * Lo calcula [LimitFontScale] con la densidad de la pantalla.
-     */
-    var minPressStartSp by mutableFloatStateOf(0f)
-
     /** Animación al cambiar de pestaña, abrir un juego o abrir la app. */
     var anim by mutableStateOf(UiAnim.FADE)
 
     /** Tema: estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier paleta ([theme]). */
-    var style by mutableStateOf(UiStyle.PIXEL)
+    var style by mutableStateOf(UiStyle.WAVES)
     private val p get() = theme.palette
 
     val black get() = p.black
@@ -263,12 +256,6 @@ object Px {
 object FocusPulse {
     var value by mutableFloatStateOf(1f)
 }
-
-/** Fuente de 8 bits para títulos y botones. */
-val PixelFont = FontFamily(Font(R.font.press_start_2p))
-
-/** Fuente de terminal, más legible para textos largos. */
-val TermFont = FontFamily(Font(R.font.vt323))
 
 /** Pixel de 16 bits, redondeada y legible (estilo RPG). */
 val PixelifyFont = FontFamily(Font(R.font.pixelify_sans))
@@ -313,10 +300,16 @@ enum class FrameKind {
 
     /** Tecla gorda de consola portátil: esquinas muy redondas y canto inferior más oscuro. */
     KEYCAP,
+
+    /** Tarjeta de consola híbrida: esquinas redondeadas, cara algo más clara y sombra suave. */
+    TILE,
+
+    /** Cápsula brillante (consola de 128 bits): esquinas de media altura, brillo arriba y filo claro. */
+    BUBBLE,
 }
 
 /** Decoración del fondo de la app. */
-enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT, GRID, DITHER, DOTS }
+enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT, GRID, DITHER, DOTS, SOFT, SWIRL }
 
 /** Tamaño y altura de línea de un tipo de texto. */
 data class TextSize(val size: TextUnit, val line: TextUnit)
@@ -326,7 +319,7 @@ data class TextSize(val size: TextUnit, val line: TextUnit)
  *  - el alto de línea es el mismo en todos: botones, pestañas, ayuda y logo miden igual;
  *  - el tamaño de cada fuente se ha sacado igualando el ANCHO de un texto de muestra con el de
  *    Ondas y Plano (letra del sistema): así caben las mismas opciones por línea. Press Start 2P
- *    y Pixelify son muy anchas y por eso llevan números más pequeños; VT323 es estrecha. Los
+ *    y Pixelify son muy anchas y por eso llevan números más pequeños. Los
  *    botones (label/tiny) se igualaron con la fila de secciones de Ajustes, con un 3 % de margen
  *    por si la letra del sistema del aparato es algo más estrecha que Roboto;
  *  - el relleno de los botones compensa el grosor del marco ([StyleSpec.buttonPad]).
@@ -386,6 +379,8 @@ data class StyleSpec(
                 FrameKind.NEON -> (stroke + 1.dp) * 2
                 FrameKind.BEVEL -> (stroke + 1.dp) * 2
                 FrameKind.KEYCAP -> stroke * 2
+                FrameKind.TILE -> stroke * 2
+                FrameKind.BUBBLE -> (stroke + 2.dp) * 2
             }
             // 18 dp: lo que ya ocupaban marco y relleno en Ondas (8 + 1 por lado).
             return ((18.dp - frameWidth) / 2).coerceAtLeast(3.dp)
@@ -398,29 +393,6 @@ data class StyleSpec(
  * los colores (eso es la paleta).
  */
 enum class UiStyle(val label: String, val description: String, val spec: StyleSpec) {
-    PIXEL(
-        "Pixel",
-        "8 bits: letra gruesa, marcos sin esquinas y sombra dura.",
-        StyleSpec(
-            headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            // Press Start 2P es muy gruesa: a igual ancho "pesa" más que las demás, así que va
-            // algo más pequeña para verse del mismo tamaño que el resto de temas.
-            title = lineTitle(8f), heading = lineHeading(6.8f), label = lineLabel(5.4f),
-            tiny = lineTiny(5f), body = lineBody(16f), small = lineSmall(14.5f),
-            frame = FrameKind.PIXEL, shadow = true,
-        ),
-    ),
-    TERMINAL(
-        "Terminal",
-        "Menú de texto, como RGUI: todo en letra de terminal, doble línea y líneas de barrido.",
-        StyleSpec(
-            headFont = TermFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = lineTitle(21f), heading = lineHeading(17f), label = lineLabel(14.5f),
-            tiny = lineTiny(12.4f), body = lineBody(19f), small = lineSmall(17f),
-            headSpacing = 0.05f, frame = FrameKind.DOUBLE_LINE, stroke = 1.5.dp,
-            backdrop = Backdrop.SCANLINES, marker = ">",
-        ),
-    ),
     WAVES(
         "Ondas",
         "Suave y moderno, como XMB: letra fina, cristal, esquinas redondas y ondas de fondo.",
@@ -493,10 +465,37 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             backdrop = Backdrop.DOTS, marker = "●",
         ),
     ),
+    HYBRID(
+        "Híbrida",
+        "Como una consola híbrida: tarjetas limpias de esquinas redondeadas, sombra suave y fondo liso.",
+        StyleSpec(
+            headFont = FontFamily.SansSerif, headWeight = FontWeight.SemiBold,
+            labelFont = FontFamily.SansSerif, labelWeight = FontWeight.Medium,
+            bodyFont = FontFamily.SansSerif, bodyFontRes = null,
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(12f),
+            tiny = lineTiny(10f), body = lineBody(15f), small = lineSmall(13.5f),
+            uppercase = false, frame = FrameKind.TILE, stroke = 2.dp, radius = 10.dp, blocks = false,
+            backdrop = Backdrop.SOFT,
+        ),
+    ),
+    SPIRAL(
+        "Espiral",
+        "Consola de 128 bits: cápsulas brillantes con filo claro y una espiral que gira en el fondo.",
+        StyleSpec(
+            headFont = NunitoFont, headWeight = FontWeight.ExtraBold,
+            labelFont = FontFamily.SansSerif, labelWeight = FontWeight.Bold,
+            bodyFont = FontFamily.SansSerif, bodyFontRes = null,
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(11.5f),
+            tiny = lineTiny(9.7f), body = lineBody(15f), small = lineSmall(13.5f),
+            uppercase = false, frame = FrameKind.BUBBLE, stroke = 1.5.dp, radius = 18.dp, blocks = false,
+            backdrop = Backdrop.SWIRL, marker = "◉",
+        ),
+    ),
     ;
 
     companion object {
-        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: PIXEL
+        // Ondas por defecto; los temas que ya no existen (Pixel, Terminal) también pasan a Ondas.
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: WAVES
     }
 }
 
@@ -521,17 +520,13 @@ fun String.pxCaps(): String = if (Px.style.spec.uppercase) uppercase() else this
 object PxText {
     private val s get() = Px.style.spec
 
-    /** Press Start 2P nunca por debajo de 8 píxeles reales ([Px.minPressStartSp]). */
-    private fun sized(font: FontFamily, t: TextSize): TextUnit =
-        if (font == PixelFont && t.size.value < Px.minPressStartSp) Px.minPressStartSp.sp else t.size
-
     private fun head(t: TextSize) = TextStyle(
-        fontFamily = s.headFont, fontWeight = s.headWeight, fontSize = sized(s.headFont, t), lineHeight = t.line,
+        fontFamily = s.headFont, fontWeight = s.headWeight, fontSize = t.size, lineHeight = t.line,
         letterSpacing = s.headSpacing.em, color = Px.white,
     )
 
     private fun label(t: TextSize) = TextStyle(
-        fontFamily = s.labelFont, fontWeight = s.labelWeight, fontSize = sized(s.labelFont, t), lineHeight = t.line, color = Px.white,
+        fontFamily = s.labelFont, fontWeight = s.labelWeight, fontSize = t.size, lineHeight = t.line, color = Px.white,
     )
 
     val title get() = head(s.title)
@@ -577,7 +572,6 @@ fun LimitFontScale(content: @Composable () -> Unit) {
     val density = androidx.compose.ui.platform.LocalDensity.current
     val limited = remember(density) {
         val scale = density.fontScale.coerceAtMost(MAX_FONT_SCALE)
-        Px.minPressStartSp = 8f / (density.density * scale)
         androidx.compose.ui.unit.Density(density.density, scale)
     }
     androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides limited, content = content)

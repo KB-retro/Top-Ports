@@ -17,7 +17,7 @@ import kotlin.random.Random
  * minutos; después empieza otra. Suena con el tipo de sonido elegido (8 bits o suave).
  *
  * Solo suena con la app en pantalla y se calla mientras se ve un vídeo. Volumen en
- * Ajustes → Sonido → Música (0 = apagada, por defecto).
+ * Ajustes → Sonido → Música (alta por defecto; 0 = apagada).
  */
 object ChipMusic {
 

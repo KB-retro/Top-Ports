@@ -136,6 +136,8 @@ fun Modifier.pixelFrame(
                 FrameKind.NEON -> drawNeon(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.BEVEL -> drawBevel(fill, spec.stroke.toPx(), box)
                 FrameKind.KEYCAP -> drawKeycap(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.TILE -> drawTile(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.BUBBLE -> drawBubble(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.PIXEL -> Unit
             }
             if (focused) drawFocusRing(focus, box, spec.radius.toPx())
@@ -184,7 +186,38 @@ private fun frameInset(style: UiStyle): Dp {
         FrameKind.BEVEL -> spec.stroke + 1.dp
         // El canto de abajo de la tecla ocupa más que el resto del borde.
         FrameKind.KEYCAP -> spec.stroke
+        FrameKind.TILE -> spec.stroke
+        FrameKind.BUBBLE -> spec.stroke + 2.dp
     }
+}
+
+/**
+ * Tarjeta de consola híbrida: sombra suave debajo, cara un poco más clara que el relleno y, si el
+ * borde es de color (diálogos, avisos), un filo de ese color.
+ */
+private fun DrawScope.drawTile(fill: Color, border: Color, t: Float, r: Float, box: Size) {
+    val drop = 2.dp.toPx()
+    drawRoundRect(Color.Black.copy(alpha = 0.18f), Offset(0f, drop * 2), box, CornerRadius(r))
+    drawRoundRect(Color.Black.copy(alpha = 0.22f), Offset(0f, drop), box, CornerRadius(r))
+    drawRoundRect(lerp(fill, Color.White, 0.07f), Offset.Zero, box, CornerRadius(r))
+    if (border != Px.white && border != Px.black) {
+        drawRoundRect(border, Offset(t / 2, t / 2), Size(box.width - t, box.height - t), CornerRadius(r), style = Stroke(t))
+    }
+}
+
+/**
+ * Cápsula brillante: esquinas de hasta media altura, brillo en la mitad de arriba y un filo claro
+ * (o del color del borde si es de color).
+ */
+private fun DrawScope.drawBubble(fill: Color, border: Color, t: Float, r: Float, box: Size) {
+    val radius = CornerRadius(minOf(r, box.height / 2))
+    drawRoundRect(fill, Offset.Zero, box, radius)
+    drawRoundRect(
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.28f), Color.White.copy(alpha = 0.04f)), endY = box.height * 0.5f),
+        Offset(t * 2, t * 2), Size(box.width - t * 4, box.height * 0.5f), radius,
+    )
+    val edge = if (border == Px.white || border == Px.black) Color.White.copy(alpha = 0.55f) else border
+    drawRoundRect(edge, Offset(t / 2, t / 2), Size(box.width - t, box.height - t), radius, style = Stroke(t))
 }
 
 /** Lo que el canto inferior de una tecla (Cartucho) añade por abajo. */
@@ -366,6 +399,35 @@ fun Modifier.pxBackdrop(): Modifier = composed {
                     drawLine(c, Offset(cx + i * w / 28f, horizon), Offset(cx + i * w / 3f, h), stroke)
                 }
                 drawRect(line.copy(alpha = 0.9f), Offset(0f, horizon - stroke), Size(w, stroke * 2))
+            }
+        }
+        // Fondo liso con un degradado muy suave, como el menú de una consola híbrida.
+        Backdrop.SOFT -> background(Brush.verticalGradient(listOf(lerp(night, Color.White, 0.05f), night)))
+        // Gran espiral que gira muy despacio en una esquina, como la de una consola de 128 bits.
+        Backdrop.SWIRL -> {
+            val transition = rememberInfiniteTransition(label = "swirl")
+            val angle by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(tween(40_000, easing = LinearEasing), RepeatMode.Restart),
+                label = "swirlAngle",
+            )
+            val color = Px.orange
+            background(Brush.verticalGradient(listOf(Px.navyDark, night))).drawBehind {
+                val center = Offset(size.width * 0.82f, size.height * 0.78f)
+                val maxR = minOf(size.width, size.height) * 0.55f
+                val turns = 2.6f
+                val path = Path()
+                val steps = 160
+                for (i in 0..steps) {
+                    val f = i / steps.toFloat()
+                    val theta = f * turns * 2 * Math.PI.toFloat() + Math.toRadians(angle.toDouble()).toFloat()
+                    val radius = maxR * f
+                    val x = center.x + radius * kotlin.math.cos(theta)
+                    val y = center.y + radius * kotlin.math.sin(theta)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, color.copy(alpha = 0.16f), style = Stroke(maxR * 0.09f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
         }
         // Trama de puntos alternos, como los fondos de los escritorios antiguos.

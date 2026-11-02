@@ -179,6 +179,23 @@ fun CatalogScreen(vm: AppViewModel) {
             if (vm.search.isNotBlank()) {
                 PixelButton("X", onClick = { vm.search = "" }, color = Px.red, textColor = Px.white, small = true)
             }
+            // Favoritos, a la derecha de Buscar: muestra solo los marcados con la estrella (y vuelve a todos al pulsarlo otra vez).
+            val showingFavorites = vm.systemFilter == FAVORITES_FILTER
+            PixelButton(
+                if (showingFavorites) "★ Favoritos ✓" else "★ Favoritos (${favorites.size})",
+                onClick = {
+                    when {
+                        showingFavorites -> vm.systemFilter = null
+                        favorites.isEmpty() -> Toast.makeText(
+                            context, "Marca juegos con la estrella ☆ de su ficha", Toast.LENGTH_SHORT,
+                        ).show()
+                        else -> vm.systemFilter = FAVORITES_FILTER
+                    }
+                },
+                color = if (showingFavorites) Px.orange else Px.yellow,
+                textColor = Px.black,
+                small = true,
+            )
         }
         val filterButtons: @Composable () -> Unit = {
             PixelButton(
@@ -201,23 +218,6 @@ fun CatalogScreen(vm: AppViewModel) {
             if (games.isNotEmpty()) {
                 PixelButton("Al azar", onClick = { vm.openGame(games.random().id) }, color = Px.green, small = true)
             }
-            // Favoritos: muestra solo los marcados con la estrella (y vuelve a todos al pulsarlo otra vez).
-            val showingFavorites = vm.systemFilter == FAVORITES_FILTER
-            PixelButton(
-                if (showingFavorites) "★ Favoritos ✓" else "★ Favoritos (${favorites.size})",
-                onClick = {
-                    when {
-                        showingFavorites -> vm.systemFilter = null
-                        favorites.isEmpty() -> Toast.makeText(
-                            context, "Marca juegos con la estrella ☆ de su ficha", Toast.LENGTH_SHORT,
-                        ).show()
-                        else -> vm.systemFilter = FAVORITES_FILTER
-                    }
-                },
-                color = if (showingFavorites) Px.orange else Px.yellow,
-                textColor = Px.black,
-                small = true,
-            )
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }

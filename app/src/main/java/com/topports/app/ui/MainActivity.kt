@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
         RetroSound.enabled = prefs.getBoolean("sounds", true)
         RetroSound.soft = prefs.getBoolean("soundSoft", false)
         ChipMusic.init(this)
-        ChipMusic.level = prefs.getInt("music", 0)
+        ChipMusic.level = prefs.getInt("music", 3)
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         lockSquareScreensToLandscape()
         enableEdgeToEdge()

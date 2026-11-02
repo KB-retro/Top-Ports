@@ -42,8 +42,6 @@ val LICENSES = listOf(
     License("Media3 ExoPlayer", "Apache 2.0", "https://github.com/androidx/media/blob/release/LICENSE"),
     License("Coil", "Apache 2.0", "https://github.com/coil-kt/coil/blob/main/LICENSE.txt"),
     License("Kotlin y kotlinx.coroutines", "Apache 2.0", "https://github.com/Kotlin/kotlinx.coroutines/blob/master/LICENSE.txt"),
-    License("Press Start 2P (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Press+Start+2P/license"),
-    License("VT323 (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/VT323/license"),
     License("Pixelify Sans (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Pixelify+Sans/license"),
     License("Silkscreen (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Silkscreen/license"),
     License("Orbitron (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Orbitron/license"),
