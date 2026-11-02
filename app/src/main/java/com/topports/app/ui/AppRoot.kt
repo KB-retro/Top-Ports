@@ -213,16 +213,13 @@ private fun MainScreen(vm: AppViewModel) {
             // Misma altura de pestaña en todos los temas (el logo y los huecos no cambian al cambiar
             // de tema), según lo alta que sea la pantalla: en la Odin 2 Portal (≈430 dp) caben las
             // seis pestañas, el logo y la ayuda sin desplazar.
+            // 38 dp es lo mínimo para que quepa el texto con el marco más grueso (doble línea, ventana).
             val tabSpacing = when {
                 maxHeight >= 600.dp -> 14.dp
-                maxHeight >= 470.dp -> 10.dp
-                else -> 6.dp
+                maxHeight >= 470.dp -> 8.dp
+                else -> 4.dp
             }
-            val tabHeight = when {
-                maxHeight >= 600.dp -> 40.dp
-                maxHeight >= 470.dp -> 36.dp
-                else -> 30.dp
-            }
+            val tabHeight = if (maxHeight >= 600.dp) 42.dp else 38.dp
             // El logo ocupa el espacio que dejan libre las pestañas y la ayuda (medidas de verdad,
             // no por tramos): grande en 16:9 y 4:3, pequeño solo cuando de verdad no cabe.
             var tabsHeight by remember { mutableStateOf(0.dp) }

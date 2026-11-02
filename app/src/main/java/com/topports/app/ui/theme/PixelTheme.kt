@@ -370,8 +370,10 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "8 bits: letra gruesa, marcos sin esquinas y sombra dura.",
         StyleSpec(
             headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = lineTitle(9f), heading = lineHeading(7.5f), label = lineLabel(6.5f),
-            tiny = lineTiny(6f), body = lineBody(17f), small = lineSmall(15.5f),
+            // Press Start 2P es muy gruesa: a igual ancho "pesa" más que las demás, así que va
+            // algo más pequeña para verse del mismo tamaño que el resto de temas.
+            title = lineTitle(8f), heading = lineHeading(6.8f), label = lineLabel(5.9f),
+            tiny = lineTiny(5.4f), body = lineBody(16f), small = lineSmall(14.5f),
             frame = FrameKind.PIXEL, shadow = true,
         ),
     ),
