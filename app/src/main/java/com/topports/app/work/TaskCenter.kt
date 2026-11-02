@@ -366,7 +366,13 @@ class TaskCenter(
         fun active(p: InstallRegistry.PendingSave) =
             p.parts.any { (id, _) -> files[id]?.local?.isDownloadingActive == true } ||
                 now - (startedAt[p.pkgKey] ?: 0L) < 5_000
-        val waiting = installs.pendingSaves().filter { !it.paused && !complete(it) }.sortedBy { it.addedAt }
+        // Las que se están moviendo o extrayendo ([saving]) no se tocan: al terminar se borran de la
+        // caché de Telegram y, por un momento, parecen "sin descargar" antes de salir de la lista;
+        // la cola las volvía a descargar y se quedaban colgadas al 100 % sin nadie que las moviera.
+        val busy = _saving.value
+        val waiting = installs.pendingSaves()
+            .filter { !it.paused && it.pkgKey !in busy && !complete(it) }
+            .sortedBy { it.addedAt }
 
         if (wifiOnly && !onWifi.value) {
             waiting.filter { active(it) }.forEach { p ->
