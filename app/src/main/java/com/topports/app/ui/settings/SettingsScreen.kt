@@ -541,37 +541,47 @@ fun SettingsScreen(vm: AppViewModel) {
 
         }
 
-        // --- Privacidad ---
-        if (vm.settingsSection == SettingsSection.PRIVACY) {
-            item { SectionTitle("Privacidad", Px.green) }
-            item {
-                PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PRIVACY_POINTS.forEach { Text("• $it", style = PxText.small) }
-                    }
-                }
-            }
-
-        }
-
-        // --- Aviso legal ---
+        // --- Aviso legal y privacidad (en Legal, plegados como las licencias) ---
         if (vm.settingsSection == SettingsSection.LEGAL) {
             item { SectionTitle("Aviso legal", Px.orange) }
             item {
+                var open by remember { mutableStateOf(false) }
                 PixelPanel(Modifier.fillMaxWidth(), border = Px.orange) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        LEGAL_POINTS.forEach { Text("• $it", style = PxText.small) }
-                        PixelButton("Contactar / pedir retirada", onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(legalContactLink())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
-                            }.onFailure { toast("No hay ninguna app para abrir el contacto") }
-                        }, color = Px.orange, small = true)
+                        PixelButton(
+                            if (open) "▲ Ocultar aviso legal" else "▼ Ver aviso legal",
+                            onClick = { open = !open },
+                            color = Px.orange,
+                            small = true,
+                        )
+                        if (open) {
+                            LEGAL_POINTS.forEach { Text("• $it", style = PxText.small) }
+                            PixelButton("Contactar / pedir retirada", onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(legalContactLink())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }.onFailure { toast("No hay ninguna app para abrir el contacto") }
+                            }, color = Px.orange, small = true)
+                        }
                     }
                 }
             }
-
+            item { SectionTitle("Privacidad", Px.green) }
+            item {
+                var open by remember { mutableStateOf(false) }
+                PixelPanel(Modifier.fillMaxWidth(), border = Px.green) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PixelButton(
+                            if (open) "▲ Ocultar privacidad" else "▼ Ver privacidad",
+                            onClick = { open = !open },
+                            color = Px.green,
+                            small = true,
+                        )
+                        if (open) PRIVACY_POINTS.forEach { Text("• $it", style = PxText.small) }
+                    }
+                }
+            }
         }
 
         // --- Licencias ---

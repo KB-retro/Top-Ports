@@ -24,10 +24,9 @@ enum class Tab(val label: String) {
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    // Los permisos van dentro de Versión, plegados. "Descargas" (antes Almacenamiento) es corto
-    // para que las secciones quepan en una línea en pantallas 4:3 como la RG477M.
-    VERSION("Versión"), STORAGE("Descargas"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
-    ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
+    // Los permisos van dentro de Versión y la privacidad dentro de Legal, plegados.
+    VERSION("Versión"), STORAGE("Almacenamiento"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
+    ACCOUNT("Cuenta"), LEGAL("Legal"),
 }
 
 /** Filtro especial de la tienda: solo los juegos marcados como favoritos. */

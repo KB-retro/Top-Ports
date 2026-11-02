@@ -102,7 +102,7 @@ class TaskCenter(
 
     private val prefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
 
-    /** Extraer solo al terminar la descarga (Ajustes > Descargas). */
+    /** Extraer solo al terminar la descarga (Ajustes > Almacenamiento). */
     var autoExtract: Boolean = prefs.getBoolean("autoExtract", true)
         set(value) {
             field = value
@@ -275,7 +275,7 @@ class TaskCenter(
 
     // --- Cola de descargas ---
 
-    /** Descargas a la vez (0 = sin límite). Ajustes → Descargas. */
+    /** Descargas a la vez (0 = sin límite). Ajustes → Almacenamiento. */
     var maxParallel: Int = prefs.getInt("maxParallel", 2)
         set(value) {
             field = value
@@ -283,7 +283,7 @@ class TaskCenter(
             requestSchedule()
         }
 
-    /** Descargar solo con WiFi (o cable). Ajustes → Descargas. */
+    /** Descargar solo con WiFi (o cable). Ajustes → Almacenamiento. */
     var wifiOnly: Boolean = prefs.getBoolean("wifiOnly", false)
         set(value) {
             field = value

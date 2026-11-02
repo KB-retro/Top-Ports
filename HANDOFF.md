@@ -58,7 +58,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `ui/AppViewModel.kt` | Estado de la UI, pestañas con historial, vuelta a la ficha al salir de TAREAS (`switchTab`). |
 | `ui/Gamepad.kt`, `ui/MainActivity.kt` | Mando: A/B (intercambiables), L1/R1 (filas en la tienda, secciones en Ajustes), L2/R2, X, Y, SELECT y stick derecho (descripción de la ficha y Ajustes). `lockSquareScreensToLandscape()` para pantallas con proporción < 1.26. |
 | `ui/store/*` | Tienda (`CatalogScreen`), ficha (`GameScreen`) y popup de novedades. |
-| `ui/settings/*` | Ajustes por secciones: Versión, Permisos, Descargas, Sonido, Temas, Mando, Cuenta, Privacidad, Legal. |
+| `ui/settings/*` | Ajustes por secciones: Versión (con Permisos plegados y Restablecer ajustes), Almacenamiento, Sonido, Temas, Mando, Cuenta y Legal (aviso legal, privacidad y licencias, plegados). |
 | `ui/theme/PixelTheme.kt` | **Paletas de colores** (`AppTheme`: NES —por defecto—, PICO-8, Game Boy, NES, SNES, Mega Drive, PSX…) y **temas** (`UiStyle`: Ondas —por defecto—, Plano, RPG 16 bits, Neón, Relieve, Cartucho, Híbrida y Espiral), que se combinan. En la interfaz se llaman "Paleta de colores" y "Temas". Un tema (`StyleSpec`) fija letras, tamaños, mayúsculas, tipo de recuadro, barra de progreso y fondo. Todos los temas comparten el alto de línea (botones, pestañas y logo miden igual) y los tamaños de letra salen de igualar el **ancho** de un texto de muestra con la letra del sistema, para que quepan las mismas opciones por línea. `UiAnim` son las animaciones de cambio de pantalla. |
 | `ui/components/PxTransition.kt` | Animación al cambiar de pestaña, abrir una ficha y abrir la app: Fundido, Deslizar, Cortinilla, Persiana, Píxeles o ninguna. |
 | `ui/components/PixelComponents.kt` | `pixelFrame` dibuja cada recuadro según `Px.style`; `pxBackdrop` es el fondo (barrido, ondas, degradado). Usar `pxCaps()` en vez de `uppercase()` para títulos. |
@@ -107,7 +107,7 @@ Android en local.
    - Comprueba el espacio libre, sumando el tamaño del comprimido si hay que extraerlo y el de la parte más grande si hay que copiarla.
    - Registra un `PendingSave` y pide la descarga a TDLib.
 2. Al completarse todas las partes, `movePendingDownloads()` sigue uno de dos caminos:
-   - **Extracción automática** (activada por defecto; se desactiva con `autoExtract`, en Ajustes → Descargas). Se aplica a .7z, .rar o archivos en partes. `extractAndInstall` extrae en `/TopPorts/<juego>`, mueve los OBB, lanza la instalación de los APK, marca `unpacked_` y borra el comprimido de la caché de Telegram.
+   - **Extracción automática** (activada por defecto; se desactiva con `autoExtract`, en Ajustes → Almacenamiento). Se aplica a .7z, .rar o archivos en partes. `extractAndInstall` extrae en `/TopPorts/<juego>`, mueve los OBB, lanza la instalación de los APK, marca `unpacked_` y borra el comprimido de la caché de Telegram.
    - **Resto** (incluido un `.zip` suelto, porque hay lanzadores de ports que lo cargan tal cual): `saveParts` lo mueve a `/TopPorts/<juego>`. Mueve con `renameTo` si está en el mismo almacenamiento y, si no, copia.
 3. **Cancelar** (`cancelDownload` / `deleteDownload`): `CancelDownloadFile` + `DeleteFile` y quitar el pending.
 
