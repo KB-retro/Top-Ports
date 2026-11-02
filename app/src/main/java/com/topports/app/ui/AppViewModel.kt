@@ -24,9 +24,9 @@ enum class Tab(val label: String) {
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    // "Descargas" (antes Almacenamiento) es corto a propósito: así las 9 secciones caben en una
-    // línea en pantallas 4:3 como la RG477M.
-    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Descargas"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
+    // Los permisos van dentro de Versión, plegados. "Descargas" (antes Almacenamiento) es corto
+    // para que las secciones quepan en una línea en pantallas 4:3 como la RG477M.
+    VERSION("Versión"), STORAGE("Descargas"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
     ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
 }
 

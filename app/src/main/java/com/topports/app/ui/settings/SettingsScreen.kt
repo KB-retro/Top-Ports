@@ -125,6 +125,9 @@ fun SettingsScreen(vm: AppViewModel) {
     }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { vm.descriptionStick = 0f } }
 
+    // Permisos plegados dentro de Versión (se abren con su botón).
+    var permissionsOpen by remember { mutableStateOf(false) }
+
     LazyColumn(
         Modifier.fillMaxSize(),
         state = settingsList,
@@ -182,32 +185,6 @@ fun SettingsScreen(vm: AppViewModel) {
                         if (catalog.announcement != null) {
                             PixelButton("Ver últimas novedades del canal", onClick = { vm.announcementOpen = true },
                                 color = Px.yellow, small = true)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Restablecer ajustes, al final de Versión.
-        if (vm.settingsSection == SettingsSection.VERSION) {
-            item {
-                var confirmReset by remember { mutableStateOf(false) }
-                PixelButton("Restablecer ajustes", onClick = { confirmReset = true }, color = Px.red, textColor = Px.white, small = true)
-                if (confirmReset) {
-                    PixelDialog("¿Restablecer ajustes?", onDismiss = { confirmReset = false }) {
-                        Text(
-                            "Vuelven a como vienen de serie el tema, la paleta, las animaciones, el sonido, la música, " +
-                                "el mando, las descargas y el orden de la tienda. Tus favoritos, tus descargas y tu " +
-                                "sesión de Telegram no se tocan.",
-                            style = PxText.body,
-                        )
-                        DialogButtons {
-                            PixelButton("No", onClick = { confirmReset = false }, color = Px.grey, small = true)
-                            PixelButton("Restablecer", onClick = {
-                                confirmReset = false
-                                vm.resetSettings()
-                                toast("Ajustes restablecidos")
-                            }, color = Px.red, textColor = Px.white, small = true)
                         }
                     }
                 }
@@ -280,9 +257,28 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
-        // --- Permisos ---
-        if (vm.settingsSection == SettingsSection.PERMISSIONS) {
-            item { SectionTitle("Permisos", Px.yellow) }
+        // --- Permisos (dentro de Versión, plegados) ---
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item {
+                val missing = listOf(
+                    ApkInstaller.canInstall(context),
+                    Storage.hasAllFilesAccess(context),
+                    NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                    isIgnoringBattery(context),
+                ).count { !it }
+                key(refresh) {
+                    PixelButton(
+                        (if (permissionsOpen) "▲ Permisos" else "▼ Permisos") +
+                            if (missing > 0) " (faltan $missing)" else " (todos dados)",
+                        onClick = { permissionsOpen = !permissionsOpen },
+                        color = if (missing > 0) Px.yellow else Px.navyDark,
+                        textColor = if (missing > 0) Px.black else Px.white,
+                        small = true,
+                    )
+                }
+            }
+        }
+        if (vm.settingsSection == SettingsSection.VERSION && permissionsOpen) {
             item {
                 key(refresh) {
                     PermissionRow(
@@ -336,6 +332,32 @@ fun SettingsScreen(vm: AppViewModel) {
                 }
             }
 
+        }
+
+        // Restablecer ajustes, al final del todo de Versión.
+        if (vm.settingsSection == SettingsSection.VERSION) {
+            item {
+                var confirmReset by remember { mutableStateOf(false) }
+                PixelButton("Restablecer ajustes", onClick = { confirmReset = true }, color = Px.red, textColor = Px.white, small = true)
+                if (confirmReset) {
+                    PixelDialog("¿Restablecer ajustes?", onDismiss = { confirmReset = false }) {
+                        Text(
+                            "Vuelven a como vienen de serie el tema, la paleta, las animaciones, el sonido, la música, " +
+                                "el mando, las descargas y el orden de la tienda. Tus favoritos, tus descargas y tu " +
+                                "sesión de Telegram no se tocan.",
+                            style = PxText.body,
+                        )
+                        DialogButtons {
+                            PixelButton("No", onClick = { confirmReset = false }, color = Px.grey, small = true)
+                            PixelButton("Restablecer", onClick = {
+                                confirmReset = false
+                                vm.resetSettings()
+                                toast("Ajustes restablecidos")
+                            }, color = Px.red, textColor = Px.white, small = true)
+                        }
+                    }
+                }
+            }
         }
 
         // --- Almacenamiento ---
