@@ -42,7 +42,11 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:screenOrientation="fullUser"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode"
             android:windowSoftInputMode="adjustResize">
+            <!-- Girar la pantalla o conectar el mando no reinicia la actividad: Compose se adapta al
+                 nuevo tamaño sin más. Reiniciarla a veces dejaba la app enganchada en vertical. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

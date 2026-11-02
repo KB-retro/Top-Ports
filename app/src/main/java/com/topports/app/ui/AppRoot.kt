@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import com.topports.app.ui.components.PxTransition
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -87,15 +90,27 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
             )
             return@Box
         }
-        when (val state = auth) {
+        // Apertura: el primer fotograma va en blanco y la pantalla entra con la animación elegida.
+        var opened by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { opened = true }
+        val stage = when (auth) {
             null,
             is TdApi.AuthorizationStateWaitTdlibParameters,
             is TdApi.AuthorizationStateLoggingOut,
             is TdApi.AuthorizationStateClosing,
             is TdApi.AuthorizationStateClosed,
-            -> SplashScreen()
-            is TdApi.AuthorizationStateReady -> MainScreen(vm)
-            else -> LoginFlow(vm, state)
+            -> RootStage.SPLASH
+            is TdApi.AuthorizationStateReady -> RootStage.MAIN
+            else -> RootStage.LOGIN
+        }
+        PxTransition(if (opened) stage else RootStage.BLANK, order = { it.ordinal }) { shown ->
+            when (shown) {
+                RootStage.BLANK -> Unit
+                RootStage.SPLASH -> SplashScreen()
+                // Mientras sale (ya con la sesión abierta) no se repinta el inicio de sesión.
+                RootStage.LOGIN -> auth?.takeUnless { it is TdApi.AuthorizationStateReady }?.let { LoginFlow(vm, it) }
+                RootStage.MAIN -> MainScreen(vm)
+            }
         }
     }
 }
@@ -129,10 +144,15 @@ private fun MainScreen(vm: AppViewModel) {
     }
 
     val content: @Composable (Modifier) -> Unit = { modifier ->
-        Box(modifier) {
-            when (vm.tab) {
+        // Cada cambio de pestaña o abrir/cerrar una ficha pasa con la animación de Ajustes.
+        PxTransition(
+            ScreenKey(vm.tab, vm.selectedGameId.takeIf { vm.tab == Tab.STORE }),
+            modifier,
+            order = { it.tab.ordinal * 2 + if (it.gameId != null) 1 else 0 },
+        ) { key ->
+            when (key.tab) {
                 Tab.STORE -> {
-                    val id = vm.selectedGameId
+                    val id = key.gameId
                     if (id == null) CatalogScreen(vm) else GameScreen(vm, id)
                 }
                 Tab.INSTALLED -> InstalledScreen(vm)
@@ -169,13 +189,15 @@ private fun MainScreen(vm: AppViewModel) {
         )
     }
 
-    val hasGamepad = remember { Gamepad.hasGamepad() }
+    // Se vuelve a mirar al conectar o quitar un mando (cambia la configuración, sin reiniciar la app).
+    val hasGamepad = remember(LocalConfiguration.current) { Gamepad.hasGamepad() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // Consolas (Odin 2 Portal, RG477M…), pantallas cuadradas (1:1, 8:7) y móviles en
         // horizontal: menú lateral. Solo los formatos más altos que anchos usan la barra inferior.
         val landscape = maxWidth >= maxHeight
         // Medidas guardadas aquí: dentro de Row/Column no se pueden leer las de BoxWithConstraints.
         val screenHeight = maxHeight
+        val screenWidth = maxWidth
         val narrowTitle = maxWidth < 360.dp
         if (landscape) {
             // El menú se adapta a la pantalla: 16:9 y 16:10 lo ven completo; 4:3 bajas y 21:9 quitan
@@ -190,6 +212,8 @@ private fun MainScreen(vm: AppViewModel) {
                 maxHeight >= 380.dp -> 10.dp
                 else -> 6.dp
             }
+            // Misma altura de pestaña en todos los temas: el logo y los huecos no cambian al cambiar de tema.
+            val tabHeight = if (maxHeight >= 380.dp) 40.dp else 34.dp
             // El logo ocupa el espacio que dejan libre las pestañas y la ayuda (medidas de verdad,
             // no por tramos): grande en 16:9 y 4:3, pequeño solo cuando de verdad no cabe.
             var tabsHeight by remember { mutableStateOf(0.dp) }
@@ -212,10 +236,13 @@ private fun MainScreen(vm: AppViewModel) {
                     // Si en una pantalla muy baja no caben, las pestañas se desplazan.
                     Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                         Column(
-                            Modifier.onSizeChanged { tabsHeight = with(density) { it.height.toDp() } },
+                            Modifier
+                                .onSizeChanged { tabsHeight = with(density) { it.height.toDp() } }
+                                // Sitio para el anillo de selección: si no, la zona con scroll lo corta.
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(tabSpacing),
                         ) {
-                            Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth()) }
+                            Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth().height(tabHeight)) }
                         }
                     }
                     if (showHelp) {
@@ -270,8 +297,10 @@ private fun MainScreen(vm: AppViewModel) {
                         .background(Px.navy)
                         .onSizeChanged { barWidth = it.width }
                         .horizontalScroll(barScroll)
+                        // Al menos tan ancha como la pantalla: si las pestañas caben, van centradas.
+                        .widthIn(min = screenWidth)
                         .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 ) {
                     Tab.entries.forEach { tab ->
                         tabButton(
@@ -294,6 +323,12 @@ private fun MainScreen(vm: AppViewModel) {
         }
     }
 }
+
+/** Pantallas de primer nivel, para animar la apertura y el paso del inicio de sesión a la tienda. */
+private enum class RootStage { BLANK, SPLASH, LOGIN, MAIN }
+
+/** Pantalla del contenido: pestaña y, en la tienda, la ficha abierta. */
+private data class ScreenKey(val tab: Tab, val gameId: Long?)
 
 private fun Context.findActivity(): Activity? {
     var c: Context? = this

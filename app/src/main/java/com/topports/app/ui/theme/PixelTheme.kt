@@ -219,6 +219,9 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
 object Px {
     var theme by mutableStateOf(AppTheme.PICO8)
 
+    /** Animación al cambiar de pestaña, abrir un juego o abrir la app. */
+    var anim by mutableStateOf(UiAnim.WIPE)
+
     /** Tema: estilo de interfaz (letras, marcos, barras y fondo); se combina con cualquier paleta ([theme]). */
     var style by mutableStateOf(UiStyle.PIXEL)
     private val p get() = theme.palette
@@ -261,8 +264,20 @@ val TermFont = FontFamily(Font(R.font.vt323))
 /** Pixel de 16 bits, redondeada y legible (estilo RPG). */
 val PixelifyFont = FontFamily(Font(R.font.pixelify_sans))
 
-/** Pixel fina en versalitas, para botones y etiquetas pequeñas (estilo RPG). */
+/** Pixel fina en versalitas (títulos de Relieve). */
 val SilkFont = FontFamily(Font(R.font.silkscreen))
+
+/** Futurista de los 80 (títulos de Neón). */
+val OrbitronFont = FontFamily(Font(R.font.orbitron))
+
+/** Monoespaciada técnica (botones de Neón y Relieve). */
+val TechMonoFont = FontFamily(Font(R.font.share_tech_mono))
+
+/** Redondeada y gruesa (Cartucho). */
+val NunitoFont = FontFamily(
+    Font(R.font.nunito_regular, FontWeight.Normal),
+    Font(R.font.nunito_extrabold, FontWeight.ExtraBold),
+)
 
 /** Cómo se dibuja un recuadro (panel, botón, tarjeta…). */
 enum class FrameKind {
@@ -280,18 +295,36 @@ enum class FrameKind {
 
     /** Ventana de RPG: degradado, borde claro entre dos líneas oscuras y esquinas romas. */
     WINDOW,
+
+    /** Tubo de neón: fondo oscuro translúcido y borde que brilla. */
+    NEON,
+
+    /** Relieve de escritorio de los 90: borde claro arriba a la izquierda y oscuro abajo a la derecha. */
+    BEVEL,
+
+    /** Tecla gorda de consola portátil: esquinas muy redondas y canto inferior más oscuro. */
+    KEYCAP,
 }
 
 /** Decoración del fondo de la app. */
-enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT }
+enum class Backdrop { NONE, SCANLINES, WAVES, GRADIENT, GRID, DITHER, DOTS }
 
-/**
- * Tamaño y altura de línea de un tipo de texto. Todos los temas se ven del mismo tamaño que
- * RPG 16 bits: cada fuente mide distinto (a igual tamaño, una "H" de Press Start 2P es casi el
- * doble de alta que una de VT323), así que los números se han sacado igualando la altura real
- * de las letras medida en cada fuente, no copiando los de RPG.
- */
+/** Tamaño y altura de línea de un tipo de texto. */
 data class TextSize(val size: TextUnit, val line: TextUnit)
+
+/*
+ * Tamaños de letra. Dos reglas para que todos los temas ocupen lo mismo:
+ *  - el alto de línea es el mismo en todos: botones, pestañas, ayuda y logo miden igual;
+ *  - el tamaño de cada fuente se ha sacado igualando el ANCHO de un texto de muestra con el de
+ *    Ondas y Plano (letra del sistema): así caben las mismas opciones por línea. Press Start 2P
+ *    y Pixelify son muy anchas y por eso llevan números más pequeños; VT323 es estrecha.
+ */
+private fun lineTitle(size: Float) = TextSize(size.sp, 22.sp)
+private fun lineHeading(size: Float) = TextSize(size.sp, 18.sp)
+private fun lineLabel(size: Float) = TextSize(size.sp, 15.sp)
+private fun lineTiny(size: Float) = TextSize(size.sp, 13.sp)
+private fun lineBody(size: Float) = TextSize(size.sp, 20.sp)
+private fun lineSmall(size: Float) = TextSize(size.sp, 18.sp)
 
 /** Todo lo que cambia un estilo de interfaz, además de los colores. */
 data class StyleSpec(
@@ -327,8 +360,9 @@ data class StyleSpec(
 )
 
 /**
- * Estilos de interfaz elegibles en Ajustes (en la interfaz, "Temas"). Inspirados en los menús de RetroArch y de las
- * consolas: cambian las letras, los recuadros, las barras y el fondo, no los colores.
+ * Estilos de interfaz elegibles en Ajustes (en la interfaz, "Temas"). Inspirados en los menús
+ * de RetroArch y de las consolas: cambian las letras, los recuadros, las barras y el fondo, no
+ * los colores (eso es la paleta).
  */
 enum class UiStyle(val label: String, val description: String, val spec: StyleSpec) {
     PIXEL(
@@ -336,8 +370,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "8 bits: letra gruesa, marcos sin esquinas y sombra dura.",
         StyleSpec(
             headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = TextSize(12.sp, 17.sp), heading = TextSize(9.5.sp, 14.sp), label = TextSize(7.sp, 11.sp),
-            tiny = TextSize(6.sp, 9.sp), body = TextSize(19.sp, 21.sp), small = TextSize(17.sp, 18.sp),
+            title = lineTitle(9f), heading = lineHeading(7.5f), label = lineLabel(6.5f),
+            tiny = lineTiny(6f), body = lineBody(17f), small = lineSmall(15.5f),
             frame = FrameKind.PIXEL, shadow = true,
         ),
     ),
@@ -346,8 +380,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "Menú de texto, como RGUI: todo en letra de terminal, doble línea y líneas de barrido.",
         StyleSpec(
             headFont = TermFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = TextSize(21.sp, 23.sp), heading = TextSize(17.sp, 19.sp), label = TextSize(13.sp, 15.sp),
-            tiny = TextSize(11.sp, 12.sp), body = TextSize(19.sp, 21.sp), small = TextSize(17.sp, 18.sp),
+            title = lineTitle(21f), heading = lineHeading(17f), label = lineLabel(13f),
+            tiny = lineTiny(11f), body = lineBody(19f), small = lineSmall(17f),
             headSpacing = 0.05f, frame = FrameKind.DOUBLE_LINE, stroke = 1.5.dp,
             backdrop = Backdrop.SCANLINES, marker = ">",
         ),
@@ -359,8 +393,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             headFont = FontFamily.SansSerif, headWeight = FontWeight.Light,
             labelFont = FontFamily.SansSerif, labelWeight = FontWeight.Medium,
             bodyFont = FontFamily.SansSerif, bodyFontRes = null,
-            title = TextSize(17.sp, 22.sp), heading = TextSize(13.5.sp, 18.sp), label = TextSize(12.sp, 15.sp),
-            tiny = TextSize(10.sp, 13.sp), body = TextSize(15.sp, 20.sp), small = TextSize(13.5.sp, 18.sp),
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(12f),
+            tiny = lineTiny(10f), body = lineBody(15f), small = lineSmall(13.5f),
             headSpacing = 0.04f, uppercase = false, frame = FrameKind.GLASS, stroke = 1.dp, radius = 14.dp,
             blocks = false, backdrop = Backdrop.WAVES, marker = "◆",
         ),
@@ -372,27 +406,77 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             headFont = FontFamily.Default, headWeight = FontWeight.SemiBold,
             labelWeight = FontWeight.Medium,
             bodyFont = FontFamily.Default, bodyFontRes = null,
-            title = TextSize(17.sp, 22.sp), heading = TextSize(13.5.sp, 18.sp), label = TextSize(12.sp, 15.sp),
-            tiny = TextSize(10.sp, 13.sp), body = TextSize(15.sp, 20.sp), small = TextSize(13.5.sp, 18.sp),
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(12f),
+            tiny = lineTiny(10f), body = lineBody(15f), small = lineSmall(13.5f),
             uppercase = false, frame = FrameKind.FLAT, stroke = 2.dp, radius = 6.dp, blocks = false,
         ),
     ),
     RPG(
         "RPG 16 bits",
-        "Ventanas de RPG: degradado, borde doble, esquinas romas y letra pixel fina.",
+        "Ventanas de RPG: degradado, borde doble, esquinas romas y letra pixel redondeada.",
         StyleSpec(
-            headFont = PixelifyFont, labelFont = SilkFont,
-            bodyFont = PixelifyFont, bodyFontRes = R.font.pixelify_sans,
-            title = TextSize(19.sp, 24.sp), heading = TextSize(15.sp, 20.sp), label = TextSize(11.sp, 15.sp),
-            tiny = TextSize(9.sp, 12.sp), body = TextSize(17.sp, 21.sp), small = TextSize(15.sp, 18.sp),
+            headFont = PixelifyFont, bodyFont = PixelifyFont, bodyFontRes = R.font.pixelify_sans,
+            title = lineTitle(16f), heading = lineHeading(13f), label = lineLabel(10.5f),
+            tiny = lineTiny(9f), body = lineBody(14.5f), small = lineSmall(13f),
             frame = FrameKind.WINDOW, stroke = 2.dp, radius = 5.dp, shadow = true, blocks = false,
             backdrop = Backdrop.GRADIENT, marker = "▶",
+        ),
+    ),
+    NEON(
+        "Neón",
+        "Recreativa de los 80: tubos de neón que brillan, letra futurista y rejilla en el horizonte.",
+        StyleSpec(
+            headFont = OrbitronFont, labelFont = TechMonoFont,
+            bodyFont = FontFamily.SansSerif, bodyFontRes = null,
+            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.5f),
+            tiny = lineTiny(9f), body = lineBody(15f), small = lineSmall(13.5f),
+            headSpacing = 0.06f, frame = FrameKind.NEON, stroke = 1.5.dp, radius = 4.dp, blocks = false,
+            backdrop = Backdrop.GRID, marker = "//",
+        ),
+    ),
+    BEVEL(
+        "Relieve",
+        "Escritorio de los 90: ventanas y botones en relieve, letra técnica y fondo tramado.",
+        StyleSpec(
+            headFont = SilkFont, labelFont = TechMonoFont,
+            bodyFont = TechMonoFont, bodyFontRes = R.font.share_tech_mono,
+            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.5f),
+            tiny = lineTiny(9f), body = lineBody(13.5f), small = lineSmall(12f),
+            uppercase = false, frame = FrameKind.BEVEL, stroke = 2.dp,
+            backdrop = Backdrop.DITHER,
+        ),
+    ),
+    KEYCAP(
+        "Cartucho",
+        "Botones gordos de consola portátil: letra redondeada, esquinas muy curvas y fondo de puntos.",
+        StyleSpec(
+            headFont = NunitoFont, headWeight = FontWeight.ExtraBold,
+            bodyFont = NunitoFont, bodyFontRes = R.font.nunito_regular,
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(11.5f),
+            tiny = lineTiny(9.5f), body = lineBody(15f), small = lineSmall(13.5f),
+            uppercase = false, frame = FrameKind.KEYCAP, stroke = 2.dp, radius = 12.dp, blocks = false,
+            backdrop = Backdrop.DOTS, marker = "●",
         ),
     ),
     ;
 
     companion object {
         fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: PIXEL
+    }
+}
+
+/** Animaciones al cambiar de pestaña, abrir una ficha o abrir la app (Ajustes → Apariencia). */
+enum class UiAnim(val label: String, val description: String) {
+    NONE("Ninguna", "Cambio instantáneo."),
+    FADE("Fundido", "La pantalla nueva aparece sobre la anterior."),
+    SLIDE("Deslizar", "La pantalla entra de lado, hacia donde vas."),
+    WIPE("Cortinilla", "Una barra de color barre la pantalla y descubre la nueva."),
+    BLINDS("Persiana", "La pantalla nueva baja en franjas, como una persiana."),
+    PIXELS("Píxeles", "La pantalla nueva aparece en bloques sueltos, como un fundido de 8 bits."),
+    ;
+
+    companion object {
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: WIPE
     }
 }
 

@@ -131,11 +131,19 @@ fun Modifier.pixelFrame(
                 FrameKind.GLASS -> drawGlass(fill, border, focused, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.FLAT -> drawFlat(fill, border, focused, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.WINDOW -> drawWindow(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.NEON -> drawNeon(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
+                FrameKind.BEVEL -> drawBevel(fill, spec.stroke.toPx(), box)
+                FrameKind.KEYCAP -> drawKeycap(fill, border, spec.stroke.toPx(), spec.radius.toPx(), box)
                 FrameKind.PIXEL -> Unit
             }
             if (focused) drawFocusRing(focus, box, spec.radius.toPx())
         }
-        .padding(start = inset, top = inset, end = inset + drop, bottom = inset + drop)
+        .padding(
+            start = inset,
+            top = inset,
+            end = inset + drop,
+            bottom = inset + drop + if (spec.frame == FrameKind.KEYCAP) KEYCAP_LIP else 0.dp,
+        )
 }
 
 /**
@@ -170,6 +178,60 @@ private fun frameInset(style: UiStyle): Dp {
         FrameKind.DOUBLE_LINE -> spec.stroke * 2 + 2.dp
         FrameKind.GLASS, FrameKind.FLAT -> spec.stroke
         FrameKind.WINDOW -> spec.stroke + 2.dp
+        FrameKind.NEON -> spec.stroke + 1.dp
+        FrameKind.BEVEL -> spec.stroke + 1.dp
+        // El canto de abajo de la tecla ocupa más que el resto del borde.
+        FrameKind.KEYCAP -> spec.stroke
+    }
+}
+
+/** Lo que el canto inferior de una tecla (Cartucho) añade por abajo. */
+private val KEYCAP_LIP = 4.dp
+
+/**
+ * Neón: los fondos oscuros se vuelven translúcidos y el borde brilla (tres trazos: halo ancho,
+ * medio y el tubo). Los botones de color conservan su relleno y brillan de su color.
+ */
+private fun DrawScope.drawNeon(fill: Color, border: Color, t: Float, r: Float, box: Size) {
+    val dark = fill.luminance() < 0.3f
+    val tube = when {
+        !dark -> fill
+        border == Px.white -> Px.blue
+        border == Px.black -> Px.lavender
+        else -> border
+    }
+    drawRoundRect(if (dark) fill.copy(alpha = 0.45f) else fill, Offset.Zero, box, CornerRadius(r))
+    val inset = Offset(t / 2, t / 2)
+    val inner = Size(box.width - t, box.height - t)
+    drawRoundRect(tube.copy(alpha = 0.12f), inset, inner, CornerRadius(r), style = Stroke(t * 6))
+    drawRoundRect(tube.copy(alpha = 0.28f), inset, inner, CornerRadius(r), style = Stroke(t * 3))
+    drawRoundRect(lerp(tube, Color.White, 0.35f), inset, inner, CornerRadius(r), style = Stroke(t))
+}
+
+/** Relieve: línea negra, luz arriba a la izquierda, sombra abajo a la derecha. */
+private fun DrawScope.drawBevel(fill: Color, t: Float, box: Size) {
+    val line = 1.dp.toPx()
+    drawRect(Color.Black, Offset.Zero, box)
+    val w = box.width - 2 * line
+    val h = box.height - 2 * line
+    val o = Offset(line, line)
+    drawRect(lerp(fill, Color.Black, 0.5f), o, Size(w, h))
+    drawRect(lerp(fill, Color.White, 0.45f), o, Size(w - t, h - t))
+    drawRect(fill, o + Offset(t, t), Size(w - 2 * t, h - 2 * t))
+}
+
+/** Tecla: canto inferior oscuro, cara con brillo arriba y, si el borde es de color, un filo de ese color. */
+private fun DrawScope.drawKeycap(fill: Color, border: Color, t: Float, r: Float, box: Size) {
+    val lip = KEYCAP_LIP.toPx()
+    val face = Size(box.width, box.height - lip)
+    drawRoundRect(lerp(fill, Color.Black, 0.45f), Offset(0f, lip), face, CornerRadius(r))
+    drawRoundRect(fill, Offset.Zero, face, CornerRadius(r))
+    drawRoundRect(
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent), endY = face.height * 0.5f),
+        Offset.Zero, face, CornerRadius(r),
+    )
+    if (border != Px.white && border != Px.black) {
+        drawRoundRect(border, Offset(t / 2, t / 2), Size(face.width - t, face.height - t), CornerRadius(r), style = Stroke(t))
     }
 }
 
@@ -231,16 +293,47 @@ fun Modifier.pxBackdrop(): Modifier = composed {
     val night = Px.night
     when (Px.style.spec.backdrop) {
         Backdrop.NONE -> background(night)
-        Backdrop.SCANLINES -> background(night).drawBehind {
-            val step = 3.dp.toPx()
-            val line = Color.Black.copy(alpha = 0.35f)
-            var y = 0f
-            while (y < size.height) {
-                drawRect(line, Offset(0f, y), Size(size.width, 1.dp.toPx()))
-                y += step
-            }
+        Backdrop.SCANLINES -> {
+            val brush = tileBrush(3.dp) { cell -> drawRect(Color.Black.copy(alpha = 0.35f), Offset.Zero, Size(cell, 1.dp.toPx())) }
+            background(night).background(brush)
         }
         Backdrop.GRADIENT -> background(Brush.verticalGradient(listOf(Px.navyDark, night, Px.black)))
+        // Rejilla de recreativa: horizonte y líneas que se pierden hacia el fondo.
+        Backdrop.GRID -> {
+            val line = Px.pink
+            background(Brush.verticalGradient(listOf(Px.black, night, Px.navyDark))).drawBehind {
+                val horizon = size.height * 0.55f
+                val c = line.copy(alpha = 0.22f)
+                val w = 1.dp.toPx()
+                var gap = 6.dp.toPx()
+                var y = horizon
+                while (y < size.height) {
+                    drawRect(c, Offset(0f, y), Size(size.width, w))
+                    y += gap
+                    gap *= 1.35f
+                }
+                val cx = size.width / 2
+                for (i in -12..12) {
+                    drawLine(c, Offset(cx + i * size.width / 24f, horizon), Offset(cx + i * size.width / 4f, size.height), w)
+                }
+                drawRect(line.copy(alpha = 0.45f), Offset(0f, horizon), Size(size.width, 2.dp.toPx()))
+            }
+        }
+        // Trama de puntos alternos, como los fondos de los escritorios antiguos.
+        Backdrop.DITHER -> {
+            val c = Px.navy.copy(alpha = 0.55f)
+            val brush = tileBrush(4.dp, c) { cell ->
+                val half = cell / 2
+                drawRect(c, Offset.Zero, Size(half, half))
+                drawRect(c, Offset(half, half), Size(half, half))
+            }
+            background(night).background(brush)
+        }
+        Backdrop.DOTS -> {
+            val c = Px.lavender.copy(alpha = 0.18f)
+            val brush = tileBrush(18.dp, c) { cell -> drawCircle(c, 1.5.dp.toPx(), Offset(cell / 2, cell / 2)) }
+            background(night).background(brush)
+        }
         Backdrop.WAVES -> {
             val transition = rememberInfiniteTransition(label = "waves")
             val phase by transition.animateFloat(
@@ -255,6 +348,33 @@ fun Modifier.pxBackdrop(): Modifier = composed {
                 colors.forEachIndexed { k, c -> drawWave(c.copy(alpha = 0.10f + 0.04f * k), phase * (1 + k * 0.35f) + k * 1.7f, 0.55f + k * 0.08f, k) }
             }
         }
+    }
+}
+
+/**
+ * Patrón pequeño que se repite por todo el fondo. Se dibuja una vez en una imagen de [tile] y
+ * se pinta con un sombreador: el fondo entero cuesta un solo rectángulo aunque se redibuje
+ * muchas veces (el latido de la selección, el progreso…).
+ */
+@Composable
+private fun tileBrush(tile: Dp, vararg keys: Any, draw: DrawScope.(cell: Float) -> Unit): Brush {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    return remember(density, tile, *keys) {
+        val px = with(density) { tile.toPx() }.let { kotlin.math.round(it).toInt() }.coerceAtLeast(2)
+        val bitmap = androidx.compose.ui.graphics.ImageBitmap(px, px)
+        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+            density,
+            androidx.compose.ui.unit.LayoutDirection.Ltr,
+            androidx.compose.ui.graphics.Canvas(bitmap),
+            Size(px.toFloat(), px.toFloat()),
+        ) { draw(px.toFloat()) }
+        androidx.compose.ui.graphics.ShaderBrush(
+            androidx.compose.ui.graphics.ImageShader(
+                bitmap,
+                androidx.compose.ui.graphics.TileMode.Repeated,
+                androidx.compose.ui.graphics.TileMode.Repeated,
+            ),
+        )
     }
 }
 

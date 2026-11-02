@@ -64,6 +64,12 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.LaunchedEffect
+import com.topports.app.ui.theme.UiAnim
+import com.topports.app.ui.theme.pxCaps
+import com.topports.app.ui.components.PxTransition
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -308,6 +314,31 @@ fun SettingsScreen(vm: AppViewModel) {
                     Text(Px.style.description, style = PxText.small.copy(color = Px.white))
                 }
             }
+            item { SectionTitle("Animaciones", Px.green) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Al cambiar de pestaña, abrir un juego y abrir la app.",
+                        style = PxText.small,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AnimPreview()
+                        Text(Px.anim.description, style = PxText.small.copy(color = Px.white), modifier = Modifier.weight(1f))
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UiAnim.entries.forEach { anim ->
+                            val selected = Px.anim == anim
+                            PixelButton(
+                                if (selected) "✓ ${anim.label}" else anim.label,
+                                onClick = { vm.setAnim(anim) },
+                                color = if (selected) Px.orange else Px.navyDark,
+                                textColor = if (selected) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
+                    }
+                }
+            }
             item { SectionTitle("Paleta de colores", Px.pink) }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -506,6 +537,8 @@ private fun StyleChip(style: UiStyle, selected: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(
             Modifier.size(width = 112.dp, height = 56.dp)
+                // Tocar la muestra también elige el tema (no solo el botón de debajo).
+                .pointerInput(style) { detectTapGestures { onClick() } }
                 .pixelFrame(fill = Px.navy, border = if (selected) Px.yellow else Px.white, style = style),
             contentAlignment = Alignment.Center,
         ) {
@@ -527,12 +560,35 @@ private fun StyleChip(style: UiStyle, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** Vista previa de la animación elegida: dos pantallas de muestra que se alternan solas. */
+@Composable
+private fun AnimPreview() {
+    var page by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Px.anim) {
+        while (true) {
+            kotlinx.coroutines.delay(1600)
+            page = (page + 1) % 2
+        }
+    }
+    Box(Modifier.size(width = 150.dp, height = 84.dp)) {
+        PxTransition(page, Modifier.fillMaxSize(), order = { it }) { shown ->
+            Box(
+                Modifier.fillMaxSize().pixelFrame(fill = if (shown == 0) Px.navy else Px.purple, border = Px.white),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text((if (shown == 0) "Tienda" else "Juego").pxCaps(), style = PxText.heading.copy(color = if (shown == 0) Px.blue else Px.yellow))
+            }
+        }
+    }
+}
+
 /** Muestra de una paleta: sus colores principales y el nombre. */
 @Composable
 private fun ThemeChip(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
     val p = theme.palette
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.background(p.night).padding(4.dp)) {
+        // Tocar los colores también elige la paleta (no solo el botón de debajo).
+        Row(Modifier.background(p.night).pointerInput(theme) { detectTapGestures { onClick() } }.padding(4.dp)) {
             listOf(p.navy, p.orange, p.blue, p.green, p.pink, p.white).forEach {
                 Box(Modifier.size(12.dp).background(it))
             }

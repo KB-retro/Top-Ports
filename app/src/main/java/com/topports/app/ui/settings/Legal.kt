@@ -46,6 +46,12 @@ val LICENSES = listOf(
     License("VT323 (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/VT323/license"),
     License("Pixelify Sans (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Pixelify+Sans/license"),
     License("Silkscreen (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Silkscreen/license"),
+    License("Orbitron (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Orbitron/license"),
+    License("Share Tech Mono (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Share+Tech+Mono/license"),
+    License(
+        "Nunito (fuente)", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Nunito/license",
+        "Se incluyen dos grosores fijos (normal y extranegrita) sacados de la fuente variable.",
+    ),
     License(
         "Robot de Android (logo)", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/",
         "El robot de Android se reproduce o modifica a partir de trabajo creado y compartido por Google.",

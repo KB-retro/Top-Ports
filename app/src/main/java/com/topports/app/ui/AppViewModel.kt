@@ -15,6 +15,7 @@ import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
 import kotlinx.coroutines.launch
 import com.topports.app.ui.theme.UiStyle
+import com.topports.app.ui.theme.UiAnim
 
 enum class Tab(val label: String) {
     STORE("Tienda"), INSTALLED("Instalados"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
@@ -103,6 +104,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Sistema elegido en la tienda ("N64", "X360"…); null = todos. */
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
+
+    /** Animación de cambio de pantalla; se aplica al momento y se recuerda. */
+    fun setAnim(anim: UiAnim) {
+        Px.anim = anim
+        prefs.edit().putString("anim", anim.name).apply()
+    }
 
     /** Tema (estilo de interfaz: letras y recuadros); se aplica al momento y se recuerda. */
     fun setStyle(style: UiStyle) {

@@ -86,6 +86,9 @@ TERMINAL   GRUVBOX
 WAVES      SYNTHWAVE
 FLAT       DREAMCAST
 RPG        SNES
+NEON       SYNTHWAVE
+BEVEL      MASTER_SYSTEM
+KEYCAP     GAMEBOY
 STYLES
 
 # Lo seleccionado con el mando (la primera carátula) en las paletas de un solo tono, donde

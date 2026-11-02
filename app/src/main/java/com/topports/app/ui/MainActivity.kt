@@ -16,6 +16,7 @@ import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.TopPortsTheme
 import com.topports.app.ui.theme.UiStyle
+import com.topports.app.ui.theme.UiAnim
 
 class MainActivity : ComponentActivity() {
 
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("ui", MODE_PRIVATE)
         Px.theme = AppTheme.fromName(prefs.getString("theme", null))
         Px.style = UiStyle.fromName(prefs.getString("uiStyle", null))
+        Px.anim = UiAnim.fromName(prefs.getString("anim", null))
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         lockSquareScreensToLandscape()
         enableEdgeToEdge()
@@ -87,6 +89,8 @@ class MainActivity : ComponentActivity() {
         // Capturas de cada estilo y tema: --es demo_style WAVES --es demo_theme SNES
         intent.getStringExtra("demo_style")?.let { Px.style = UiStyle.fromName(it) }
         intent.getStringExtra("demo_theme")?.let { Px.theme = AppTheme.fromName(it) }
+        // Las capturas se hacen sin animación, para no pillar una pantalla a medias.
+        Px.anim = UiAnim.fromName(intent.getStringExtra("demo_anim") ?: UiAnim.NONE.name)
         intent.getStringExtra("demo_tab")?.let { name -> Tab.entries.firstOrNull { it.name == name }?.let { vm.tab = it } }
         intent.getStringExtra("demo_section")?.let { name ->
             SettingsSection.entries.firstOrNull { it.name == name }?.let { vm.settingsSection = it }
