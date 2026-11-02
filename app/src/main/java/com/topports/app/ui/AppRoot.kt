@@ -215,7 +215,11 @@ private fun MainScreen(vm: AppViewModel) {
             // de tema), según lo alta que sea la pantalla: en la Odin 2 Portal (≈430 dp) caben las
             // seis pestañas, el logo y la ayuda sin desplazar.
             // 38 dp es lo mínimo para que quepa el texto con el marco más grueso (doble línea, ventana).
+            // 16:9 y 16:10 (pantallas bajas para su ancho): menos hueco entre pestañas y la ayuda de
+            // controles más pequeña y en 4 líneas, para que el logo no quede diminuto.
+            val wideScreen = screenWidth / screenHeight >= 1.5f
             val tabSpacing = when {
+                wideScreen -> 4.dp
                 maxHeight >= 600.dp -> 14.dp
                 maxHeight >= 470.dp -> 8.dp
                 else -> 4.dp
@@ -227,8 +231,8 @@ private fun MainScreen(vm: AppViewModel) {
             var helpHeight by remember { mutableStateOf(0.dp) }
             val density = LocalDensity.current
             val free = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - tabsHeight -
-                (if (showHelp) helpHeight else 0.dp) - 32.dp
-            val logoSize = (free * 0.8f).coerceIn(44.dp, minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2))
+                (if (showHelp) helpHeight else 0.dp) - (if (wideScreen) 20.dp else 32.dp)
+            val logoSize = (free * (if (wideScreen) 0.95f else 0.8f)).coerceIn(44.dp, minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2))
             Row(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
@@ -256,12 +260,17 @@ private fun MainScreen(vm: AppViewModel) {
                         }
                     }
                     if (showHelp) {
+                        val tiny = PxText.tiny
                         Text(
                             // En Favoritos, SELECT quita el juego seleccionado.
                             "L1/R1  FILA\nL2/R2  PESTAÑA\n" +
                                 (if (vm.tab == Tab.STORE && vm.systemFilter == FAVORITES_FILTER) "SELECT QUITAR ★" else "SELECT SISTEMA") +
-                                "\nA  ACEPTAR\nB  INICIO",
-                            style = PxText.tiny.copy(color = Px.darkGrey),
+                                if (wideScreen) "\nA ACEPTAR · B INICIO" else "\nA  ACEPTAR\nB  INICIO",
+                            style = if (wideScreen) {
+                                tiny.copy(color = Px.darkGrey, fontSize = tiny.fontSize * 0.85f, lineHeight = tiny.lineHeight * 0.8f)
+                            } else {
+                                tiny.copy(color = Px.darkGrey)
+                            },
                             modifier = Modifier.onSizeChanged { helpHeight = with(density) { it.height.toDp() } },
                         )
                     }
