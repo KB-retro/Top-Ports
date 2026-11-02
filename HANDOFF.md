@@ -45,6 +45,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `telegram/DemoCatalog.kt` | Catálogo falso para el modo demo y las capturas. |
 | `work/TaskCenter.kt` | Descargas y tareas: mover a `/TopPorts/<juego>` al terminar, **extracción automática**, instalar, guardar sin extraer, cancelar, copiar OBB, autoactualización. |
 | `work/TaskCenter.kt` (cola) | Cola de descargas: `maxParallel` (1, 2, 3 o sin límite) y `wifiOnly`; `schedule()` arranca por orden de petición (`PendingSave.addedAt`) y respeta las pausadas a mano (`paused`). Expone `queued` y `waitingWifi` para la ficha y TAREAS. |
+| `ui/ChipMusic.kt` | Banda sonora chiptune generada al momento (sin archivos): canciones al azar con acordes, motivo de melodía, bajo, arpegio y batería; el instrumento sale del tema. Solo con la app en pantalla (`setForeground`), se calla con los vídeos (`hold`). Volumen en Ajustes → Apariencia → Música (apagada por defecto). |
 | `ui/RetroSound.kt` | Sonidos de menú sintetizados (sin archivos): mover, aceptar y volver, con un timbre por tema. Se activan en Ajustes → Apariencia. |
 | `work/WorkService.kt` | Servicio en primer plano (dataSync) mientras hay trabajo; `onTimeout` para el límite diario de Android 15. |
 | `archive/ArchiveExtractor.kt` | 7-Zip-JBinding. `VolumeSet` resuelve las partes por nombre lógico (TDLib puede renombrar). Comprobación zip-slip. |

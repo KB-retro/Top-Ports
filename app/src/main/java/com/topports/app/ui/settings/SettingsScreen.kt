@@ -405,6 +405,30 @@ fun SettingsScreen(vm: AppViewModel) {
                     )
                 }
             }
+            item { SectionTitle("Música", Px.lavender) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Banda sonora chiptune generada al momento: cada canción es nueva, no ocupa nada y suena " +
+                            "con el instrumento del tema. Solo con la app en pantalla.",
+                        style = PxText.small,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("No", "Baja", "Media", "Alta").forEachIndexed { level, label ->
+                            PixelButton(
+                                if (vm.music == level) "✓ $label" else label,
+                                onClick = { vm.changeMusic(level) },
+                                color = if (vm.music == level) Px.orange else Px.navyDark,
+                                textColor = if (vm.music == level) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
+                        if (vm.music > 0) {
+                            PixelButton("Otra canción", onClick = { com.topports.app.ui.ChipMusic.next() }, color = Px.lavender, small = true)
+                        }
+                    }
+                }
+            }
             item { SectionTitle("Paleta de colores", Px.pink) }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

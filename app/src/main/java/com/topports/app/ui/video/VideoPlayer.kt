@@ -60,6 +60,11 @@ import com.topports.app.ui.theme.pxCaps
 @Composable
 fun VideoPlayerDialog(file: File, title: String, onClose: () -> Unit) {
     val context = LocalContext.current
+    // La música de la app se calla mientras se ve el vídeo.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.topports.app.ui.ChipMusic.hold(true)
+        onDispose { com.topports.app.ui.ChipMusic.hold(false) }
+    }
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))

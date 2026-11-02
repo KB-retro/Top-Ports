@@ -126,6 +126,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
 
+    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Apariencia). */
+    var music by mutableStateOf(prefs.getInt("music", 0))
+        private set
+
+    fun changeMusic(level: Int) {
+        music = level
+        ChipMusic.level = level
+        prefs.edit().putInt("music", level).apply()
+    }
+
     /** Sonidos de menú (Ajustes → Apariencia); se recuerda. */
     var sounds by mutableStateOf(prefs.getBoolean("sounds", true))
         private set

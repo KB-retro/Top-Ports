@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity() {
         Px.style = UiStyle.fromName(prefs.getString("uiStyle", null))
         Px.anim = UiAnim.fromName(prefs.getString("anim", null))
         RetroSound.enabled = prefs.getBoolean("sounds", true)
+        ChipMusic.init(this)
+        ChipMusic.level = prefs.getInt("music", 0)
         Gamepad.swapAB = prefs.getBoolean("swapAB", false)
         lockSquareScreensToLandscape()
         enableEdgeToEdge()
@@ -104,6 +106,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        ChipMusic.setForeground(true)
         // Al volver de dar el permiso de archivos, las descargas pasan a /TopPorts/.telegram.
         vm.graph.telegram.applyStorageLocation()
         // En pantalla: en línea para recibir los posts nuevos, y se recogen los que hayan salido.
@@ -115,6 +118,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        ChipMusic.setForeground(false)
         vm.graph.telegram.setOnline(false)
     }
 
