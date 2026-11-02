@@ -159,23 +159,16 @@ fun SettingsScreen(vm: AppViewModel) {
                         modifier = modifier,
                     )
                 }
-                if (width >= 400.dp) {
-                    // Consolas (Odin, RG477M…): las pestañas llenan toda la fila, repartida según lo
-                    // largo de cada nombre, y todas a la misma altura. Con sitio, tamaño normal.
-                    val small = width < 540.dp
-                    Row(
-                        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        SettingsSection.entries.forEach { section ->
-                            tab(section, Modifier.weight(section.label.length + 4f).fillMaxHeight(), small)
-                        }
-                    }
-                } else {
-                    // Pantallas estrechas (móvil en vertical): en varias líneas.
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SettingsSection.entries.forEach { section -> tab(section, Modifier, true) }
-                    }
+                // Cada pestaña a su tamaño natural (la palabra entera, nunca partida) y repartidas a lo
+                // ancho de la fila; si no caben en una línea, pasan a la siguiente. En pantallas
+                // anchas (consolas en horizontal), con el tamaño de botón normal.
+                val small = width < 600.dp
+                FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SettingsSection.entries.forEach { section -> tab(section, Modifier.padding(end = 4.dp), small) }
                 }
             }
         }
