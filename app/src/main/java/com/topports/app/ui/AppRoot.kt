@@ -63,7 +63,7 @@ import com.topports.app.ui.installed.InstalledScreen
 import com.topports.app.ui.login.LoginFlow
 import com.topports.app.ui.login.MessageScreen
 import com.topports.app.ui.login.SplashScreen
-import com.topports.app.ui.components.TopPortsWordmark
+import com.topports.app.ui.login.TopPortsLogo
 import com.topports.app.ui.store.AnnouncementDialog
 import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
@@ -241,9 +241,8 @@ private fun MainScreen(vm: AppViewModel) {
                     verticalArrangement = Arrangement.SpaceEvenly,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // Logo dibujado con la letra y los colores del tema (el ilustrado va en la
-                    // pantalla de carga y el inicio de sesión).
-                    TopPortsWordmark(height = logoSize)
+                    // Logo del canal sin fondo, recoloreado con la paleta.
+                    TopPortsLogo(size = logoSize)
                     // Si en una pantalla muy baja no caben, las pestañas se desplazan.
                     Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                         Column(

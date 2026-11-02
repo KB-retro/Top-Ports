@@ -41,14 +41,11 @@ import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
 import com.topports.app.ui.theme.pxCaps
 
-/** Logo de Top Ports (escudo con el androide porteador). */
+/** Logo de Top Ports (pixel art: el androide porteador con su caja de juegos). */
 @Composable
 fun TopPortsLogo(modifier: Modifier = Modifier, size: Dp = 220.dp) {
-    Image(
-        painter = painterResource(R.drawable.logo_topports),
-        contentDescription = "Top Ports",
-        modifier = modifier.size(size),
-    )
+    // Logo del canal sin fondo y recoloreado con la paleta elegida.
+    com.topports.app.ui.components.ThemedLogo(size, modifier)
 }
 
 @Composable
