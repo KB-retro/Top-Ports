@@ -53,6 +53,17 @@ private fun c(hex: Long) = Color(0xFF000000 or hex)
 
 /** Paletas de colores elegibles en Ajustes (en la interfaz, "Paleta de colores"). */
 enum class AppTheme(val label: String, val palette: PxPalette) {
+    // La de por defecto, primera.
+    NES(
+        "NES",
+        PxPalette(
+            black = c(0x000000), night = c(0x0C0C0C), navy = c(0x3C3C3C), navyDark = c(0x232323),
+            purple = c(0xA4005C), darkGreen = c(0x00A800), brown = c(0xAC7C00), darkGrey = c(0x7C7C7C),
+            grey = c(0xBCBCBC), white = c(0xFCFCFC), red = c(0xD82800), orange = c(0xFCA044),
+            yellow = c(0xF8D878), green = c(0x58D854), blue = c(0x3CBCFC), lavender = c(0x9878F8),
+            pink = c(0xF878F8),
+            focus = c(0xFFE000),
+        ),
     PICO8(
         "PICO-8",
         PxPalette(
@@ -74,16 +85,6 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
             focus = c(0x9BBC0F),
         ),
     ),
-    NES(
-        "NES",
-        PxPalette(
-            black = c(0x000000), night = c(0x0C0C0C), navy = c(0x3C3C3C), navyDark = c(0x232323),
-            purple = c(0xA4005C), darkGreen = c(0x00A800), brown = c(0xAC7C00), darkGrey = c(0x7C7C7C),
-            grey = c(0xBCBCBC), white = c(0xFCFCFC), red = c(0xD82800), orange = c(0xFCA044),
-            yellow = c(0xF8D878), green = c(0x58D854), blue = c(0x3CBCFC), lavender = c(0x9878F8),
-            pink = c(0xF878F8),
-            focus = c(0xFFE000),
-        ),
     ),
     SYNTHWAVE(
         "Synthwave",
@@ -210,7 +211,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
     ;
 
     companion object {
-        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: PICO8
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: NES
     }
 }
 
@@ -219,7 +220,7 @@ enum class AppTheme(val label: String, val palette: PxPalette) {
  * se vuelve a pintar con la paleta nueva.
  */
 object Px {
-    var theme by mutableStateOf(AppTheme.PICO8)
+    var theme by mutableStateOf(AppTheme.NES)
 
     /** Animación al cambiar de pestaña, abrir un juego o abrir la app. */
     var anim by mutableStateOf(UiAnim.FADE)

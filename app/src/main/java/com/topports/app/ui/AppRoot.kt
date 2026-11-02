@@ -257,7 +257,10 @@ private fun MainScreen(vm: AppViewModel) {
                     }
                     if (showHelp) {
                         Text(
-                            "L1/R1  FILA\nL2/R2  PESTAÑA\nSELECT SISTEMA\nA  ACEPTAR\nB  INICIO",
+                            // En Favoritos, SELECT quita el juego seleccionado.
+                            "L1/R1  FILA\nL2/R2  PESTAÑA\n" +
+                                (if (vm.tab == Tab.STORE && vm.systemFilter == FAVORITES_FILTER) "SELECT QUITAR ★" else "SELECT SISTEMA") +
+                                "\nA  ACEPTAR\nB  INICIO",
                             style = PxText.tiny.copy(color = Px.darkGrey),
                             modifier = Modifier.onSizeChanged { helpHeight = with(density) { it.height.toDp() } },
                         )

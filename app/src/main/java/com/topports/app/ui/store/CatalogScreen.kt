@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.topports.app.ui.components.PixelDialog
+import com.topports.app.ui.components.DialogButtons
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -288,6 +289,21 @@ fun CatalogScreen(vm: AppViewModel) {
         if (vm.systemPickerOpen) {
             SystemPickerDialog(vm, systems, state.games.size)
         }
+        // Quitar un juego de favoritos (SELECT o mantener pulsada su carátula en Favoritos).
+        vm.confirmUnfavorite?.let { id ->
+            val game = state.games.firstOrNull { it.id == id }
+            val close = { vm.confirmUnfavorite = null }
+            PixelDialog("¿Quitar de favoritos?", onDismiss = close) {
+                Text(game?.title ?: "Este juego", style = PxText.body)
+                DialogButtons {
+                    PixelButton("No", onClick = close, color = Px.grey, small = true)
+                    PixelButton("Quitar ★", onClick = {
+                        vm.removeFavorite(id)
+                        close()
+                    }, color = Px.red, textColor = Px.white, small = true)
+                }
+            }
+        }
 
         if (vm.searchOpen) {
             PixelKeyboardDialog(
@@ -330,12 +346,19 @@ fun CatalogScreen(vm: AppViewModel) {
                     favorite = game.id in favorites,
                     hearts = vm.graph.channel.heartsOf(game, hearts).second,
                     onClick = { vm.openGame(game.id) },
+                    // En Favoritos, mantener pulsada la carátula pide quitarla (con el mando, SELECT).
+                    onLongClick = if (vm.systemFilter == FAVORITES_FILTER) {
+                        { vm.confirmUnfavorite = game.id }
+                    } else null,
                     modifier = Modifier
                         .focusRequester(requesterFor(game.id))
                         .onFocusChanged {
                             if (it.isFocused) {
                                 vm.catalogFocusIndex = index
+                                vm.catalogFocusGameId = game.id
                                 scrollToEdge(index)
+                            } else if (vm.catalogFocusGameId == game.id) {
+                                vm.catalogFocusGameId = null
                             }
                         },
                 )
@@ -351,12 +374,13 @@ private fun GameCard(
     favorite: Boolean,
     hearts: Hearts,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier
             .fillMaxWidth()
-            .pixelCard(onClick)
+            .pixelCard(onClick, onLongClick = onLongClick)
             .padding(6.dp),
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Px.black)) {

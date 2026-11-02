@@ -167,9 +167,14 @@ class MainActivity : ComponentActivity() {
                 if (down) vm.toggleSort()
                 return true
             }
-            // SELECT en la tienda: elegir sistema (#N64, #X360…).
+            // SELECT en la tienda: elegir sistema (#N64, #X360…). Viendo Favoritos con un juego
+            // seleccionado: quitarlo de favoritos (pide confirmar).
             KeyEvent.KEYCODE_BUTTON_SELECT -> if (vm.tab == Tab.STORE && vm.selectedGameId == null) {
-                if (down) vm.systemPickerOpen = true
+                if (down) {
+                    val focused = vm.catalogFocusGameId
+                    if (vm.systemFilter == FAVORITES_FILTER && focused != null) vm.confirmUnfavorite = focused
+                    else vm.systemPickerOpen = true
+                }
                 return true
             }
         }

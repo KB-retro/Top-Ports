@@ -81,6 +81,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (id != null && catalog.value.games.any { it.id == id }) openGame(id)
             tasksGameId = null
         }
+        // Ajustes siempre se abre por su primera sección (no recuerda dónde se quedó).
+        if (value == Tab.SETTINGS && currentTab != Tab.SETTINGS) settingsSection = SettingsSection.VERSION
         currentTab = value
     }
 
@@ -160,7 +162,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         Px.anim = UiAnim.fromName(null)
         sounds = true
         RetroSound.enabled = true
-        soundType = RetroSound.SoundType.BIT8
+        soundType = RetroSound.SoundType.SOFT
         RetroSound.type = soundType
         music = 3
         ChipMusic.level = music
@@ -248,6 +250,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Carátula de la tienda seleccionada con el mando (índice en la lista visible). */
     var catalogFocusIndex by mutableStateOf(-1)
+
+    /** Juego seleccionado en la tienda (para SELECT en Favoritos: quitarlo). */
+    var catalogFocusGameId by mutableStateOf<Long?>(null)
+
+    /** Juego que se va a quitar de favoritos (diálogo de confirmación abierto). */
+    var confirmUnfavorite by mutableStateOf<Long?>(null)
+
+    /** Quita de favoritos; si era el último, la tienda vuelve a mostrar todos. */
+    fun removeFavorite(gameId: Long) {
+        if (gameId in favorites) toggleFavorite(gameId)
+        if (favorites.isEmpty() && systemFilter == FAVORITES_FILTER) systemFilter = null
+    }
 
     /** Petición de L1/R1: filas a moverse (y un sello para repetir la misma petición). */
     var catalogJump by mutableStateOf<Pair<Int, Long>?>(null)

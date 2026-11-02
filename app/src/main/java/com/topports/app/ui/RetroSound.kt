@@ -26,21 +26,22 @@ object RetroSound {
 
     /** Tipos de sonido (Ajustes → Sonido), el de por defecto primero. Valen también para la música. */
     enum class SoundType(val label: String) {
-        BIT8("8 bits"),
+        // El de por defecto, primero.
         SOFT("Suave"),
+        BIT8("8 bits"),
         ARCADE("Arcade"),
         BEEPER("Beeper"),
         BELL("Campanita"),
         ;
 
         companion object {
-            fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: BIT8
+            fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: SOFT
         }
     }
 
     /** Tipo de sonido elegido (Ajustes → Sonido). Vale para estos sonidos y para la música ([ChipMusic]). */
     @Volatile
-    var type = SoundType.BIT8
+    var type = SoundType.SOFT
 
     /** Timbre y nota base (Hz) de cada tipo de sonido. */
     private fun voiceOf(type: SoundType): Pair<Wave, Float> = when (type) {
