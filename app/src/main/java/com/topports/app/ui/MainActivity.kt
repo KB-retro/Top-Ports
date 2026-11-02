@@ -53,7 +53,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         val value = Gamepad.rightStickY(event)
         if (value != null) {
-            if (vm.tab == Tab.STORE && vm.selectedGameId != null) {
+            // Con un juego abierto mueve su descripción; en Ajustes (Privacidad, Legal…), la lista.
+            if ((vm.tab == Tab.STORE && vm.selectedGameId != null) || vm.tab == Tab.SETTINGS) {
                 vm.descriptionStick = value
                 if (value != 0f) return true
             } else {

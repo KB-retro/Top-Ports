@@ -108,8 +108,26 @@ fun SettingsScreen(vm: AppViewModel) {
         }
     }
 
+    // Stick derecho: desplaza Ajustes (Privacidad, Legal…) de forma continua, como la
+    // descripción de un juego. MainActivity deja el valor en vm.descriptionStick.
+    val settingsList = androidx.compose.foundation.lazy.rememberLazyListState()
+    val stickSpeed = with(androidx.compose.ui.platform.LocalDensity.current) { 900.dp.toPx() }
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                val dt = if (last == 0L) 0f else (now - last) / 1_000_000_000f
+                last = now
+                val v = vm.descriptionStick
+                if (v != 0f) settingsList.dispatchRawDelta(v * kotlin.math.abs(v) * stickSpeed * dt)
+            }
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { vm.descriptionStick = 0f } }
+
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = settingsList,
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -415,10 +433,19 @@ fun SettingsScreen(vm: AppViewModel) {
         if (vm.settingsSection == SettingsSection.LEGAL) {
             item { SectionTitle("Licencias", Px.blue) }
             item {
+                // Plegadas por defecto: son muchas y casi nadie las mira.
+                var open by remember { mutableStateOf(false) }
                 PixelPanel(Modifier.fillMaxWidth(), border = Px.blue) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Top Ports usa este software de terceros. Pulsa uno para ver su licencia.", style = PxText.small)
-                        LICENSES.forEach { lib ->
+                        Text("Top Ports usa software de terceros (${LICENSES.size}).", style = PxText.small)
+                        PixelButton(
+                            if (open) "▲ Ocultar licencias" else "▼ Ver licencias",
+                            onClick = { open = !open },
+                            color = Px.blue,
+                            small = true,
+                        )
+                        if (open) Text("Pulsa una para ver su licencia.", style = PxText.small)
+                        if (open) LICENSES.forEach { lib ->
                             Column(
                                 Modifier
                                     .fillMaxWidth()
