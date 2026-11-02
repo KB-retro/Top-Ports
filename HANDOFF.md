@@ -66,7 +66,9 @@ Android en local.
 
 - Jobs:
   - `tdlib`: compila TDLib en el commit `4c6377aa`, cacheado.
-  - Build del APK firmado: la versión es `0.1.<run_number>`.
+  - Build del APK firmado: la versión sale de `run_number` (N): `0.1.N` hasta la 99 y desde la 100
+    `0.<1 + N/100>.<N % 100>` (100 → 0.2.0, 200 → 0.3.0). `versionCode` es N. Está en
+    `app/build.gradle.kts` y en el paso "Versión" de `android.yml`: cambiar los dos a la vez.
   - `screenshots`: solo con `workflow_dispatch`.
 - **Secretos del repositorio:**
   - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`.

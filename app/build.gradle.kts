@@ -30,7 +30,9 @@ android {
         targetSdk = 35
         // En CI se usa el número de ejecución para que cada APK sea una actualización del anterior.
         versionCode = config("VERSION_CODE", "1").toInt()
-        versionName = "0.1." + config("VERSION_CODE", "0")
+        // 0.1.N hasta la compilación 99; desde la 100 sube la cifra del medio cada 100
+        // compilaciones (100 → 0.2.0, 199 → 0.2.99, 200 → 0.3.0). Igual que en android.yml.
+        versionName = config("VERSION_CODE", "0").toInt().let { n -> "0.${1 + n / 100}.${n % 100}" }
 
         // Credenciales de la app de Telegram: https://my.telegram.org → API development tools.
         buildConfigField("int", "TELEGRAM_API_ID", (config("TELEGRAM_API_ID").toIntOrNull() ?: 0).toString())

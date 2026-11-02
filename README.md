@@ -73,7 +73,8 @@ El workflow de GitHub Actions (`.github/workflows/android.yml`) compila todo:
    `keytool -genkeypair -storetype PKCS12 -keystore topports.p12 -alias topports -keyalg RSA -keysize 4096 -validity 10000`
    y luego `base64 -w0 topports.p12`.
 5. Lanza el workflow (pestaña **Actions → Android → Run workflow**) y descarga el artefacto
-   **TopPorts-0.1.N** (dentro va `TopPorts-0.1.N.apk`).
+   **TopPorts-0.X.Y** (dentro va `TopPorts-0.X.Y.apk`). La versión sale del número de compilación N:
+   `0.1.N` hasta la 99 y, desde la 100, la cifra del medio sube cada 100 (100 → `0.2.0`, 200 → `0.3.0`).
 
 La primera ejecución compila TDLib desde el código fuente y tarda bastante (1–3 h). Después
 queda en caché y cada build tarda unos minutos.
@@ -83,7 +84,7 @@ queda en caché y cada build tarda unos minutos.
 
 ## Actualizar la app desde la propia app
 
-Sube al canal el APK que genera Actions **sin cambiarle el nombre** (`TopPorts-0.1.N.apk`).
+Sube al canal el APK que genera Actions **sin cambiarle el nombre** (`TopPorts-0.X.Y.apk`).
 La app lo reconoce por el nombre, no lo muestra como un juego y, si es más nuevo que la versión
 instalada, marca la pestaña **Ajustes** y ofrece **Ajustes → Versión → Actualizar**. Se instala
 encima sin perder nada porque todas las versiones van firmadas con la misma clave.
