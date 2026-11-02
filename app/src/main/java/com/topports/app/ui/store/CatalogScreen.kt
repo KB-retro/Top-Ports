@@ -2,6 +2,7 @@ package com.topports.app.ui.store
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -200,6 +201,23 @@ fun CatalogScreen(vm: AppViewModel) {
             if (games.isNotEmpty()) {
                 PixelButton("Al azar", onClick = { vm.openGame(games.random().id) }, color = Px.green, small = true)
             }
+            // Favoritos: muestra solo los marcados con la estrella (y vuelve a todos al pulsarlo otra vez).
+            val showingFavorites = vm.systemFilter == FAVORITES_FILTER
+            PixelButton(
+                if (showingFavorites) "★ Favoritos ✓" else "★ Favoritos (${favorites.size})",
+                onClick = {
+                    when {
+                        showingFavorites -> vm.systemFilter = null
+                        favorites.isEmpty() -> Toast.makeText(
+                            context, "Marca juegos con la estrella ☆ de su ficha", Toast.LENGTH_SHORT,
+                        ).show()
+                        else -> vm.systemFilter = FAVORITES_FILTER
+                    }
+                },
+                color = if (showingFavorites) Px.orange else Px.yellow,
+                textColor = Px.black,
+                small = true,
+            )
             if (!state.loading) {
                 PixelButton("Recargar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true)
             }
