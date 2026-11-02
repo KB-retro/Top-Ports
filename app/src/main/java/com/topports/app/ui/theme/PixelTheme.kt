@@ -500,7 +500,7 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
     }
 }
 
-/** Animaciones al cambiar de pestaña, abrir una ficha o abrir la app (Ajustes → Apariencia). */
+/** Animaciones al cambiar de pestaña, abrir una ficha o abrir la app (Ajustes → Temas). */
 enum class UiAnim(val label: String, val description: String) {
     NONE("Ninguna", "Cambio instantáneo."),
     FADE("Fundido", "La pantalla nueva aparece sobre la anterior."),

@@ -10,12 +10,12 @@ import kotlin.math.sin
 /**
  * Sonidos de menú de 8 bits: mover el cursor, aceptar y volver. Se sintetizan al momento (sin
  * archivos de audio), con el tipo de sonido elegido ([soft]): 8 bits o suave. Se activan o quitan
- * en Ajustes → Versión.
+ * en Ajustes → Sonido.
  */
 object RetroSound {
     enum class Kind { MOVE, ACCEPT, BACK }
 
-    /** Activados (Ajustes → Apariencia). */
+    /** Activados (Ajustes → Sonido). */
     @Volatile
     var enabled = true
 
@@ -25,7 +25,7 @@ object RetroSound {
     private enum class Wave { SQUARE, PULSE, SINE, TRIANGLE, SAW, CLICK }
 
     /**
-     * Tipo de sonido (Ajustes → Versión): false = 8 bits (onda cuadrada), true = suave (senoidal,
+     * Tipo de sonido (Ajustes → Sonido): false = 8 bits (onda cuadrada), true = suave (senoidal,
      * como el tema Ondas). Vale para estos sonidos y para la música ([ChipMusic]).
      */
     @Volatile

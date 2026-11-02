@@ -133,7 +133,8 @@ fun SettingsScreen(vm: AppViewModel) {
     ) {
         // Secciones: solo se muestra la elegida para que Ajustes no sea una lista larguísima.
         item {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Hueco de 6 dp: con 8 las 9 secciones no caben en una línea en pantallas 4:3.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsSection.entries.forEach { section ->
                     val selected = vm.settingsSection == section
                     // Con una versión nueva de la app, la sección Versión se marca en verde.
@@ -187,8 +188,8 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
-        // --- Sonido (dentro de Versión) ---
-        if (vm.settingsSection == SettingsSection.VERSION) {
+        // --- Sonido ---
+        if (vm.settingsSection == SettingsSection.SOUND) {
             item { SectionTitle("Sonidos", Px.yellow) }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {

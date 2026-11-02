@@ -23,7 +23,9 @@ enum class Tab(val label: String) {
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Almacenamiento"), THEME("Apariencia"), GAMEPAD("Mando"),
+    // "Descargas" (antes Almacenamiento) es corto a propósito: así las 9 secciones caben en una
+    // línea en pantallas 4:3 como la RG477M.
+    VERSION("Versión"), PERMISSIONS("Permisos"), STORAGE("Descargas"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
     ACCOUNT("Cuenta"), PRIVACY("Privacidad"), LEGAL("Legal"),
 }
 
@@ -126,7 +128,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
 
-    /** Tipo de sonido para menú y música: false = 8 bits, true = suave (Ajustes → Versión). */
+    /** Tipo de sonido para menú y música: false = 8 bits, true = suave (Ajustes → Sonido). */
     var softSound by mutableStateOf(prefs.getBoolean("soundSoft", false))
         private set
 
@@ -137,7 +139,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         RetroSound.play(RetroSound.Kind.ACCEPT)
     }
 
-    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Versión). */
+    /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (Ajustes → Sonido). */
     var music by mutableStateOf(prefs.getInt("music", 0))
         private set
 
@@ -147,7 +149,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putInt("music", level).apply()
     }
 
-    /** Sonidos de menú (Ajustes → Versión); se recuerda. */
+    /** Sonidos de menú (Ajustes → Sonido); se recuerda. */
     var sounds by mutableStateOf(prefs.getBoolean("sounds", true))
         private set
 

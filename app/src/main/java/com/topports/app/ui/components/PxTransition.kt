@@ -36,7 +36,7 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.UiAnim
 
 /**
- * Cambia de pantalla con la animación elegida en Ajustes → Apariencia ([Px.anim]). [order] da
+ * Cambia de pantalla con la animación elegida en Ajustes → Temas ([Px.anim]). [order] da
  * la dirección: si la pantalla nueva va "después" (pestaña de más abajo, abrir una ficha), la
  * animación avanza hacia la derecha; si va antes, hacia la izquierda.
  *
