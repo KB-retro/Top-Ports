@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -183,7 +184,11 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 } else {
                     // Altura común: la primera captura ocupa casi todo el ancho y asoma la siguiente.
                     val height = (available * 0.82f / aspects.first()).coerceIn(110.dp, 240.dp)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Con margen: la fila recorta y si no se cortaría el anillo de la captura seleccionada.
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(6.dp),
+                    ) {
                         items(game.images.size) { i ->
                             val image = game.images[i]
                             Box(
@@ -314,7 +319,10 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                         .keepVerticalFocus()
                         .pixelScrollbar(listScroll)
                         .verticalScroll(listScroll)
-                        .padding(end = 10.dp),
+                        // Margen dentro de la zona con scroll, que recorta lo que sobresale: si no,
+                        // los botones de arriba (Volver, Ver en Telegram) y su anillo de selección
+                        // salían cortados.
+                        .padding(start = 6.dp, top = 8.dp, end = 10.dp, bottom = 6.dp),
                 ) {
                     topBar()
                     Spacer(Modifier.height(10.dp))
