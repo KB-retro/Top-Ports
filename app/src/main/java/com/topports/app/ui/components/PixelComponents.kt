@@ -456,7 +456,7 @@ fun PixelButton(
                 focused = focused,
             )
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .padding(horizontal = if (small) 8.dp else 12.dp, vertical = if (small) 6.dp else 10.dp),
+            .padding(horizontal = Px.style.spec.buttonPad + if (small) 0.dp else 4.dp, vertical = if (small) 6.dp else 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

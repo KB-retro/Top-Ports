@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -317,7 +318,10 @@ data class TextSize(val size: TextUnit, val line: TextUnit)
  *  - el alto de línea es el mismo en todos: botones, pestañas, ayuda y logo miden igual;
  *  - el tamaño de cada fuente se ha sacado igualando el ANCHO de un texto de muestra con el de
  *    Ondas y Plano (letra del sistema): así caben las mismas opciones por línea. Press Start 2P
- *    y Pixelify son muy anchas y por eso llevan números más pequeños; VT323 es estrecha.
+ *    y Pixelify son muy anchas y por eso llevan números más pequeños; VT323 es estrecha. Los
+ *    botones (label/tiny) se igualaron con la fila de secciones de Ajustes, con un 3 % de margen
+ *    por si la letra del sistema del aparato es algo más estrecha que Roboto;
+ *  - el relleno de los botones compensa el grosor del marco ([StyleSpec.buttonPad]).
  */
 private fun lineTitle(size: Float) = TextSize(size.sp, 22.sp)
 private fun lineHeading(size: Float) = TextSize(size.sp, 18.sp)
@@ -357,7 +361,28 @@ data class StyleSpec(
     val backdrop: Backdrop = Backdrop.NONE,
     /** Marca delante de los títulos de sección; null = cuadrado. */
     val marker: String? = null,
-)
+) {
+    /**
+     * Relleno lateral de los botones pequeños. Compensa el grosor del marco (y la sombra) de cada
+     * tema: marco + relleno ocupan lo mismo en todos, así una fila de botones mide igual y no
+     * salta a dos líneas en unos temas sí y en otros no.
+     */
+    val buttonPad: Dp
+        get() {
+            val frameWidth = when (frame) {
+                FrameKind.PIXEL -> 3.dp * 2 + 3.dp
+                FrameKind.DOUBLE_LINE -> (stroke * 2 + 2.dp) * 2
+                FrameKind.GLASS -> stroke * 2
+                FrameKind.FLAT -> stroke * 2
+                FrameKind.WINDOW -> (stroke + 2.dp) * 2 + 3.dp
+                FrameKind.NEON -> (stroke + 1.dp) * 2
+                FrameKind.BEVEL -> (stroke + 1.dp) * 2
+                FrameKind.KEYCAP -> stroke * 2
+            }
+            // 18 dp: lo que ya ocupaban marco y relleno en Ondas (8 + 1 por lado).
+            return ((18.dp - frameWidth) / 2).coerceAtLeast(3.dp)
+        }
+}
 
 /**
  * Estilos de interfaz elegibles en Ajustes (en la interfaz, "Temas"). Inspirados en los menús
@@ -372,8 +397,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
             headFont = PixelFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
             // Press Start 2P es muy gruesa: a igual ancho "pesa" más que las demás, así que va
             // algo más pequeña para verse del mismo tamaño que el resto de temas.
-            title = lineTitle(8f), heading = lineHeading(6.8f), label = lineLabel(5.9f),
-            tiny = lineTiny(5.4f), body = lineBody(16f), small = lineSmall(14.5f),
+            title = lineTitle(8f), heading = lineHeading(6.8f), label = lineLabel(5.4f),
+            tiny = lineTiny(5f), body = lineBody(16f), small = lineSmall(14.5f),
             frame = FrameKind.PIXEL, shadow = true,
         ),
     ),
@@ -382,8 +407,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "Menú de texto, como RGUI: todo en letra de terminal, doble línea y líneas de barrido.",
         StyleSpec(
             headFont = TermFont, bodyFont = TermFont, bodyFontRes = R.font.vt323,
-            title = lineTitle(21f), heading = lineHeading(17f), label = lineLabel(13f),
-            tiny = lineTiny(11f), body = lineBody(19f), small = lineSmall(17f),
+            title = lineTitle(21f), heading = lineHeading(17f), label = lineLabel(14.5f),
+            tiny = lineTiny(12.4f), body = lineBody(19f), small = lineSmall(17f),
             headSpacing = 0.05f, frame = FrameKind.DOUBLE_LINE, stroke = 1.5.dp,
             backdrop = Backdrop.SCANLINES, marker = ">",
         ),
@@ -418,8 +443,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         "Ventanas de RPG: degradado, borde doble, esquinas romas y letra pixel redondeada.",
         StyleSpec(
             headFont = PixelifyFont, bodyFont = PixelifyFont, bodyFontRes = R.font.pixelify_sans,
-            title = lineTitle(16f), heading = lineHeading(13f), label = lineLabel(10.5f),
-            tiny = lineTiny(9f), body = lineBody(14.5f), small = lineSmall(13f),
+            title = lineTitle(16f), heading = lineHeading(13f), label = lineLabel(10f),
+            tiny = lineTiny(8.6f), body = lineBody(14.5f), small = lineSmall(13f),
             frame = FrameKind.WINDOW, stroke = 2.dp, radius = 5.dp, shadow = true, blocks = false,
             backdrop = Backdrop.GRADIENT, marker = "▶",
         ),
@@ -430,8 +455,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         StyleSpec(
             headFont = OrbitronFont, labelFont = TechMonoFont,
             bodyFont = FontFamily.SansSerif, bodyFontRes = null,
-            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.5f),
-            tiny = lineTiny(9f), body = lineBody(15f), small = lineSmall(13.5f),
+            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.7f),
+            tiny = lineTiny(9.2f), body = lineBody(15f), small = lineSmall(13.5f),
             headSpacing = 0.06f, frame = FrameKind.NEON, stroke = 1.5.dp, radius = 4.dp, blocks = false,
             backdrop = Backdrop.GRID, marker = "//",
         ),
@@ -442,8 +467,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         StyleSpec(
             headFont = SilkFont, labelFont = TechMonoFont,
             bodyFont = TechMonoFont, bodyFontRes = R.font.share_tech_mono,
-            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.5f),
-            tiny = lineTiny(9f), body = lineBody(13.5f), small = lineSmall(12f),
+            title = lineTitle(12.5f), heading = lineHeading(10f), label = lineLabel(10.7f),
+            tiny = lineTiny(9.2f), body = lineBody(13.5f), small = lineSmall(12f),
             uppercase = false, frame = FrameKind.BEVEL, stroke = 2.dp,
             backdrop = Backdrop.DITHER,
         ),
@@ -454,8 +479,8 @@ enum class UiStyle(val label: String, val description: String, val spec: StyleSp
         StyleSpec(
             headFont = NunitoFont, headWeight = FontWeight.ExtraBold,
             bodyFont = NunitoFont, bodyFontRes = R.font.nunito_regular,
-            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(11.5f),
-            tiny = lineTiny(9.5f), body = lineBody(15f), small = lineSmall(13.5f),
+            title = lineTitle(17f), heading = lineHeading(13.5f), label = lineLabel(11.1f),
+            tiny = lineTiny(9.2f), body = lineBody(15f), small = lineSmall(13.5f),
             uppercase = false, frame = FrameKind.KEYCAP, stroke = 2.dp, radius = 12.dp, blocks = false,
             backdrop = Backdrop.DOTS, marker = "●",
         ),
