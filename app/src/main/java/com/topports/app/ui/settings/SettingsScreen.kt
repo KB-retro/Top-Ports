@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -136,9 +140,9 @@ fun SettingsScreen(vm: AppViewModel) {
     ) {
         // Secciones: solo se muestra la elegida para que Ajustes no sea una lista larguísima.
         item {
-            // Hueco de 6 dp: con 8 las 9 secciones no caben en una línea en pantallas 4:3.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsSection.entries.forEach { section ->
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val width = maxWidth
+                val tab: @Composable (SettingsSection, Modifier, Boolean) -> Unit = { section, modifier, small ->
                     val selected = vm.settingsSection == section
                     // Con una versión nueva de la app, la sección Versión se marca en verde.
                     val highlight = section == SettingsSection.VERSION && catalog.appUpdate != null
@@ -151,8 +155,27 @@ fun SettingsScreen(vm: AppViewModel) {
                             else -> Px.navyDark
                         },
                         textColor = if (selected || highlight) Px.black else Px.grey,
-                        small = true,
+                        small = small,
+                        modifier = modifier,
                     )
+                }
+                if (width >= 400.dp) {
+                    // Consolas (Odin, RG477M…): las pestañas llenan toda la fila, repartida según lo
+                    // largo de cada nombre, y todas a la misma altura. Con sitio, tamaño normal.
+                    val small = width < 540.dp
+                    Row(
+                        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SettingsSection.entries.forEach { section ->
+                            tab(section, Modifier.weight(section.label.length + 4f).fillMaxHeight(), small)
+                        }
+                    }
+                } else {
+                    // Pantallas estrechas (móvil en vertical): en varias líneas.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsSection.entries.forEach { section -> tab(section, Modifier, true) }
+                    }
                 }
             }
         }
