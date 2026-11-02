@@ -53,9 +53,14 @@ object ChipMusic {
     /** La app pasa a primer plano o sale de él (MainActivity.onResume / onPause). */
     fun setForeground(on: Boolean) {
         foreground = on
-        // Al abrir la app: si el usuario ya está escuchando música en otra app, no se pisa.
-        refresh(respectOthers = on)
+        // Solo la primera vez (al abrir la app): si el usuario ya está escuchando música en otra
+        // app, no se pisa. Al volver a la app después no se mira, porque la música propia que se
+        // está apagando también cuenta como "música sonando" y se quedaría en silencio.
+        refresh(respectOthers = on && !startedOnce)
     }
+
+    @Volatile
+    private var startedOnce = false
 
     /** Silencio mientras algo más suena (un vídeo): [hold] true al empezar, false al acabar. */
     fun hold(on: Boolean) {
@@ -72,6 +77,7 @@ object ChipMusic {
     private fun refresh(respectOthers: Boolean = false) {
         val shouldPlay = level > 0 && foreground && holds == 0
         if (shouldPlay && thread == null) {
+            startedOnce = true
             if (respectOthers && audio?.isMusicActive == true) return
             thread = Thread(::run, "ChipMusic").apply { isDaemon = true; start() }
         } else if (!shouldPlay && thread != null) {
@@ -105,7 +111,13 @@ object ChipMusic {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .setBufferSizeInBytes(bufferBytes * 2)
                 .build()
-        }.getOrNull() ?: return
+        }.getOrNull()
+        if (track == null) {
+            // Sin audio (p. ej. otra app tiene todos los canales): se suelta el hilo para poder
+            // volver a intentarlo la próxima vez, en vez de quedarse "sonando" sin sonar.
+            synchronized(this) { if (thread == Thread.currentThread()) thread = null }
+            return
+        }
         try {
             track.play()
             val buffer = ShortArray(1024)
@@ -124,6 +136,8 @@ object ChipMusic {
             runCatching { track.stop() }
             track.release()
             trackName = ""
+            // Si ha parado por un error (no porque se apagara), se suelta para poder volver a sonar.
+            synchronized(this) { if (thread == Thread.currentThread()) thread = null }
         }
     }
 

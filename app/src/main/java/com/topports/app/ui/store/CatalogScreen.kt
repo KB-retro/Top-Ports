@@ -88,8 +88,9 @@ fun CatalogScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val query = vm.search.trim()
     val favorites = vm.favorites
-    // Los corazones solo cuentan para ordenar por "Más corazones" (cambian a menudo).
-    val heartsForSort = if (vm.sortMode == SortMode.POPULAR) hearts else null
+    // "Más corazones" ordena con los corazones de cuando se eligió el orden (o se recargó el
+    // catálogo): si se reordenara con cada corazón nuevo del canal, el cursor saltaría de sitio.
+    val heartsForSort = remember(vm.sortMode, state.games) { if (vm.sortMode == SortMode.POPULAR) hearts else null }
     val games = remember(state.games, query, vm.sortMode, vm.systemFilter, favorites, heartsForSort) {
         val filter = vm.systemFilter
         val found = state.games.filter { game ->
@@ -113,7 +114,7 @@ fun CatalogScreen(vm: AppViewModel) {
                     .thenComparator { a, b -> collator.compare(a.title, b.title) },
             )
             SortMode.POPULAR -> found.sortedWith(
-                compareByDescending<Game> { vm.graph.channel.heartsOf(it, hearts).second.count }.thenByDescending { it.id },
+                compareByDescending<Game> { vm.graph.channel.heartsOf(it, heartsForSort ?: hearts).second.count }.thenByDescending { it.id },
             )
             SortMode.SMALLEST -> found.sortedBy { it.size }
             SortMode.LARGEST -> found.sortedByDescending { it.size }
