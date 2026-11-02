@@ -203,6 +203,21 @@ class TaskCenter(
         }
     }
 
+    /**
+     * Espacio libre que hace falta para descargar [pkg] (sin lo ya bajado, [downloaded]) y, si es
+     * un comprimido, extraerlo después; si TDLib descarga en la memoria privada, también para
+     * copiar la parte más grande a /TopPorts. Para avisar en la ficha antes de descargar.
+     */
+    fun spaceNeeded(pkg: GamePackage, downloaded: Long = 0L): Long {
+        val copyNeeded = tg.filesDir.startsWith(context.filesDir)
+        val extra = (if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L) +
+            (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
+        return (pkg.size - downloaded).coerceAtLeast(0) + extra
+    }
+
+    /** Espacio libre donde se descargan los juegos. */
+    fun freeSpace(): Long = Storage.freeBytes(tg.filesDir)
+
     fun download(game: Game, pkg: GamePackage, onError: (String) -> Unit) {
         scope.launch {
             try {

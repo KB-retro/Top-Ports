@@ -519,6 +519,17 @@ private fun PackageRow(
                 )
             }
 
+            // Antes de descargar: aviso si no cabe (descarga + extracción de los comprimidos).
+            val freeSpace = rememberFreeSpace(vm)
+            if (!info.complete && !info.active && !moving && savedDir == null && freeSpace >= 0) {
+                val needed = vm.graph.tasks.spaceNeeded(pkg, info.downloaded)
+                if (needed > freeSpace) {
+                    Text(
+                        "No cabe: hace falta ${FileNames.formatSize(needed)} y quedan ${FileNames.formatSize(freeSpace)}",
+                        style = PxText.small.copy(color = Px.red),
+                    )
+                }
+            }
             if (moving) {
                 Text("Pasando a /TopPorts…", style = PxText.small.copy(color = Px.yellow))
             } else if (savedDir != null) {

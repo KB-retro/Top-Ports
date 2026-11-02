@@ -47,6 +47,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `work/TaskCenter.kt` (cola) | Cola de descargas: `maxParallel` (1, 2, 3 o sin límite) y `wifiOnly`; `schedule()` arranca por orden de petición (`PendingSave.addedAt`) y respeta las pausadas a mano (`paused`). Expone `queued` y `waitingWifi` para la ficha y TAREAS. |
 | `ui/ChipMusic.kt` | Banda sonora chiptune generada al momento (sin archivos): canciones al azar con acordes, motivo de melodía, bajo, arpegio y batería. Solo con la app en pantalla (`setForeground`), se calla con los vídeos (`hold`). Volumen en Ajustes → Sonido → Música (alta por defecto). |
 | `ui/RetroSound.kt` | Sonidos de menú sintetizados (sin archivos): mover, aceptar y volver. Tipo de sonido (`RetroSound.type`: Suave —por defecto—, 8 bits, Arcade, Beeper o Campanita, para menú y música) y activarlos en Ajustes → Sonido. |
+| `ui/store/FreeSpace.kt` | Espacio libre (cada 10 s) en la línea de arriba de la tienda; la ficha avisa si un paquete no cabe (`TaskCenter.spaceNeeded`: descarga + extracción). |
 | `work/WorkService.kt` | Servicio en primer plano (dataSync) mientras hay trabajo; `onTimeout` para el límite diario de Android 15. |
 | `archive/ArchiveExtractor.kt` | 7-Zip-JBinding. `VolumeSet` resuelve las partes por nombre lógico (TDLib puede renombrar). Comprobación zip-slip. |
 | `install/ApkInstaller.kt`, `InstallResultReceiver.kt` | PackageInstaller (APK, partido, split, XAPK). Si la app está en segundo plano, notificación "Listo para instalar". |

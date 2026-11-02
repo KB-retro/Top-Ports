@@ -88,6 +88,7 @@ fun CatalogScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val query = vm.search.trim()
     val favorites = vm.favorites
+    val freeSpace = rememberFreeSpace(vm)
     // "Más corazones" ordena con los corazones de cuando se eligió el orden (o se recargó el
     // catálogo): si se reordenara con cada corazón nuevo del canal, el cursor saltaría de sitio.
     val heartsForSort = remember(vm.sortMode, state.games) { if (vm.sortMode == SortMode.POPULAR) hearts else null }
@@ -255,7 +256,10 @@ fun CatalogScreen(vm: AppViewModel) {
             Text(
                 when {
                     state.loading -> "ESCANEANDO… ${state.scannedMessages} MENSAJES"
-                    else -> "${games.size} JUEGOS" + if (state.channelTitle.isNotBlank()) " · ${state.channelTitle.uppercase()}" else ""
+                    else -> "${games.size} JUEGOS" +
+                        (if (state.channelTitle.isNotBlank()) " · ${state.channelTitle.uppercase()}" else "") +
+                        // Espacio libre de la consola, a la vista mientras se elige qué descargar.
+                        (if (freeSpace >= 0) " · LIBRE ${FileNames.formatSize(freeSpace)}" else "")
                 },
                 style = PxText.tiny.copy(color = Px.grey),
                 maxLines = 1,
