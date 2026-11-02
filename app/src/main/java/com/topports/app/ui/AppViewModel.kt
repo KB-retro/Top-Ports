@@ -130,7 +130,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var sounds by mutableStateOf(prefs.getBoolean("sounds", true))
         private set
 
-    fun setSounds(on: Boolean) {
+    fun changeSounds(on: Boolean) {
         sounds = on
         RetroSound.enabled = on
         prefs.edit().putBoolean("sounds", on).apply()

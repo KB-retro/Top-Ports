@@ -398,7 +398,7 @@ fun SettingsScreen(vm: AppViewModel) {
                     }
                     PixelButton(
                         if (vm.sounds) "Sí" else "No",
-                        onClick = { vm.setSounds(!vm.sounds) },
+                        onClick = { vm.changeSounds(!vm.sounds) },
                         color = if (vm.sounds) Px.green else Px.darkGrey,
                         textColor = if (vm.sounds) Px.black else Px.white,
                         small = true,
