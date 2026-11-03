@@ -301,8 +301,9 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
-                "Las descargas se guardan en /TopPorts/<juego>. Los .7z, .rar y archivos en partes se " +
-                    "extraen solos al terminar (se puede quitar en Ajustes > Almacenamiento). Los APK " +
+                "Las descargas se guardan en /TopPorts/<juego>. Los comprimidos en partes se extraen " +
+                    "solos al terminar (se puede quitar en Ajustes > Almacenamiento); los sueltos se guardan " +
+                    "tal cual. Los APK " +
                     "se instalan directamente y los OBB se copian a Android/obb.",
                 style = PxText.small,
             )

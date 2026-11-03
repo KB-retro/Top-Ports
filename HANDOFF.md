@@ -108,8 +108,8 @@ Android en local.
    - Comprueba el espacio libre, sumando el tamaño del comprimido si hay que extraerlo y el de la parte más grande si hay que copiarla.
    - Registra un `PendingSave` y pide la descarga a TDLib.
 2. Al completarse todas las partes, `movePendingDownloads()` sigue uno de dos caminos:
-   - **Extracción automática** (activada por defecto; se desactiva con `autoExtract`, en Ajustes → Almacenamiento). Se aplica a .7z, .rar o archivos en partes. `extractAndInstall` extrae en `/TopPorts/<juego>`, mueve los OBB, lanza la instalación de los APK, marca `unpacked_` y borra el comprimido de la caché de Telegram.
-   - **Resto** (incluido un `.zip` suelto, porque hay lanzadores de ports que lo cargan tal cual): `saveParts` lo mueve a `/TopPorts/<juego>`. Mueve con `renameTo` si está en el mismo almacenamiento y, si no, copia.
+   - **Extracción automática** (activada por defecto; se desactiva con `autoExtract`, en Ajustes → Almacenamiento). Solo se aplica a comprimidos en partes (.7z.001, .part1.rar, .z01…). `extractAndInstall` extrae en `/TopPorts/<juego>`, mueve los OBB, lanza la instalación de los APK, marca `unpacked_` y borra el comprimido de la caché de Telegram.
+   - **Resto** (cualquier archivo suelto —.7z, .rar o .zip—, porque hay lanzadores de ports que lo cargan tal cual; se extrae a mano desde la ficha): `saveParts` lo mueve a `/TopPorts/<juego>`. Mueve con `renameTo` si está en el mismo almacenamiento y, si no, copia.
 3. **Cancelar** (`cancelDownload` / `deleteDownload`): `CancelDownloadFile` + `DeleteFile` y quitar el pending.
 
 **Arreglo clave de 7-Zip.** Las partes `.7z.001` se leen como un único flujo (`MultiFileInStream`).

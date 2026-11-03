@@ -133,13 +133,14 @@ class TaskCenter(
     }
 
     /**
-     * Comprimidos que se extraen solos: 7z, rar y cualquier archivo en partes. Un .zip suelto se
-     * deja tal cual porque hay lanzadores de ports que lo cargan directamente.
+     * Solo se extraen solos los comprimidos en partes (.7z.001, .part1.rar, .z01…). Cualquier
+     * archivo suelto (.7z, .rar, .zip) se guarda tal cual en /TopPorts/<juego>: hay lanzadores de
+     * ports que lo cargan directamente, y si hace falta se extrae a mano desde la ficha.
      */
     private fun shouldAutoExtract(names: List<String>): Boolean {
         val v = FileNames.volumeOf(names.first())
         if (FileNames.kindOf(v.baseName, v.style) != PackageKind.ARCHIVE) return false
-        return names.size > 1 || !v.baseName.endsWith(".zip", ignoreCase = true)
+        return names.size > 1
     }
 
     /**
@@ -210,8 +211,9 @@ class TaskCenter(
      */
     fun spaceNeeded(pkg: GamePackage, downloaded: Long = 0L): Long {
         val copyNeeded = tg.filesDir.startsWith(context.filesDir)
-        val extra = (if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L) +
-            (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
+        // Solo los comprimidos en partes se extraen al descargar y necesitan sitio para ello.
+        val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
+        val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
         return (pkg.size - downloaded).coerceAtLeast(0) + extra
     }
 
@@ -230,8 +232,8 @@ class TaskCenter(
                 // Si TDLib descarga en la memoria privada, al pasarlo a /TopPorts se copia parte a
                 // parte: hace falta sitio para la mayor. En /TopPorts/.telegram solo se renombra.
                 val copyNeeded = tg.filesDir.startsWith(context.filesDir)
-                val extra = (if (pkg.kind == PackageKind.ARCHIVE || pkg.kind == PackageKind.APK_BUNDLE) pkg.size else 0L) +
-                    (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
+                val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
+                val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
                 val free = Storage.freeBytes(tg.filesDir)
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
 
