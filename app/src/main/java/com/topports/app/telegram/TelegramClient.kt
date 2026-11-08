@@ -41,6 +41,10 @@ class TelegramClient(private val context: Context) {
     private val _newMessages = MutableSharedFlow<TdApi.Message>(extraBufferCapacity = 64)
     val newMessages: SharedFlow<TdApi.Message> = _newMessages
 
+    /** Mensajes borrados de verdad (no solo quitados de la caché local de TDLib). */
+    private val _deletedMessages = MutableSharedFlow<TdApi.UpdateDeleteMessages>(extraBufferCapacity = 64)
+    val deletedMessages: SharedFlow<TdApi.UpdateDeleteMessages> = _deletedMessages
+
     /** Cambios en las reacciones (corazones) de los mensajes de chats abiertos. */
     private val _interactions = MutableSharedFlow<TdApi.UpdateMessageInteractionInfo>(extraBufferCapacity = 64)
     val interactions: SharedFlow<TdApi.UpdateMessageInteractionInfo> = _interactions
@@ -70,6 +74,8 @@ class TelegramClient(private val context: Context) {
             is TdApi.UpdateFile -> if (update.file.id in _files.value) rememberFile(update.file)
             is TdApi.UpdateNewMessage -> _newMessages.tryEmit(update.message)
             is TdApi.UpdateMessageInteractionInfo -> _interactions.tryEmit(update)
+            // Post borrado del canal: la tienda lo quita al momento.
+            is TdApi.UpdateDeleteMessages -> if (update.isPermanent && !update.fromCache) _deletedMessages.tryEmit(update)
             // Post editado (texto o archivo cambiado): se vuelve a leer y se trata como nuevo,
             // así el catálogo se entera de las actualizaciones al momento.
             is TdApi.UpdateMessageEdited -> client?.send(

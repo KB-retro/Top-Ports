@@ -169,17 +169,41 @@ class ChannelRepository(
             TdApi.SearchMessagesFilterDocument(),
             TdApi.SearchMessagesFilterVideo(),
         )
+        val startedAt = System.currentTimeMillis() / 1000
+        // Ids de fotos, archivos y vídeos que el servidor dice que existen.
+        val onServer = HashSet<Long>()
+        var complete = true
         for (filter in filters) {
             var from = 0L
             var pages = 0
+            var finished = false
             while (pages++ < MAX_MESSAGES / 100) {
                 val found = runCatching {
                     tg.send(TdApi.SearchChatMessages(chatId, null, "", null, from, 0, 100, filter))
                 }.getOrNull() ?: break
-                found.messages.forEach { add(it) }
+                found.messages.forEach {
+                    onServer += it.id
+                    add(it)
+                }
                 publishSoon()
-                if (found.messages.isEmpty() || found.nextFromMessageId == 0L) break
+                if (found.messages.isEmpty() || found.nextFromMessageId == 0L) {
+                    finished = true
+                    break
+                }
                 from = found.nextFromMessageId
+            }
+            complete = complete && finished
+        }
+        // Con la lista del servidor completa: fuera los posts con foto, archivo o vídeo que TDLib
+        // tenía guardados pero ya no existen (borrados mientras la app estaba cerrada). Así un juego
+        // borrado y vuelto a subir no se queda con los archivos de la versión anterior. Los posts
+        // de después de empezar la búsqueda no se tocan (aún no podían salir en ella).
+        if (complete) {
+            synchronized(messages) {
+                messages.values.removeAll { m ->
+                    (m.photo != null || m.document != null || m.video != null) &&
+                        m.date < startedAt && m.id !in onServer
+                }
             }
         }
         publish()
@@ -192,6 +216,16 @@ class ChannelRepository(
             tg.newMessages.collect { message ->
                 if (message.chatId == chatId) {
                     add(message)
+                    publish()
+                }
+            }
+        }
+        // Posts borrados del canal (p. ej. para volver a subir un juego con otros archivos): fuera
+        // de la tienda al momento, para que no se quede el juego viejo con archivos que ya no existen.
+        scope.launch {
+            tg.deletedMessages.collect { update ->
+                if (update.chatId == chatId) {
+                    synchronized(messages) { update.messageIds.forEach { messages.remove(it) } }
                     publish()
                 }
             }
