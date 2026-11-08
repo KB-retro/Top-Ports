@@ -31,7 +31,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `FileNames.kt` | Partes y tipos de archivo: `SplitStyle` (`NUMBERED` .001, `RAR_PART` .part1.rar, `ZIP_SPAN` .z01), `kindOf` (APK, ARCHIVE, APK_BUNDLE, OBB, OTHER), nombres de carpeta seguros. |
 | `InstallPlanner.kt` | Tras extraer: qué es APK, split APK, OBB o `Android/data`. |
 | `UpdateFinder.kt` / `InstalledFinder.kt` | Avisos de actualización de juegos instalados. Regex de versión `(?iu)(?<![\p{L}\d])v?(\d+(?:[._]\d+)+)`, que ignora `arm64`, `x86_64`, etc. |
-| `SelfUpdate.kt` | Detecta un APK de TopPorts publicado en el canal para actualizar la propia app. |
+| `SelfUpdate.kt` | Detecta un APK de TopPorts publicado en el canal para actualizar la propia app. La app la busca al leer el canal, al volver a la app y con "Comprobar" (Ajustes → Versión), con una búsqueda directa en el servidor (`ChannelRepository.searchAppReleases`); si falla, "Comprobar" avisa con el motivo. |
 | `Announcements.kt` | Posts "ACTUALIZACIÓN DE PORTS" → popup de novedades. |
 | `ChannelLink.kt` | Enlaces del canal (`t.me/...`). |
 
