@@ -69,12 +69,18 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 **La única compilación fiable es GitHub Actions** (`.github/workflows/android.yml`). No hay SDK de
 Android en local.
 
+- **Solo se compila a mano** (Actions → Android → Run workflow): subir cambios no compila nada,
+  porque con el repositorio privado los minutos de Actions son limitados (~2.000/mes en el plan
+  gratuito). Cada compilación gasta unos 3 minutos; las capturas, unos 30, y solo se hacen si se
+  marca la casilla "Hacer también las capturas". No lanzar compilaciones sin que el usuario lo pida.
+- Los artefactos se borran solos: APK a los 14 días, capturas a los 7, TDLib al día siguiente.
+
 - Jobs:
   - `tdlib`: compila TDLib en el commit `4c6377aa`, cacheado.
   - Build del APK firmado: la versión sale de `run_number` (N): `0.1.N` hasta la 99 y desde la 100
     `0.<1 + N/100>.<N % 100>` (100 → 0.2.0, 200 → 0.3.0). `versionCode` es N. Está en
     `app/build.gradle.kts` y en el paso "Versión" de `android.yml`: cambiar los dos a la vez.
-  - `screenshots`: solo con `workflow_dispatch`.
+  - `screenshots`: solo si se marca la casilla `capturas` al lanzar el workflow.
 - **Secretos del repositorio:**
   - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`.
   - `SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD` (y los de la clave).
@@ -95,7 +101,7 @@ Android en local.
   - `demo_game` (booleano)
   - `demo_gamepad` (booleano)
   - `demo_style` (`WAVES`, `FLAT`, `RPG`, `NEON`, `BEVEL`, `KEYCAP`, `HYBRID`, `SPIRAL`), `demo_theme` (`SNES`…) y `demo_anim` (por defecto `NONE` en las capturas)
-- Lanzar el workflow a mano (Run workflow) genera las capturas:
+- Lanzar el workflow a mano (Run workflow) con la casilla "Hacer también las capturas" las genera:
   - 3 pantallas × 12 formatos: 16:9, 16:10, 4:3, 1:1, 8:7, 21:9 y 21:10, en horizontal y vertical.
   - Se publican en la rama **`capturas`**, que se sobrescribe en cada ejecución y no lanza compilaciones.
 - El emulador no pasa de 1920 px de lado. Por eso 21:9 y 21:10 se simulan a 1920×823 y 1920×914.

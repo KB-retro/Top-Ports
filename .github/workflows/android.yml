@@ -1,11 +1,15 @@
 name: Android
 
+# Solo se compila a mano (Actions → Android → Run workflow): con el repositorio privado, los
+# minutos de Actions son limitados. Las capturas, que son lo que más gasta (~30 min), solo si se
+# marca la casilla.
 on:
-  push:
-    # La rama "capturas" solo guarda las imágenes de las capturas automáticas.
-    branches-ignore: [capturas]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      capturas:
+        description: "Hacer también las capturas de pantalla (unos 30 minutos más)"
+        type: boolean
+        default: false
 
 env:
   TDLIB_COMMIT: 4c6377aa7386c39217878a9a56d581922ad37ca4
@@ -44,6 +48,8 @@ jobs:
         with:
           name: tdlib
           path: tdlib
+          # Solo sirve para pasarlo a los otros trabajos: se borra enseguida (no ocupa espacio).
+          retention-days: 1
 
   app:
     name: APK
@@ -108,12 +114,13 @@ jobs:
         with:
           name: TopPorts-${{ env.APP_VERSION }}
           path: dist/*.apk
+          retention-days: 14
 
   # Capturas de la app en 16:9, 16:10, 4:3, 1:1, 8:7, 21:9 y 21:10 (horizontal y vertical) con un
   # catálogo de ejemplo. Tarda unos 15 min: solo al lanzar el workflow a mano (Run workflow).
   screenshots:
     name: Capturas de pantalla
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.capturas
     needs: tdlib
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -168,6 +175,7 @@ jobs:
         with:
           name: capturas-${{ env.APP_VERSION }}
           path: capturas/
+          retention-days: 7
 
       # También en la rama "capturas" del repositorio: se ven directamente en GitHub, sin
       # descargar el zip (la rama se rehace en cada ejecución).
