@@ -335,6 +335,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshCatalog() = graph.channel.refresh()
 
+    /** "Comprobar" en Ajustes → Versión: busca la actualización en el servidor; avisa si falla. */
+    fun checkAppUpdate(onError: (String) -> Unit) {
+        viewModelScope.launch {
+            graph.channel.checkAppUpdate()?.let { onError("No se pudo comprobar: $it") }
+        }
+    }
+
     fun openFolder(path: String) {
         browserDir = path
         tab = Tab.FILES

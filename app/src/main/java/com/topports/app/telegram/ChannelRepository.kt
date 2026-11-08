@@ -88,8 +88,45 @@ class ChannelRepository(
             // Y los últimos mensajes de texto (avisos de novedades), también del servidor.
             runCatching { tg.send(TdApi.GetChatHistory(chatId, 0, 0, 50, false)) }
                 .getOrNull()?.messages?.forEach { add(it) }
+            searchAppReleases(chatId)
             publish()
         }
+    }
+
+    /**
+     * Busca en el servidor los APK de la propia tienda ("TopPorts-0.2.43.apk") y lee los últimos
+     * mensajes del canal desde el servidor, para no depender de la copia local de TDLib (que en
+     * algún móvil no traía el post nuevo y la actualización no aparecía). Devuelve el error si la
+     * búsqueda falla, o null.
+     */
+    private suspend fun searchAppReleases(chatId: Long): String? {
+        val search = runCatching {
+            tg.send(TdApi.SearchChatMessages(chatId, null, "TopPorts", null, 0, 0, 20, TdApi.SearchMessagesFilterDocument()))
+        }
+        search.getOrNull()?.messages?.forEach { add(it) }
+        // Los últimos mensajes, varias páginas: la primera a veces trae solo lo que hay en local.
+        var from = 0L
+        repeat(3) {
+            val page = runCatching { tg.send(TdApi.GetChatHistory(chatId, from, 0, 50, false)) }.getOrNull()
+                ?: return@repeat
+            if (page.messages.isEmpty()) return@repeat
+            page.messages.forEach { add(it) }
+            from = page.messages.last().id
+        }
+        return search.exceptionOrNull()?.let { it.message ?: it.toString() }
+    }
+
+    /**
+     * Botón "Comprobar" de Ajustes → Versión: busca la actualización de la app en el servidor y
+     * vuelve a leer el canal. Devuelve el error si no se pudo comprobar, o null.
+     */
+    suspend fun checkAppUpdate(): String? {
+        val chatId = _state.value.chatId
+        if (chatId == 0L) return "El canal aún no se ha cargado"
+        val error = searchAppReleases(chatId)
+        publish()
+        refresh()
+        return error
     }
 
     fun refresh() {

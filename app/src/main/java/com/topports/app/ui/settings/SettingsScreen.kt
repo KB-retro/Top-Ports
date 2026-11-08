@@ -181,7 +181,7 @@ fun SettingsScreen(vm: AppViewModel) {
                                 if (catalog.loading) "Comprobando el canal…" else "Tienes la última versión.",
                                 style = PxText.small,
                             )
-                            PixelButton("Comprobar", onClick = { vm.refreshCatalog() }, color = Px.blue, small = true,
+                            PixelButton("Comprobar", onClick = { vm.checkAppUpdate { toast(it) } }, color = Px.blue, small = true,
                                 enabled = !catalog.loading)
                         }
                         if (catalog.announcement != null) {
