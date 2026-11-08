@@ -88,6 +88,7 @@ fun SettingsScreen(vm: AppViewModel) {
     var orphans by remember { mutableStateOf<StorageTools.Orphans?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
+    var confirmClearCache by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
 
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { refresh++ }
@@ -447,9 +448,8 @@ fun SettingsScreen(vm: AppViewModel) {
                         }
                         if (busy) PixelProgress(null, Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PixelButton("Borrar caché", onClick = {
-                                work { toast("Liberado ${FileNames.formatSize(storage.clearCache())}") }
-                            }, color = Px.blue, small = true, enabled = !busy)
+                            // Pide confirmar: hay que reiniciar la app para que TDLib suelte la caché.
+                            PixelButton("Borrar caché", onClick = { confirmClearCache = true }, color = Px.blue, small = true, enabled = !busy)
                             PixelButton("Buscar huérfanos", onClick = {
                                 work { orphans = storage.findOrphans() }
                             }, color = Px.orange, small = true, enabled = !busy)
@@ -685,6 +685,29 @@ fun SettingsScreen(vm: AppViewModel) {
         item { Spacer(Modifier.padding(8.dp)) }
     }
 
+    if (confirmClearCache) {
+        PixelDialog("¿Borrar la caché?", onDismiss = { confirmClearCache = false }) {
+            Text(
+                "Se borrarán las carátulas, capturas y vídeos guardados (se vuelven a bajar al verlos). " +
+                    "Para que surta efecto, la app se reiniciará al terminar. Las descargas en curso " +
+                    "seguirán solas al volver a abrirse.",
+                style = PxText.body,
+            )
+            DialogButtons {
+                PixelButton("Cancelar", onClick = { confirmClearCache = false }, color = Px.grey, small = true)
+                PixelButton("Borrar y reiniciar", onClick = {
+                    confirmClearCache = false
+                    work {
+                        val freed = storage.clearCache()
+                        toast("Liberado ${FileNames.formatSize(freed)}. Reiniciando…")
+                        kotlinx.coroutines.delay(800)
+                        restartApp(context)
+                    }
+                }, color = Px.blue, small = true)
+            }
+        }
+    }
+
     if (confirmDeleteAll) {
         PixelDialog("¿Borrar descargas de la caché?", onDismiss = { confirmDeleteAll = false }) {
             Text(
@@ -825,4 +848,14 @@ private fun requestIgnoreBattery(context: Context) {
             )
         }
     }
+}
+
+/**
+ * Reinicia la app: abre de nuevo la pantalla principal en una tarea nueva y cierra el proceso
+ * actual, para que TDLib arranque de cero (si no, sigue usando la caché que se acaba de borrar).
+ */
+private fun restartApp(context: Context) {
+    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
+    context.startActivity(Intent.makeRestartActivityTask(launch.component))
+    Runtime.getRuntime().exit(0)
 }
