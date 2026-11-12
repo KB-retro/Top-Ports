@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,7 +81,9 @@ fun UpdatesScreen(vm: AppViewModel) {
                         Text("${update.pkg.name} · ${FileNames.formatSize(update.pkg.size)}", style = PxText.small)
                     }
                     Spacer(Modifier.width(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Tan ancha como el botón más largo: con fillMaxWidth en los botones y sin
+                    // ancho propio, la columna se comía toda la fila y el texto salía en vertical.
+                    Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         PixelButton("Ver", onClick = {
                             vm.tab = Tab.STORE
                             vm.openGame(update.game.id)
