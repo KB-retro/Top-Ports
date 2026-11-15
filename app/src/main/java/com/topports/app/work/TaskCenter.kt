@@ -214,7 +214,7 @@ class TaskCenter(
         // Solo los comprimidos en partes se extraen al descargar y necesitan sitio para ello.
         val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
         val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
-        return (pkg.size - downloaded).coerceAtLeast(0) + extra
+        return (pkg.size - downloaded).coerceAtLeast(0) + extra + queuedRemaining(except = pkg.key)
     }
 
     /** Espacio libre donde se descargan los juegos. */
@@ -234,8 +234,8 @@ class TaskCenter(
                 val copyNeeded = tg.filesDir.startsWith(context.filesDir)
                 val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
                 val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
-                val free = Storage.freeBytes(tg.filesDir)
-                if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free)
+                val free = Storage.freeBytes(tg.filesDir) - queuedRemaining(except = pkg.key)
+                if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
 
                 val dir = installs.gameDir(context, game.id, game.title)
                 // A la cola: la descarga empieza cuando le toque (ver [schedule]).
@@ -254,6 +254,22 @@ class TaskCenter(
                 onError(e.message ?: e.toString())
             }
         }
+    }
+
+    /**
+     * Lo que aún falta por bajar de las demás descargas de la cola: ese sitio ya está "pedido".
+     * Sin esto, varias descargas grandes seguidas pasaban la comprobación una a una y la memoria
+     * se llenaba a mitad.
+     */
+    private fun queuedRemaining(except: String): Long {
+        val files = tg.files.value
+        return installs.pendingSaves().filter { it.pkgKey != except && it.pkgKey !in _saving.value }
+            .flatMap { it.parts }
+            .sumOf { (id, _) ->
+                val f = files[id] ?: return@sumOf 0L
+                val size = if (f.size > 0) f.size else f.expectedSize
+                if (f.local.isDownloadingCompleted) 0L else (size - f.local.downloadedSize).coerceAtLeast(0)
+            }
     }
 
     /** Descargas de la tienda aún sin terminar (y sin mover ni extraer), para TAREAS. */

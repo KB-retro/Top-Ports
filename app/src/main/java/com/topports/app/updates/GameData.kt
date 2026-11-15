@@ -28,7 +28,9 @@ class GameData(
             val f = File(path)
             if (Storage.isSafeToDelete(f)) files += "Extraído: ${f.name}" to f
         }
-        files += "Carpeta TopPorts" to File(Storage.topPortsDir(context), com.topports.core.FileNames.safeFolderName(item.game.title))
+        // La carpeta que se le dio a este juego: con dos juegos del mismo título, la del otro es
+        // "<juego> (2)" y no se debe tocar.
+        files += "Carpeta TopPorts" to File(Storage.topPortsDir(context), registry.gameFolderName(item.game.id, item.game.title))
         files.distinctBy { it.second.path }
             .filter { it.second.exists() && Storage.isSafeToDelete(it.second) }
             .map { (label, f) -> Entry(label, f, sizeOf(f)) }
@@ -39,7 +41,7 @@ class GameData(
         val freed = withContext(Dispatchers.IO) {
             entries.sumOf { e -> if (e.file.deleteRecursively()) e.size else 0L }
         }
-        item.game.packages.flatMap { it.parts }.forEach { tg.deleteFile(it.id) }
+        item.game.packages.flatMap { it.parts }.forEach { runCatching { tg.deleteFile(it.id) } }
         registry.forgetExtracted(item.game.id)
         item.game.packages.forEach { registry.forgetSaved(it.key); registry.forgetUnpacked(it.key) }
         return freed

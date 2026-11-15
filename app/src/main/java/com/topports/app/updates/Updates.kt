@@ -105,6 +105,7 @@ class InstallRegistry(context: Context) {
 
     fun pendingSaves(): List<PendingSave> = pending
 
+    @Synchronized
     fun addPendingSave(save: PendingSave) {
         val parts = org.json.JSONArray(save.parts.map { (id, name) -> JSONObject().put("id", id).put("name", name) })
         val json = JSONObject().put("gameId", save.gameId).put("dir", save.dir).put("parts", parts)
@@ -114,10 +115,12 @@ class InstallRegistry(context: Context) {
     }
 
     /** Marca una descarga pendiente como pausada a mano (o no). */
+    @Synchronized
     fun setPendingPaused(pkgKey: String, paused: Boolean) {
         pending.firstOrNull { it.pkgKey == pkgKey }?.let { addPendingSave(it.copy(paused = paused)) }
     }
 
+    @Synchronized
     fun removePendingSave(pkgKey: String) {
         prefs.edit().remove("pending_$pkgKey").apply()
         pending = pending.filter { it.pkgKey != pkgKey }

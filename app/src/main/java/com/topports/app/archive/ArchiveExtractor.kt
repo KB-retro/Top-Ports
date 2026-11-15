@@ -201,7 +201,9 @@ class ArchiveExtractor {
                 runCatching { archive.close() }
             }
         } catch (e: SevenZipException) {
-            if (password == null && callback.passwordAsked) throw PasswordRequiredException()
+            // También con contraseña puesta: si 7-Zip la pidió y no pudo abrir, es que no vale
+            // (7z con los nombres cifrados) y se vuelve a pedir en vez de dar un error confuso.
+            if (callback.passwordAsked) throw PasswordRequiredException()
             throw IOException(e.message ?: "No se pudo abrir el archivo", e)
         } finally {
             opened.forEach { runCatching { it.close() } }
@@ -300,7 +302,8 @@ class ArchiveExtractor {
         override fun prepareOperation(extractAskMode: ExtractAskMode) = Unit
 
         override fun setOperationResult(extractOperationResult: ExtractOperationResult) {
-            closeCurrent()
+            // Si ese archivo salió mal (dañado, contraseña errónea) no se deja escrito a medias.
+            closeCurrent(deletePartial = extractOperationResult != ExtractOperationResult.OK)
             if (extractOperationResult != ExtractOperationResult.OK && failure == null) {
                 failure = extractOperationResult
             }
