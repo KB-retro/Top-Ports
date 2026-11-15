@@ -152,7 +152,7 @@ class TaskCenter(
      */
     private suspend fun extractDownloaded(taskId: Int, p: InstallRegistry.PendingSave, parts: List<Pair<String, File>>, password: String?) {
         extractAndInstall(taskId, VolumeSet.ofParts(parts), File(p.dir), password, gameId = p.gameId)
-        installs.recordUnpacked(p.pkgKey, p.dir)
+        installs.recordUnpacked(p.pkgKey, p.dir, FileNames.volumeOf(p.parts.first().second).baseName)
         p.parts.forEach { (id, _) -> runCatching { tg.deleteFile(id) } }
     }
 
@@ -206,7 +206,7 @@ class TaskCenter(
 
     private fun isOnDevice(pkg: GamePackage, files: Map<Int, TdApi.File>): Boolean {
         if (checkSavedFiles(pkg) != null) return true
-        installs.unpackedDir(pkg.key)?.let { dir ->
+        installs.unpackedDir(pkg.key, pkg.name)?.let { dir ->
             if (File(dir).listFiles()?.isNotEmpty() == true) return true
         }
         return pkg.parts.all { part ->
@@ -458,6 +458,18 @@ class TaskCenter(
         // Si la app se cerró justo al terminar una descarga (o a mitad de extraerla), TDLib no
         // vuelve a avisar de esas partes y se quedarían sin mover. Al conectar se pregunta por
         // ellas: las ya completas se mueven o extraen solas.
+        // Al cerrar sesión (desde la app o desde otro dispositivo) los ids de archivo dejan de valer.
+        scope.launch {
+            tg.authState.collect { state ->
+                if (state is TdApi.AuthorizationStateLoggingOut) {
+                    installs.forgetFileIdRecords()
+                    _downloadErrors.value = emptyMap()
+                    _queued.value = emptySet()
+                    savedCache.clear()
+                    _savedVersion.update { it + 1 }
+                }
+            }
+        }
         scope.launch {
             tg.authState.map { it is TdApi.AuthorizationStateReady }.distinctUntilChanged().filter { it }.collect {
                 installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }

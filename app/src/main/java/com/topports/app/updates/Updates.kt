@@ -76,12 +76,35 @@ class InstallRegistry(context: Context) {
         prefs.edit().remove("saved_$pkgKey").apply()
     }
 
-    /** Carpeta donde se extrajo solo un comprimido al terminar de descargarse. */
-    fun recordUnpacked(pkgKey: String, dir: String) {
-        prefs.edit().putString("unpacked_$pkgKey", dir).apply()
+    /**
+     * Carpeta donde se extrajo solo un comprimido al terminar de descargarse. Se guarda también el
+     * nombre del archivo: la clave son ids de archivo de TDLib, que vuelven a empezar si se cierra
+     * la sesión, y sin el nombre un apunte viejo marcaba como descargado otro juego cualquiera.
+     */
+    fun recordUnpacked(pkgKey: String, dir: String, name: String) {
+        prefs.edit().putString("unpacked_$pkgKey", JSONObject().put("dir", dir).put("name", name).toString()).apply()
     }
 
-    fun unpackedDir(pkgKey: String): String? = prefs.getString("unpacked_$pkgKey", null)
+    /** Solo si el apunte es de este mismo archivo ([name]); los de versiones viejas no valen. */
+    fun unpackedDir(pkgKey: String, name: String): String? {
+        val raw = prefs.getString("unpacked_$pkgKey", null) ?: return null
+        val json = runCatching { JSONObject(raw) }.getOrNull() ?: return null
+        return json.optString("dir").takeIf { it.isNotEmpty() && json.optString("name").equals(name, ignoreCase = true) }
+    }
+
+    /**
+     * Al cerrar sesión TDLib borra su base de datos y los ids de archivo vuelven a empezar: lo
+     * apuntado con ids (descargas pendientes, extraídos, instalaciones a medio confirmar) ya no
+     * señala al mismo archivo. Una descarga pendiente bajaría otro juego a la carpeta equivocada.
+     */
+    @Synchronized
+    fun forgetFileIdRecords() {
+        val edit = prefs.edit()
+        prefs.all.keys.filter { k -> listOf("pending_", "unpacked_", "session_").any { k.startsWith(it) } }
+            .forEach { edit.remove(it) }
+        edit.apply()
+        pending = emptyList()
+    }
 
     fun forgetUnpacked(pkgKey: String) {
         prefs.edit().remove("unpacked_$pkgKey").apply()

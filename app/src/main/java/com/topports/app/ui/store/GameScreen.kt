@@ -493,7 +493,7 @@ private fun PackageRow(
     val downloadError = downloadErrors[pkg.key]
     // Comprimido que se extrajo solo al descargarse (ya no está la descarga, sí la carpeta).
     val unpackedDir = remember(info.started, moving) {
-        vm.graph.installs.unpackedDir(pkg.key)?.takeIf { !info.started && !moving && File(it).isDirectory }
+        vm.graph.installs.unpackedDir(pkg.key, pkg.name)?.takeIf { !info.started && !moving && File(it).isDirectory }
     }
     val primary = if (focus != null) Modifier.focusRequester(focus) else Modifier
     var bounds by remember { mutableStateOf(0f to 0f) }
