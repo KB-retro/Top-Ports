@@ -72,6 +72,8 @@ fun VideoPlayerDialog(file: File, title: String, onClose: () -> Unit) {
             playWhenReady = true
         }
     }
+    // Al salir de la app (botón de inicio, otra app) el vídeo se pausa en vez de seguir sonando.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_PAUSE) { player.pause() }
     var fullscreen by remember { mutableStateOf(false) }
     var playing by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }

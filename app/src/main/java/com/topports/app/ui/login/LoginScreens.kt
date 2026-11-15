@@ -18,7 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -94,6 +97,8 @@ fun LoginFlow(vm: AppViewModel, state: TdApi.AuthorizationState) {
         is TdApi.AuthorizationStateWaitPhoneNumber -> PhoneStep(vm)
         is TdApi.AuthorizationStateWaitCode -> CodeStep(vm, state.codeInfo)
         is TdApi.AuthorizationStateWaitPassword -> PasswordStep(vm, state.passwordHint)
+        is TdApi.AuthorizationStateWaitEmailAddress -> EmailStep(vm)
+        is TdApi.AuthorizationStateWaitEmailCode -> EmailCodeStep(vm, state.codeInfo)
         is TdApi.AuthorizationStateWaitOtherDeviceConfirmation -> MessageScreen(
             "Confirma en otro dispositivo",
             "Abre Telegram en otro dispositivo y confirma el inicio de sesión: ${state.link}",
@@ -173,6 +178,30 @@ private fun CodeStep(vm: AppViewModel, info: TdApi.AuthenticationCodeInfo) {
             enabled = !vm.authBusy && code.length >= 4,
             modifier = Modifier.fillMaxWidth(),
         )
+        // Si el código no llega: pedirlo otra vez por la siguiente vía (SMS, llamada…), pasada la
+        // espera que marca Telegram.
+        info.nextType?.let { next ->
+            var wait by remember(info) { mutableIntStateOf(info.timeout) }
+            LaunchedEffect(info) {
+                while (wait > 0) {
+                    kotlinx.coroutines.delay(1000)
+                    wait--
+                }
+            }
+            val how = when (next) {
+                is TdApi.AuthenticationCodeTypeSms -> "por SMS"
+                is TdApi.AuthenticationCodeTypeCall -> "con una llamada"
+                else -> "otra vez"
+            }
+            PixelButton(
+                if (wait > 0) "Reenviar código $how (${wait}s)" else "Reenviar código $how",
+                onClick = { vm.resendCode() },
+                enabled = !vm.authBusy && wait <= 0,
+                color = Px.blue,
+                small = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         ChangePhoneButton(vm)
     }
 }
@@ -200,6 +229,60 @@ private fun PasswordStep(vm: AppViewModel, hint: String) {
             "Entrar",
             onClick = { vm.submitPassword(password) },
             enabled = !vm.authBusy && password.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ChangePhoneButton(vm)
+    }
+}
+
+/** Telegram pide un correo para esta cuenta (pasa con algunas cuentas nuevas). */
+@Composable
+private fun EmailStep(vm: AppViewModel) {
+    var email by rememberSaveable { mutableStateOf("") }
+    LoginScaffold("Entra con tu Telegram") {
+        Text("2. TU CORREO", style = PxText.label.copy(color = Px.yellow))
+        Text(
+            "Telegram pide un correo para esta cuenta. Te mandará ahí el código para entrar.",
+            style = PxText.body,
+        )
+        PixelTextField(
+            value = email,
+            onValueChange = { email = it.trim() },
+            placeholder = "tu@correo.com",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { vm.submitEmail(email) }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ErrorAndBusy(vm)
+        PixelButton(
+            "Enviar código",
+            onClick = { vm.submitEmail(email) },
+            enabled = !vm.authBusy && '@' in email && '.' in email.substringAfter('@'),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ChangePhoneButton(vm)
+    }
+}
+
+@Composable
+private fun EmailCodeStep(vm: AppViewModel, info: TdApi.EmailAddressAuthenticationCodeInfo) {
+    var code by rememberSaveable { mutableStateOf("") }
+    LoginScaffold("Entra con tu Telegram") {
+        Text("2. CÓDIGO DEL CORREO", style = PxText.label.copy(color = Px.yellow))
+        Text("Te hemos enviado el código a ${info.emailAddressPattern}.", style = PxText.body)
+        PixelTextField(
+            value = code,
+            onValueChange = { code = it.filter(Char::isLetterOrDigit).take(12) },
+            placeholder = "123456",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { vm.submitEmailCode(code) }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ErrorAndBusy(vm)
+        PixelButton(
+            "Entrar",
+            onClick = { vm.submitEmailCode(code) },
+            enabled = !vm.authBusy && code.length >= 4,
             modifier = Modifier.fillMaxWidth(),
         )
         ChangePhoneButton(vm)

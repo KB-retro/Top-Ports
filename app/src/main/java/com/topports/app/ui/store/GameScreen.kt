@@ -130,7 +130,14 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
     val game = catalog.games.firstOrNull { it.id == gameId }
     if (game == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            PixelButton("Volver", onClick = { vm.selectedGameId = null })
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    if (catalog.loading) "Cargando el canal…"
+                    else "Este juego ya no está en el canal (se ha borrado o se ha vuelto a subir).",
+                    style = PxText.body,
+                )
+                PixelButton("Volver", onClick = { vm.selectedGameId = null })
+            }
         }
         return
     }

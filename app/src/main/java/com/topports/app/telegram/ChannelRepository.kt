@@ -64,15 +64,23 @@ class ChannelRepository(
     val hearts: StateFlow<Map<Long, Hearts>> = _hearts.asStateFlow()
     private var loadJob: Job? = null
     private var listening = false
+    @Volatile
+    private var lastSyncAt = 0L
 
     /**
      * Posts más recientes pedidos directamente al servidor (no a la copia local de TDLib), y el
      * canal se cierra y se vuelve a abrir para que Telegram lo sincronice. Así un juego recién
      * publicado aparece al recargar o al volver a la app, sin tener que reiniciarla.
      */
-    fun syncRecent() {
+    fun syncRecent(force: Boolean = false) {
         val chatId = _state.value.chatId
         if (chatId == 0L) return
+        // Al volver a la app se hace como mucho una vez por minuto: son unas 8 peticiones al
+        // servidor y, cambiando de app a menudo, Telegram puede pedir esperar (FLOOD_WAIT) y
+        // frenar también las descargas. Recargar a mano siempre sincroniza.
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!force && now - lastSyncAt < 60_000) return
+        lastSyncAt = now
         scope.launch {
             runCatching { tg.send(TdApi.CloseChat(chatId)) }
             runCatching { tg.send(TdApi.OpenChat(chatId)) }
@@ -137,7 +145,7 @@ class ChannelRepository(
             return
         }
         // Lo nuevo primero, aunque la lectura completa siga en marcha.
-        syncRecent()
+        syncRecent(force = true)
         if (loadJob?.isActive == true) return
         loadJob = scope.launch {
             _state.update { it.copy(loading = true, error = null) }

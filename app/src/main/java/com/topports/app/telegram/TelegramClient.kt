@@ -194,6 +194,20 @@ class TelegramClient(private val context: Context) {
         send(TdApi.CheckAuthenticationCode(code))
     }
 
+    /** Cuentas a las que Telegram pide un correo para entrar. */
+    suspend fun sendEmail(email: String) {
+        send(TdApi.SetAuthenticationEmailAddress(email))
+    }
+
+    suspend fun sendEmailCode(code: String) {
+        send(TdApi.CheckAuthenticationEmailCode(TdApi.EmailAddressAuthenticationCode(code)))
+    }
+
+    /** "Reenviar código": Telegram lo manda por la siguiente vía (SMS, llamada…). */
+    suspend fun resendCode() {
+        send(TdApi.ResendAuthenticationCode(TdApi.ResendCodeReasonUserRequest()))
+    }
+
     suspend fun sendPassword(password: String) {
         send(TdApi.CheckAuthenticationPassword(password))
     }

@@ -384,6 +384,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun submitCode(code: String) = authCall { graph.telegram.sendCode(code.trim()) }
     fun submitPassword(password: String) = authCall { graph.telegram.sendPassword(password) }
+    fun resendCode() = authCall { graph.telegram.resendCode() }
+    fun submitEmail(email: String) = authCall { graph.telegram.sendEmail(email.trim()) }
+    fun submitEmailCode(code: String) = authCall { graph.telegram.sendEmailCode(code.trim()) }
 
     /**
      * Número equivocado, o se quiere usar otra cuenta: se cancela el inicio de sesión a medias y
@@ -436,6 +439,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         "PHONE_CODE_INVALID" in raw -> "Código incorrecto"
         "PHONE_CODE_EXPIRED" in raw -> "El código ha caducado, vuelve a pedirlo"
         "PASSWORD_HASH_INVALID" in raw -> "Contraseña incorrecta"
+        "EMAIL_INVALID" in raw -> "Correo no válido"
+        "EMAIL_CODE_INVALID" in raw || "CODE_INVALID" in raw -> "Código incorrecto"
         "FLOOD_WAIT" in raw || "Too Many Requests" in raw -> "Demasiados intentos. Espera un rato y vuelve a probar"
         else -> raw
     }
