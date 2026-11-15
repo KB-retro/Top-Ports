@@ -117,6 +117,13 @@ Android en local.
    - **Extracción automática** (activada por defecto; se desactiva con `autoExtract`, en Ajustes → Almacenamiento). Solo se aplica a comprimidos en partes (.7z.001, .part1.rar, .z01…). `extractAndInstall` extrae en `/TopPorts/<juego>`, mueve los OBB, lanza la instalación de los APK, marca `unpacked_` y borra el comprimido de la caché de Telegram.
    - **Resto** (cualquier archivo suelto —.7z, .rar o .zip—, porque hay lanzadores de ports que lo cargan tal cual; se extrae a mano desde la ficha): `saveParts` lo mueve a `/TopPorts/<juego>`. Mueve con `renameTo` si está en el mismo almacenamiento y, si no, copia.
 3. **Cancelar** (`cancelDownload` / `deleteDownload`): `CancelDownloadFile` + `DeleteFile` y quitar el pending.
+4. **Errores**: si TDLib rechaza `DownloadFile` (no un reinicio, código -1), la descarga queda en
+   pausa y el motivo va a `downloadErrors` (se ve en TAREAS y en la ficha).
+5. Antes de mover o extraer, `checkParts` comprueba el tamaño de cada parte.
+6. Al terminar una tarea con la app fuera de pantalla, `DoneNotifier` avisa (las instalaciones no:
+   ya avisa Android). `BootReceiver` reanuda la cola al encender si `resumeOnBoot`.
+7. Copiar Android/obb o Android/data encima de sí mismos (extraer en la raíz) los borraría:
+   `samePath` lo evita. No quitarlo.
 
 **Arreglo clave de 7-Zip.** Las partes `.7z.001` se leen como un único flujo (`MultiFileInStream`).
 A 7-Zip hay que darle el nombre **sin** `.001`: con `.001` elige el formato "Split" y solo junta
@@ -145,6 +152,8 @@ Probado solo en CI y en el emulador. Falta que el usuario confirme:
 4. Posts nuevos del canal visibles al volver a la app, sin reiniciar.
 5. Cancelar descargas, y volver a la ficha al salir de TAREAS.
 6. Logo y ayuda de botones en el menú lateral de la Odin 2 Portal.
+7. Seguir al encender (Android 15 no deja el servicio tras el arranque), entrar con correo y
+   reenviar código, copia de ajustes y "Cerrar la app" (Ajustes → Versión, lo último).
 
 ## Ideas descartadas por ahora (el usuario dijo que no, de momento)
 

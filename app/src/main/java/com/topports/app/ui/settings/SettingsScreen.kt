@@ -382,6 +382,73 @@ fun SettingsScreen(vm: AppViewModel) {
                     }
                 }
             }
+            // Copia de los ajustes en /TopPorts, para pasarlos a otra consola.
+            item {
+                var confirmImport by remember { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Copia de ajustes", style = PxText.body)
+                    Text(
+                        "Tema, paleta, sonido, mando, descargas, favoritos y búsquedas en " +
+                            "${vm.settingsFile().path}. Cópialo a la otra consola en la misma carpeta.",
+                        style = PxText.small,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PixelButton("Guardar copia", onClick = {
+                            work { toast("Guardado en ${vm.exportSettings().path}") }
+                        }, color = Px.blue, small = true, enabled = !busy)
+                        PixelButton("Cargar copia", onClick = { confirmImport = true }, color = Px.navyDark, textColor = Px.white, small = true, enabled = !busy)
+                    }
+                }
+                if (confirmImport) {
+                    PixelDialog("¿Cargar copia de ajustes?", onDismiss = { confirmImport = false }) {
+                        Text(
+                            "Se cambian tus ajustes, favoritos y búsquedas por los de la copia y la app se " +
+                                "reinicia para aplicarlos. La sesión de Telegram y las descargas no se tocan.",
+                            style = PxText.body,
+                        )
+                        DialogButtons {
+                            PixelButton("No", onClick = { confirmImport = false }, color = Px.grey, small = true)
+                            PixelButton("Cargar y reiniciar", onClick = {
+                                confirmImport = false
+                                work {
+                                    if (vm.graph.tasks.hasRunningTasks) {
+                                        toast("Espera a que terminen las tareas (mira TAREAS) y vuelve a probar")
+                                        return@work
+                                    }
+                                    vm.importSettings()
+                                    toast("Ajustes cargados. Reiniciando…")
+                                    kotlinx.coroutines.delay(800)
+                                    restartApp(context)
+                                }
+                            }, color = Px.blue, small = true)
+                        }
+                    }
+                }
+            }
+            // Cerrar la app del todo (no solo minimizarla), lo último de Versión.
+            item {
+                var confirmClose by remember { mutableStateOf(false) }
+                PixelButton("Cerrar la app", onClick = { confirmClose = true }, color = Px.darkGrey, textColor = Px.white, small = true)
+                if (confirmClose) {
+                    val working = vm.graph.tasks.hasRunningTasks ||
+                        vm.files.value.values.any { it.local.isDownloadingActive }
+                    PixelDialog("¿Cerrar Top Ports?", onDismiss = { confirmClose = false }) {
+                        Text(
+                            if (working) "Hay descargas o tareas en marcha: se pararán. Las descargas siguen " +
+                                "donde se quedaron al volver a abrir la app; una extracción a medias habrá que repetirla."
+                            else "La app se cierra del todo, música incluida.",
+                            style = PxText.body,
+                        )
+                        DialogButtons {
+                            PixelButton("No", onClick = { confirmClose = false }, color = Px.grey, small = true)
+                            PixelButton("Cerrar", onClick = {
+                                confirmClose = false
+                                closeApp(context)
+                            }, color = Px.red, textColor = Px.white, small = true)
+                        }
+                    }
+                }
+            }
         }
 
         // --- Almacenamiento ---
@@ -443,6 +510,20 @@ fun SettingsScreen(vm: AppViewModel) {
                                 onClick = { wifi = !wifi; vm.graph.tasks.wifiOnly = wifi },
                                 color = if (wifi) Px.green else Px.darkGrey,
                                 textColor = if (wifi) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Seguir al encender", style = PxText.body)
+                                Text("Las descargas pendientes continúan solas al encender la consola, sin abrir la app.", style = PxText.small)
+                            }
+                            var boot by remember(vm.settingsResets) { mutableStateOf(vm.graph.tasks.resumeOnBoot) }
+                            PixelButton(
+                                if (boot) "Sí" else "No",
+                                onClick = { boot = !boot; vm.graph.tasks.resumeOnBoot = boot },
+                                color = if (boot) Px.green else Px.darkGrey,
+                                textColor = if (boot) Px.black else Px.white,
                                 small = true,
                             )
                         }
@@ -859,6 +940,16 @@ private fun requestIgnoreBattery(context: Context) {
  * Reinicia la app: abre de nuevo la pantalla principal en una tarea nueva y cierra el proceso
  * actual, para que TDLib arranque de cero (si no, sigue usando la caché que se acaba de borrar).
  */
+/** Cierra la app del todo: para el servicio de descargas, quita la ventana y termina el proceso. */
+private fun closeApp(context: Context) {
+    context.stopService(Intent(context, com.topports.app.work.WorkService::class.java))
+    var c: Context? = context
+    while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
+    (c as? android.app.Activity)?.finishAndRemoveTask()
+    // Un momento para que la ventana se cierre antes de terminar el proceso.
+    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ Runtime.getRuntime().exit(0) }, 300)
+}
+
 private fun restartApp(context: Context) {
     val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
     context.startActivity(Intent.makeRestartActivityTask(launch.component))

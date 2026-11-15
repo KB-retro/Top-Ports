@@ -89,12 +89,29 @@ fun CatalogScreen(vm: AppViewModel) {
     val query = vm.search.trim()
     val favorites = vm.favorites
     val freeSpace = rememberFreeSpace(vm)
+    // Juegos con algo ya descargado (guardado, extraído o completo en la caché), para la marca
+    // DESCARGADO. Se recalcula al cambiar lo guardado o al terminar una tarea, no con cada
+    // aviso de progreso de las descargas.
+    val savedVersion by vm.graph.tasks.savedVersion.collectAsStateWithLifecycle()
+    val taskList by vm.tasks.collectAsStateWithLifecycle()
+    val finishedTasks = taskList.count { !it.running }
+    val downloadedIds = remember(state.games, savedVersion, finishedTasks) {
+        val files = vm.files.value
+        state.games.filter { game ->
+            game.packages.any { pkg ->
+                vm.graph.installs.savedDir(pkg.key) != null || vm.graph.installs.unpackedDir(pkg.key) != null ||
+                    pkg.parts.all { files[it.id]?.local?.isDownloadingCompleted == true }
+            }
+        }.map { it.id }.toSet()
+    }
     // "Más corazones" ordena con los corazones de cuando se eligió el orden (o se recargó el
     // catálogo): si se reordenara con cada corazón nuevo del canal, el cursor saltaría de sitio.
     val heartsForSort = remember(vm.sortMode, state.games) { if (vm.sortMode == SortMode.POPULAR) hearts else null }
-    val games = remember(state.games, query, vm.sortMode, vm.systemFilter, favorites, heartsForSort) {
+    val hideInstalled = vm.hideInstalled
+    val games = remember(state.games, query, vm.sortMode, vm.systemFilter, favorites, heartsForSort, hideInstalled, installedIds) {
         val filter = vm.systemFilter
         val found = state.games.filter { game ->
+            !(hideInstalled && game.id in installedIds) &&
             (filter == null || (if (filter == FAVORITES_FILTER) game.id in favorites else filter in game.tags)) &&
                 (
                     query.isEmpty() || game.title.contains(query, true) ||
@@ -208,12 +225,15 @@ fun CatalogScreen(vm: AppViewModel) {
                 textColor = Px.white,
                 small = true,
             )
-            if (systems.isNotEmpty()) {
+            // Siempre a la vista: dentro está también "Ocultar instalados".
+            run {
+                val filtered = vm.systemFilter != null || vm.hideInstalled
                 PixelButton(
-                    "Sistema: ${vm.systemFilter?.let { if (it == FAVORITES_FILTER) "★ Favoritos" else it } ?: "Todos"} (Sel)",
+                    "Sistema: ${vm.systemFilter?.let { if (it == FAVORITES_FILTER) "★ Favoritos" else it } ?: "Todos"}" +
+                        (if (vm.hideInstalled) " · sin instalados" else "") + " (Sel)",
                     onClick = { vm.systemPickerOpen = true },
-                    color = if (vm.systemFilter == null) Px.navyDark else Px.yellow,
-                    textColor = if (vm.systemFilter == null) Px.grey else Px.black,
+                    color = if (filtered) Px.yellow else Px.navyDark,
+                    textColor = if (filtered) Px.black else Px.grey,
                     small = true,
                 )
             }
@@ -352,6 +372,7 @@ fun CatalogScreen(vm: AppViewModel) {
                 GameCard(
                     game,
                     installed = game.id in installedIds,
+                    downloaded = game.id in downloadedIds,
                     favorite = game.id in favorites,
                     hearts = vm.graph.channel.heartsOf(game, hearts).second,
                     onClick = { vm.openGame(game.id) },
@@ -380,6 +401,7 @@ fun CatalogScreen(vm: AppViewModel) {
 private fun GameCard(
     game: Game,
     installed: Boolean,
+    downloaded: Boolean,
     favorite: Boolean,
     hearts: Hearts,
     onClick: () -> Unit,
@@ -400,6 +422,7 @@ private fun GameCard(
                 Text("?", style = PxText.title.copy(color = Px.darkGrey), modifier = Modifier.align(Alignment.Center))
             }
             if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
+            else if (downloaded) PixelTag("DESCARGADO", Px.blue, Modifier.align(Alignment.TopEnd).padding(4.dp))
             if (recentlyUpdated(game)) PixelTag("ACTUALIZADO", Px.yellow, Modifier.align(Alignment.TopStart).padding(4.dp))
             if (favorite) PixelTag("★", Px.yellow, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         }
@@ -468,6 +491,15 @@ private fun SystemPickerDialog(vm: AppViewModel, systems: List<Pair<String, Int>
     val close = { vm.systemPickerOpen = false }
     PixelDialog("Sistema", onDismiss = close, wide = true, widthFraction = 0.8f) {
         Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+            // Mostrar u ocultar los juegos ya instalados (se aplica junto con el sistema elegido).
+            PixelButton(
+                if (vm.hideInstalled) "Instalados: ocultos" else "Instalados: se ven",
+                onClick = { vm.toggleHideInstalled() },
+                color = if (vm.hideInstalled) Px.green else Px.navyDark,
+                textColor = if (vm.hideInstalled) Px.black else Px.white,
+                small = true,
+            )
+            Spacer(Modifier.height(10.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 PixelButton(
                     "Todos ($total)",

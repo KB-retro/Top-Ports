@@ -107,6 +107,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        com.topports.app.work.AppForeground.visible = true
         ChipMusic.setForeground(true)
         // Al volver de dar el permiso de archivos, las descargas pasan a /TopPorts/.telegram.
         vm.graph.telegram.applyStorageLocation()
@@ -119,6 +120,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        com.topports.app.work.AppForeground.visible = false
         ChipMusic.setForeground(false)
         vm.graph.telegram.setOnline(false)
     }

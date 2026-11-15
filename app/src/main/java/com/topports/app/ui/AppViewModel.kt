@@ -196,6 +196,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("searchHistory", searchHistory.joinToString("\n")).apply()
     }
 
+    /** Tienda sin los juegos ya instalados (Sistema → Ocultar instalados); se recuerda. */
+    var hideInstalled by mutableStateOf(prefs.getBoolean("hideInstalled", false))
+        private set
+
+    fun toggleHideInstalled() {
+        hideInstalled = !hideInstalled
+        prefs.edit().putBoolean("hideInstalled", hideInstalled).apply()
+    }
+
     /** Sistema elegido en la tienda ("N64", "X360"…); null = todos; [FAVORITES_FILTER] = favoritos. */
     var systemFilter by mutableStateOf<String?>(null)
     var systemPickerOpen by mutableStateOf(false)
@@ -223,7 +232,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().apply {
             listOf(
                 "theme", "uiStyle", "anim", "sounds", "soundSoft", "soundType", "music", "swapAB", "sort",
-                "autoExtract", "maxParallel", "wifiOnly",
+                "autoExtract", "maxParallel", "wifiOnly", "hideInstalled", "resumeOnBoot",
             ).forEach { remove(it) }
         }.apply()
         Px.theme = AppTheme.fromName(null)
@@ -238,11 +247,61 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         swapAB = false
         Gamepad.swapAB = false
         sortMode = SortMode.NEWEST
+        hideInstalled = false
         graph.tasks.autoExtract = true
         graph.tasks.maxParallel = 2
         graph.tasks.wifiOnly = false
+        graph.tasks.resumeOnBoot = true
         settingsResets++
     }
+
+    /**
+     * Copia de los ajustes en un archivo (Ajustes → Versión), para pasarlos a otra consola: tema,
+     * paleta, sonido, mando, descargas, favoritos y últimas búsquedas. Nada de la sesión de Telegram.
+     */
+    fun settingsFile(): java.io.File =
+        java.io.File(com.topports.app.storage.Storage.topPortsDir(getApplication()), "topports-ajustes.json")
+
+    fun exportSettings(): java.io.File {
+        val json = org.json.JSONObject().put("version", 1)
+        val all = prefs.all
+        for ((key, type) in backupKeys) {
+            val value = all[key] ?: continue
+            json.put(key, if (type == "set") org.json.JSONArray((value as Set<*>).toList()) else value)
+        }
+        val file = settingsFile()
+        file.parentFile?.mkdirs()
+        file.writeText(json.toString(2))
+        return file
+    }
+
+    /** Lee la copia de [settingsFile]; hay que reiniciar la app para que se aplique todo. */
+    fun importSettings() {
+        val file = settingsFile()
+        if (!file.isFile) throw java.io.IOException("No hay copia en ${file.path}")
+        val json = org.json.JSONObject(file.readText())
+        val edit = prefs.edit()
+        for ((key, type) in backupKeys) {
+            if (!json.has(key)) continue
+            when (type) {
+                "bool" -> edit.putBoolean(key, json.getBoolean(key))
+                "int" -> edit.putInt(key, json.getInt(key))
+                "long" -> edit.putLong(key, json.getLong(key))
+                "string" -> edit.putString(key, json.getString(key))
+                "set" -> json.getJSONArray(key).let { arr -> edit.putStringSet(key, List(arr.length()) { arr.getString(it) }.toSet()) }
+            }
+        }
+        // commit (no apply): la app se reinicia justo después y no se puede perder.
+        if (!edit.commit()) throw java.io.IOException("No se pudieron guardar los ajustes")
+    }
+
+    private val backupKeys = mapOf(
+        "theme" to "string", "uiStyle" to "string", "anim" to "string", "sounds" to "bool",
+        "soundType" to "string", "music" to "int", "swapAB" to "bool", "sort" to "string",
+        "autoExtract" to "bool", "maxParallel" to "int", "wifiOnly" to "bool", "hideInstalled" to "bool",
+        "resumeOnBoot" to "bool", "favorites" to "set", "favoriteTitles" to "set", "searchHistory" to "string",
+        "seenAnnouncement" to "long",
+    )
 
     /** Música chiptune: 0 apagada, 1 baja, 2 media, 3 alta (por defecto) (Ajustes → Sonido). */
     var music by mutableStateOf(prefs.getInt("music", 3))

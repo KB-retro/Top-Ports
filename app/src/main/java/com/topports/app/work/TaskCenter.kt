@@ -388,6 +388,13 @@ class TaskCenter(
             requestSchedule()
         }
 
+    /** Reanudar las descargas pendientes al encender la consola ([BootReceiver]). */
+    var resumeOnBoot: Boolean = prefs.getBoolean("resumeOnBoot", true)
+        set(value) {
+            field = value
+            prefs.edit().putBoolean("resumeOnBoot", value).apply()
+        }
+
     /** Descargar solo con WiFi (o cable). Ajustes → Almacenamiento. */
     var wifiOnly: Boolean = prefs.getBoolean("wifiOnly", false)
         set(value) {
@@ -552,7 +559,7 @@ class TaskCenter(
                             installs.rememberSession(sessionId, InstallRecord("", pkg.name, pkg.parts.first().id, game.id, pkg.size))
                         }
                     }
-                    finish(taskId, "Instalación lanzada. Acepta el aviso de Android.")
+                    finish(taskId, "Instalación lanzada. Acepta el aviso de Android.", notify = false)
                 }
                 PackageKind.OBB -> {
                     val dest = copyObb(taskId, parts[0].second, parts[0].first)
@@ -623,7 +630,7 @@ class TaskCenter(
             installApks(taskId, listOf(ApkInstaller.fromFile(File(path))))
             // El instalador ya tiene su copia: no hace falta guardar el APK.
             runCatching { tg.deleteFile(release.file.id) }
-            finish(taskId, "Instalación lanzada. Acepta el aviso de Android; la app se reiniciará.")
+            finish(taskId, "Instalación lanzada. Acepta el aviso de Android; la app se reiniciará.", notify = false)
         }
     }
 
@@ -662,7 +669,7 @@ class TaskCenter(
                 ApkInstaller.fromFile(apk)
             }
             installApks(taskId, listOf(source))
-            finish(taskId, "Instalación lanzada. Acepta el aviso de Android.")
+            finish(taskId, "Instalación lanzada. Acepta el aviso de Android.", notify = false)
         }
     }
 
@@ -766,9 +773,9 @@ class TaskCenter(
                 retries[taskId] = { pw -> launchTask(title, pw, block) }
                 fail(taskId, if (password == null) "Necesita contraseña" else "Contraseña incorrecta", needsPassword = true)
             } catch (e: ExtractCancelledException) {
-                fail(taskId, "Cancelado")
+                fail(taskId, "Cancelado", notify = false)
             } catch (e: kotlinx.coroutines.CancellationException) {
-                fail(taskId, "Cancelado")
+                fail(taskId, "Cancelado", notify = false)
             } catch (e: Exception) {
                 fail(taskId, e.message ?: e.toString())
             } finally {
@@ -882,7 +889,7 @@ class TaskCenter(
             notes += "Instalación lanzada (${plan.apks.size} APK)"
         }
         if (plan.isEmpty) notes += "No hay APK ni OBB: los archivos están en la carpeta"
-        finish(taskId, notes.joinToString("\n"), dest.path)
+        finish(taskId, notes.joinToString("\n"), dest.path, notify = plan.apks.isEmpty())
     }
 
     private suspend fun installApks(
@@ -978,15 +985,20 @@ class TaskCenter(
         }
     }
 
-    private fun finish(taskId: Int, message: String, resultDir: String? = null) {
+    /**
+     * [notify]: avisar con una notificación si la app no está en pantalla. Las instalaciones no
+     * avisan aquí: Android ya muestra la suya para confirmar.
+     */
+    private fun finish(taskId: Int, message: String, resultDir: String? = null, notify: Boolean = true) {
         _tasks.update { list ->
             list.map {
                 if (it.id == taskId) it.copy(message = message, progress = 1f, running = false, resultDir = resultDir) else it
             }
         }
+        if (notify) titleOf(taskId)?.let { DoneNotifier.notify(context, taskId, it, message, failed = false) }
     }
 
-    private fun fail(taskId: Int, message: String, needsPassword: Boolean = false) {
+    private fun fail(taskId: Int, message: String, needsPassword: Boolean = false, notify: Boolean = true) {
         _tasks.update { list ->
             list.map {
                 if (it.id == taskId) {
@@ -994,5 +1006,8 @@ class TaskCenter(
                 } else it
             }
         }
+        if (notify) titleOf(taskId)?.let { DoneNotifier.notify(context, taskId, it, message, failed = true) }
     }
+
+    private fun titleOf(taskId: Int): String? = _tasks.value.firstOrNull { it.id == taskId }?.title
 }

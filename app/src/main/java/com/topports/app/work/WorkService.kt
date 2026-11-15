@@ -28,8 +28,13 @@ class WorkService : LifecycleService() {
 
     private var observing = false
 
+    /** Espera mínima antes de pararse sin trabajo: más larga al encender la consola. */
+    @Volatile
+    private var grace = 3000L
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
+        if (intent?.getBooleanExtra(EXTRA_BOOT, false) == true) grace = 30_000L
         ensureChannel(this)
         try {
             ServiceCompat.startForeground(
@@ -64,6 +69,7 @@ class WorkService : LifecycleService() {
 
     private fun observe() {
         val graph = (application as TopPortsApp).graph
+        val startedAt = android.os.SystemClock.elapsedRealtime()
         lifecycleScope.launch {
             combine(graph.telegram.files, graph.tasks.tasks) { files, tasks ->
                 val downloading = files.values.filter { it.local.isDownloadingActive }
@@ -72,7 +78,10 @@ class WorkService : LifecycleService() {
             }.conflate().collect { (downloading, running) ->
                 if (downloading.isEmpty() && running.isEmpty()) {
                     // Pequeña espera: entre parte y parte puede no haber nada activo un instante.
-                    delay(3000)
+                    // Recién arrancado (p. ej. al encender la consola) se espera más: Telegram
+                    // tarda unos segundos en conectar y en reanudar la cola.
+                    val sinceStart = android.os.SystemClock.elapsedRealtime() - startedAt
+                    delay(maxOf(3000L, grace - sinceStart))
                     if (graph.telegram.files.value.values.none { it.local.isDownloadingActive } &&
                         !graph.tasks.hasRunningTasks
                     ) {
@@ -129,9 +138,14 @@ class WorkService : LifecycleService() {
         private const val CHANNEL_ID = "work"
         private const val NOTIFICATION_ID = 42
 
-        fun start(context: Context) {
+        private const val EXTRA_BOOT = "boot"
+
+        fun start(context: Context, fromBoot: Boolean = false) {
             runCatching {
-                ContextCompat.startForegroundService(context, Intent(context, WorkService::class.java))
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, WorkService::class.java).putExtra(EXTRA_BOOT, fromBoot),
+                )
             }
         }
 
