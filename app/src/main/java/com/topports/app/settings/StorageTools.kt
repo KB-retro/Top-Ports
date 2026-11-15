@@ -13,6 +13,8 @@ class StorageTools(
     private val context: Context,
     private val tg: TelegramClient,
     private val installs: InstallRegistry,
+    /** ¿Hay tareas (extraer, guardar, instalar) en marcha? */
+    private val busy: () -> Boolean = { false },
 ) {
 
     private val tdFiles get() = tg.filesDir
@@ -98,6 +100,8 @@ class StorageTools(
     /** Borra todos los juegos descargados (no lo instalado ni lo extraído). */
     suspend fun deleteAllDownloads(): Long {
         if (downloading()) throw IllegalStateException("Hay descargas en curso")
+        // Un juego que se está pasando a /TopPorts o extrayendo lee de la caché: no se le quita.
+        if (busy()) throw IllegalStateException("Hay tareas en marcha: espera a que terminen")
         tg.files.value.values.filter { it.local.isDownloadingCompleted || it.local.downloadedSize > 0 }
             .forEach { runCatching { tg.deleteFile(it.id) } }
         // Las descargas en pausa también se han borrado: que no sigan saliendo en TAREAS.

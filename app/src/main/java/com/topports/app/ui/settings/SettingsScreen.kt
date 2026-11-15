@@ -698,6 +698,11 @@ fun SettingsScreen(vm: AppViewModel) {
                 PixelButton("Borrar y reiniciar", onClick = {
                     confirmClearCache = false
                     work {
+                        // Reiniciar cortaría una extracción o instalación a medias.
+                        if (vm.graph.tasks.hasRunningTasks) {
+                            toast("Espera a que terminen las tareas (mira TAREAS) y vuelve a probar")
+                            return@work
+                        }
                         val freed = storage.clearCache()
                         toast("Liberado ${FileNames.formatSize(freed)}. Reiniciando…")
                         kotlinx.coroutines.delay(800)

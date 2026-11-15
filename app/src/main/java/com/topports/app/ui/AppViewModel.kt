@@ -14,6 +14,8 @@ import androidx.lifecycle.viewModelScope
 import com.topports.app.TopPortsApp
 import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import com.topports.app.ui.theme.UiStyle
 import com.topports.app.ui.theme.UiAnim
@@ -122,8 +124,76 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     fun toggleFavorite(gameId: Long) {
-        favorites = if (gameId in favorites) favorites - gameId else favorites + gameId
-        prefs.edit().putStringSet("favorites", favorites.map { it.toString() }.toSet()).apply()
+        val title = catalog.value.games.firstOrNull { it.id == gameId }?.title
+        if (gameId in favorites) {
+            favoriteTitles = favoriteTitles - gameId
+        } else if (title != null) {
+            favoriteTitles = favoriteTitles + (gameId to title)
+        }
+        saveFavorites(if (gameId in favorites) favorites - gameId else favorites + gameId)
+    }
+
+    /**
+     * Título de cada favorito: si el post se borra y se vuelve a subir, el juego cambia de id y,
+     * por el título, el favorito pasa al juego nuevo en vez de perderse.
+     */
+    private var favoriteTitles: Map<Long, String> =
+        prefs.getStringSet("favoriteTitles", emptySet()).orEmpty().mapNotNull { entry ->
+            val id = entry.substringBefore('\t').toLongOrNull() ?: return@mapNotNull null
+            id to entry.substringAfter('\t')
+        }.toMap()
+
+    private fun saveFavorites(ids: Set<Long>) {
+        favorites = ids
+        favoriteTitles = favoriteTitles.filterKeys { it in ids }
+        prefs.edit()
+            .putStringSet("favorites", ids.map { it.toString() }.toSet())
+            .putStringSet("favoriteTitles", favoriteTitles.map { (id, title) -> "$id\t$title" }.toSet())
+            .apply()
+    }
+
+    /** Pasa los favoritos de juegos que ya no están al juego del mismo título, y apunta títulos. */
+    private fun reconcileFavorites(games: List<com.topports.core.Game>) {
+        if (games.isEmpty() || favorites.isEmpty()) return
+        val byId = games.associateBy { it.id }
+        var ids = favorites
+        var titles = favoriteTitles
+        for (id in favorites) {
+            val game = byId[id]
+            if (game != null) {
+                if (titles[id] != game.title) titles = titles + (id to game.title)
+                continue
+            }
+            val title = titles[id] ?: continue
+            val replacement = games.filter { it.title.equals(title, ignoreCase = true) && it.id !in ids }
+                .maxByOrNull { it.id } ?: continue
+            ids = ids - id + replacement.id
+            titles = titles - id + (replacement.id to replacement.title)
+        }
+        if (ids != favorites || titles != favoriteTitles) {
+            favoriteTitles = titles
+            saveFavorites(ids)
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            catalog.map { it.games }.distinctUntilChanged().collect { reconcileFavorites(it) }
+        }
+    }
+
+    /** Últimas búsquedas (la más reciente primero), para repetirlas desde el teclado. */
+    var searchHistory by mutableStateOf(
+        prefs.getString("searchHistory", "").orEmpty().split('\n').filter { it.isNotBlank() },
+    )
+        private set
+
+    /** Al cerrar el teclado: apunta la búsqueda si no está vacía. */
+    fun rememberSearch() {
+        val q = search.trim()
+        if (q.length < 2) return
+        searchHistory = (listOf(q) + searchHistory.filterNot { it.equals(q, ignoreCase = true) }).take(6)
+        prefs.edit().putString("searchHistory", searchHistory.joinToString("\n")).apply()
     }
 
     /** Sistema elegido en la tienda ("N64", "X360"…); null = todos; [FAVORITES_FILTER] = favoritos. */

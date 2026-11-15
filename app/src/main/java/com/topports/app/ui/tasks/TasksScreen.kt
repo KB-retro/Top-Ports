@@ -50,6 +50,7 @@ fun TasksScreen(vm: AppViewModel) {
     var confirmCancel by remember { mutableStateOf<InstallRegistry.PendingSave?>(null) }
     val queuedKeys by vm.graph.tasks.queued.collectAsStateWithLifecycle()
     val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
+    val downloadErrors by vm.graph.tasks.downloadErrors.collectAsStateWithLifecycle()
 
     // Descargas de la tienda, una por paquete (todas sus partes juntas) con sus botones.
     val pending = vm.graph.tasks.pendingDownloads()
@@ -76,7 +77,8 @@ fun TasksScreen(vm: AppViewModel) {
             val active = parts.any { it?.local?.isDownloadingActive == true }
             val queued = !active && p.pkgKey in queuedKeys
             val game = catalog.games.firstOrNull { it.id == p.gameId }
-            PixelPanel(Modifier.fillMaxWidth()) {
+            val error = downloadErrors[p.pkgKey]
+            PixelPanel(Modifier.fillMaxWidth(), border = if (error != null) Px.red else Px.white) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     game?.let { Text(it.title.pxCaps(), style = PxText.label) }
                     Text(
@@ -87,12 +89,14 @@ fun TasksScreen(vm: AppViewModel) {
                     Text(
                         "${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}" + when {
                             active -> ""
+                            error != null -> " · error"
                             queued && waitingWifi -> " · esperando WiFi"
                             queued -> " · en cola"
                             else -> " · en pausa"
                         },
                         style = PxText.small,
                     )
+                    error?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (active || queued) {
                             PixelButton("Pausar", onClick = { vm.graph.tasks.pauseDownload(p) }, color = Px.yellow, small = true)

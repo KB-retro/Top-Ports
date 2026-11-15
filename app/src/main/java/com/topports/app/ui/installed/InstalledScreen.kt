@@ -23,7 +23,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -63,6 +65,8 @@ fun InstalledScreen(vm: AppViewModel) {
 
     var cleaning by remember { mutableStateOf<Pair<InstalledGame, List<GameData.Entry>>?>(null) }
     var busy by remember { mutableStateOf(false) }
+    // Sube al borrar datos: se vuelve a medir lo que ocupa cada juego.
+    var measured by remember { mutableIntStateOf(0) }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 
@@ -108,6 +112,11 @@ fun InstalledScreen(vm: AppViewModel) {
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        // Lo que ocupa (app, OBB, datos y lo extraído), medido en segundo plano.
+                        val size by produceState<Long?>(null, item.game.id, item.apps, measured) {
+                            value = runCatching { vm.graph.gameData.footprint(item) }.getOrNull()
+                        }
+                        size?.let { Text("Ocupa ${FileNames.formatSize(it)}", style = PxText.small.copy(color = Px.yellow)) }
                     }
                 }
                 Spacer(Modifier.size(8.dp))
@@ -182,6 +191,7 @@ fun InstalledScreen(vm: AppViewModel) {
                         } finally {
                             busy = false
                             cleaning = null
+                            measured++
                         }
                     }
                 }, color = Px.red, textColor = Px.white, small = true)

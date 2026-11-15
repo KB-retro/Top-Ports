@@ -3,6 +3,8 @@ package com.topports.app.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,8 @@ fun PixelKeyboardDialog(
     value: String,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit,
+    /** Búsquedas anteriores: pulsar una la repite (escribe su texto y cierra el teclado). */
+    history: List<String> = emptyList(),
 ) {
     val firstKey = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -57,6 +61,21 @@ fun PixelKeyboardDialog(
                     style = PxText.body.copy(color = if (value.isEmpty()) Px.darkGrey else Px.white),
                     maxLines = 1,
                 )
+            }
+            if (history.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Recientes:", style = PxText.small.copy(color = Px.grey))
+                    history.forEach { past ->
+                        PixelButton(past, onClick = {
+                            onValueChange(past)
+                            onDone()
+                        }, color = Px.darkGrey, textColor = Px.white, small = true)
+                    }
+                }
             }
             keyRows.forEachIndexed { r, row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {

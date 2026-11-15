@@ -336,14 +336,23 @@ fun FileBrowserScreen(vm: AppViewModel) {
         }
         is FileDialog.Rename -> TextInputDialog("Renombrar", d.file.name, onDismiss = { dialog = null }) { name ->
             // Sin "/": un nombre con barras movería el archivo a otra carpeta.
-            val ok = name.isNotBlank() && '/' !in name && d.file.renameTo(File(d.file.parentFile, name.trim()))
-            if (!ok) Toast.makeText(context, "No se pudo renombrar", Toast.LENGTH_SHORT).show()
+            val clean = name.trim()
+            val target = File(d.file.parentFile, clean)
+            // Renombrar encima de otro archivo lo borraría sin avisar (Linux lo sobrescribe). Cambiar
+            // solo mayúsculas sí se deja: en la memoria compartida "existe" porque es el mismo archivo.
+            val exists = target.exists() && !target.path.equals(d.file.path, ignoreCase = true)
+            val ok = clean.isNotBlank() && clean != "." && clean != ".." && '/' !in clean && !exists &&
+                d.file.renameTo(target)
+            if (!ok) {
+                Toast.makeText(context, if (exists) "Ya hay algo con ese nombre" else "No se pudo renombrar", Toast.LENGTH_SHORT).show()
+            }
             dialog = null
             selection = emptySet()
             reload++
         }
         FileDialog.NewFolder -> TextInputDialog("Nueva carpeta", "", onDismiss = { dialog = null }) { name ->
-            val ok = name.isNotBlank() && '/' !in name && File(dir, name.trim()).mkdirs()
+            val clean = name.trim()
+            val ok = clean.isNotBlank() && clean != "." && clean != ".." && '/' !in clean && File(dir, clean).mkdirs()
             if (!ok) Toast.makeText(context, "No se pudo crear la carpeta", Toast.LENGTH_SHORT).show()
             dialog = null
             reload++

@@ -117,7 +117,10 @@ class TaskCenter(
             val unpack = autoExtract && shouldAutoExtract(p.parts.map { it.second })
             launchTask((if (unpack) "Extrayendo " else "Guardando ") + p.parts.first().second) { taskId, password ->
                 try {
-                    val parts = p.parts.map { (id, name) -> name to File(tg.refreshFile(id).local.path) }
+                    val parts = p.parts.map { (id, name) ->
+                        val f = tg.refreshFile(id)
+                        Triple(name, File(f.local.path), f.size)
+                    }.also { checkParts(it) }.map { (name, file, _) -> name to file }
                     if (unpack) {
                         extractDownloaded(taskId, p, parts, password)
                     } else {
@@ -160,7 +163,36 @@ class TaskCenter(
     fun savedFiles(pkg: GamePackage): List<Pair<String, File>>? {
         val now = android.os.SystemClock.uptimeMillis()
         savedCache[pkg.key]?.let { (at, value) -> if (now - at < 2000) return value }
-        return checkSavedFiles(pkg).also { savedCache[pkg.key] = now to it }
+        return checkSavedFiles(pkg).also { setSaved(pkg.key, now, it) }
+    }
+
+    /** Sube cuando cambia lo guardado de algún paquete, para que la ficha se redibuje. */
+    private val _savedVersion = MutableStateFlow(0)
+    val savedVersion: StateFlow<Int> = _savedVersion.asStateFlow()
+    private val savedChecks = ConcurrentHashMap.newKeySet<String>()
+
+    private fun setSaved(key: String, at: Long, value: List<Pair<String, File>>?) {
+        val old = savedCache.put(key, at to value)
+        if (old == null || old.second != value) _savedVersion.update { it + 1 }
+    }
+
+    /**
+     * Como [savedFiles], para la pantalla: devuelve lo último que se sabe sin tocar el disco y,
+     * si es viejo, lo vuelve a mirar en segundo plano (avisa con [savedVersion] si cambia).
+     */
+    fun savedFilesCached(pkg: GamePackage): List<Pair<String, File>>? {
+        val now = android.os.SystemClock.uptimeMillis()
+        val cached = savedCache[pkg.key]
+        if ((cached == null || now - cached.first >= 2000) && savedChecks.add(pkg.key)) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    setSaved(pkg.key, android.os.SystemClock.uptimeMillis(), checkSavedFiles(pkg))
+                } finally {
+                    savedChecks.remove(pkg.key)
+                }
+            }
+        }
+        return cached?.second
     }
 
     private fun checkSavedFiles(pkg: GamePackage): List<Pair<String, File>>? {
@@ -175,13 +207,29 @@ class TaskCenter(
         savedFiles(pkg) ?: pkg.parts.map { part ->
             val f = tg.refreshFile(part.id)
             if (!f.local.isDownloadingCompleted) throw IOException("Falta descargar ${part.name}")
-            part.name to File(f.local.path)
+            Triple(part.name, File(f.local.path), if (f.size > 0) f.size else part.size)
+        }.also { checkParts(it) }.map { (name, file, _) -> name to file }
+
+    /**
+     * Antes de extraer o guardar: cada parte está en el disco y con su tamaño. Si a una le faltan
+     * bytes, 7-Zip da un error confuso de "archivo dañado"; así se dice cuál y qué hacer.
+     */
+    private fun checkParts(parts: List<Triple<String, File, Long>>) {
+        for ((name, file, expected) in parts) {
+            if (!file.isFile) throw IOException("No se encuentra $name. Bórralo y vuelve a descargarlo.")
+            if (expected > 0 && file.length() != expected) {
+                throw IOException(
+                    "$name está incompleto (${FileNames.formatSize(file.length())} de " +
+                        "${FileNames.formatSize(expected)}). Bórralo y vuelve a descargarlo.",
+                )
+            }
         }
+    }
 
     // --- Descargas ---
 
     fun downloadInfo(pkg: GamePackage, files: Map<Int, TdApi.File>): DownloadInfo {
-        if (savedFiles(pkg) != null) return DownloadInfo(pkg.size, pkg.size, active = false, complete = true)
+        if (savedFilesCached(pkg) != null) return DownloadInfo(pkg.size, pkg.size, active = false, complete = true)
         var downloaded = 0L
         var total = 0L
         var active = false
@@ -238,6 +286,7 @@ class TaskCenter(
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
 
                 val dir = installs.gameDir(context, game.id, game.title)
+                _downloadErrors.update { it - pkg.key }
                 // A la cola: la descarga empieza cuando le toque (ver [schedule]).
                 val previous = installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
                 installs.addPendingSave(
@@ -276,6 +325,27 @@ class TaskCenter(
     fun pendingDownloads(): List<InstallRegistry.PendingSave> =
         installs.pendingSaves().filter { it.pkgKey !in _saving.value }
 
+    /**
+     * Descargas que Telegram no deja hacer (p. ej. el post se borró), con el motivo. Se quedan en
+     * pausa con el error a la vista en vez de reintentarlo sin fin y sin avisar.
+     */
+    private val _downloadErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val downloadErrors: StateFlow<Map<String, String>> = _downloadErrors.asStateFlow()
+
+    private suspend fun failDownload(p: InstallRegistry.PendingSave, error: Throwable) {
+        installs.setPendingPaused(p.pkgKey, true)
+        startedAt.remove(p.pkgKey)
+        p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } }
+        val raw = error.message ?: error.toString()
+        val reason = when {
+            "FILE_REFERENCE" in raw || "not found" in raw.lowercase() || "MESSAGE_ID_INVALID" in raw ->
+                "Telegram ya no tiene este archivo (¿se borró el post?)"
+            "FLOOD_WAIT" in raw || "Too Many Requests" in raw -> "Telegram pide esperar un rato antes de seguir"
+            else -> "Telegram no deja descargarlo: $raw"
+        }
+        _downloadErrors.update { it + (p.pkgKey to reason) }
+    }
+
     /** Pausa a mano: la cola no la vuelve a arrancar hasta que se pulse Continuar. */
     fun pauseDownload(p: InstallRegistry.PendingSave) {
         installs.setPendingPaused(p.pkgKey, true)
@@ -285,6 +355,7 @@ class TaskCenter(
 
     /** Vuelve a la cola (en su sitio de antes); empieza en cuanto haya hueco. */
     fun resumeDownload(p: InstallRegistry.PendingSave) {
+        _downloadErrors.update { it - p.pkgKey }
         installs.setPendingPaused(p.pkgKey, false)
         requestSchedule()
         WorkService.start(context)
@@ -292,6 +363,7 @@ class TaskCenter(
 
     /** Para la descarga y borra lo ya bajado (no toca lo instalado ni extraído antes). */
     fun cancelDownload(p: InstallRegistry.PendingSave) {
+        _downloadErrors.update { it - p.pkgKey }
         installs.removePendingSave(p.pkgKey)
         scope.launch {
             p.parts.forEach { (id, _) ->
@@ -425,17 +497,30 @@ class TaskCenter(
             startedAt.remove(p.pkgKey)
             p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } }
         }
+        val failed = mutableSetOf<InstallRegistry.PendingSave>()
         for (p in waiting) {
             if (running.size >= limit) break
             if (p in running) continue
             startedAt[p.pkgKey] = now
-            p.parts.forEach { (id, _) -> runCatching { tg.startDownload(id) } }
+            val error = p.parts.firstNotNullOfOrNull { (id, _) -> runCatching { tg.startDownload(id) }.exceptionOrNull() }
+            if (error != null) {
+                // Solo un rechazo de Telegram cuenta como fallo; si TDLib se está reiniciando
+                // (código -1) se vuelve a intentar en la siguiente vuelta de la cola.
+                if (error is com.topports.app.telegram.TdException && error.code != -1) {
+                    failDownload(p, error)
+                    failed += p
+                } else {
+                    startedAt.remove(p.pkgKey)
+                }
+                continue
+            }
             running += p
         }
-        _queued.value = (waiting - running.toSet()).map { it.pkgKey }.toSet()
+        _queued.value = (waiting - running.toSet() - failed).map { it.pkgKey }.toSet()
     }
 
     fun deleteDownload(pkg: GamePackage) {
+        _downloadErrors.update { it - pkg.key }
         installs.removePendingSave(pkg.key)
         scope.launch {
             pkg.parts.forEach {
@@ -446,6 +531,7 @@ class TaskCenter(
             installs.forgetSaved(pkg.key)
             installs.forgetUnpacked(pkg.key)
             savedCache.remove(pkg.key)
+            _savedVersion.update { it + 1 }
         }
     }
 
@@ -522,6 +608,7 @@ class TaskCenter(
         installs.recordExtracted(gameId, saved.filter { Storage.isSafeToDelete(it) }.map { it.path })
         installs.recordSaved(pkgKey, dest.path)
         savedCache.remove(pkgKey)
+        _savedVersion.update { it + 1 }
         fileIds.forEach { runCatching { tg.deleteFile(it) } }
         val names = saved.joinToString("\n") { it.name }
         finish(taskId, "Guardado en ${dest.path}:\n$names", dest.path)
@@ -590,6 +677,9 @@ class TaskCenter(
                 if (src.isDirectory && destPath.startsWith(src.absoluteFile.toPath().normalize())) {
                     throw IOException("No se puede copiar \"${src.name}\" dentro de sí misma")
                 }
+                // Mover a la misma carpeta donde ya está: no hay nada que hacer (si no, saldría
+                // una copia "(2)" y se borraría el original).
+                if (move && samePath(src.parentFile ?: src, destDir)) continue
                 val target = uniqueTarget(File(destDir, src.name))
                 if (move && src.renameTo(target)) {
                     done += sizeOf(target)
@@ -757,6 +847,11 @@ class TaskCenter(
             val src = File(dest, obb.path)
             val target = File(Storage.obbDir(obb.packageName), src.name)
             update(taskId, "Copiando OBB ${src.name}", null)
+            // Extraído en la raíz de la memoria: ya está en Android/obb y no hay que moverlo.
+            if (samePath(src, target)) {
+                notes += "OBB en Android/obb/${obb.packageName}"
+                continue
+            }
             // El OBB se mueve: ya no estará en la carpeta de extracción, sino en Android/obb.
             if (moveOrCopy(src, target)) notes += "OBB movido a Android/obb/${obb.packageName}"
             else notes += "No se pudo copiar ${src.name} a Android/obb/${obb.packageName}: muévelo a mano"
@@ -766,6 +861,12 @@ class TaskCenter(
             val src = File(dest, data.path)
             val target = Storage.dataDir(data.packageName)
             update(taskId, "Copiando datos de ${data.packageName}", null)
+            // Extraído en la raíz: ya está en su sitio. Copiarlo encima de sí mismo lo borraría
+            // (copyTo borra el destino, que es el mismo archivo, antes de leerlo).
+            if (samePath(src, target)) {
+                notes += "Datos en Android/data/${data.packageName}"
+                continue
+            }
             val ok = runCatching { src.copyRecursively(target, overwrite = true) }.getOrDefault(false)
             notes += if (ok) "Datos copiados en Android/data/${data.packageName}"
             else "Android no deja copiar a Android/data/${data.packageName}: cópialo con el explorador o un PC desde ${src.path}"
@@ -813,7 +914,12 @@ class TaskCenter(
         return target.parent ?: target.path
     }
 
+    private fun samePath(a: File, b: File): Boolean =
+        runCatching { a.canonicalPath == b.canonicalPath }.getOrDefault(a.absolutePath == b.absolutePath)
+
     private fun moveOrCopy(src: File, target: File, keepSource: Boolean = false): Boolean = runCatching {
+        // Copiar un archivo encima de sí mismo lo borraría: ya está donde tiene que estar.
+        if (samePath(src, target)) return true
         target.parentFile?.mkdirs()
         if (!keepSource && src.renameTo(target)) return true
         src.copyTo(target, overwrite = true)

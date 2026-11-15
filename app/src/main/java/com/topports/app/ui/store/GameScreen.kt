@@ -477,9 +477,13 @@ private fun PackageRow(
     val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
     val queued = pkg.key in queuedKeys && !info.active && !info.complete
     val queueLabel = if (waitingWifi) "Esperando WiFi" else "En cola"
-    val savedDir = remember(info.complete, files, moving) {
-        if (vm.graph.tasks.savedFiles(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
+    // Se mira el disco en segundo plano; [savedVersion] avisa cuando cambia.
+    val savedVersion by vm.graph.tasks.savedVersion.collectAsStateWithLifecycle()
+    val savedDir = remember(info.complete, files, moving, savedVersion) {
+        if (vm.graph.tasks.savedFilesCached(pkg) != null) vm.graph.installs.savedDir(pkg.key) else null
     }
+    val downloadErrors by vm.graph.tasks.downloadErrors.collectAsStateWithLifecycle()
+    val downloadError = downloadErrors[pkg.key]
     // Comprimido que se extrajo solo al descargarse (ya no está la descarga, sí la carpeta).
     val unpackedDir = remember(info.started, moving) {
         vm.graph.installs.unpackedDir(pkg.key)?.takeIf { !info.started && !moving && File(it).isDirectory }
@@ -531,6 +535,7 @@ private fun PackageRow(
                     )
                 }
             }
+            downloadError?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
             if (moving) {
                 Text("Pasando a /TopPorts…", style = PxText.small.copy(color = Px.yellow))
             } else if (savedDir != null) {

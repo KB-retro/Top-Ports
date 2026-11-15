@@ -315,7 +315,11 @@ fun CatalogScreen(vm: AppViewModel) {
                 title = "Buscar juego",
                 value = vm.search,
                 onValueChange = { vm.search = it },
-                onDone = { vm.searchOpen = false },
+                onDone = {
+                    vm.rememberSearch()
+                    vm.searchOpen = false
+                },
+                history = vm.searchHistory,
             )
         }
 

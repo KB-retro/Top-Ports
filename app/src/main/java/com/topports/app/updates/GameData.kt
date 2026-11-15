@@ -36,6 +36,23 @@ class GameData(
             .map { (label, f) -> Entry(label, f, sizeOf(f)) }
     }
 
+    /**
+     * Lo que ocupa el juego en el móvil: sus APK instalados más OBB, datos y lo extraído (lo que
+     * Android deja medir: en Android 11+ Android/data suele salir vacío).
+     */
+    suspend fun footprint(item: InstalledGame): Long = withContext(Dispatchers.IO) {
+        val apks = item.apps.sumOf { app ->
+            runCatching {
+                val info = context.packageManager.getApplicationInfo(app.packageName, 0)
+                (listOfNotNull(info.sourceDir) + info.splitSourceDirs.orEmpty()).sumOf { File(it).length() }
+            }.getOrDefault(0L)
+        }
+        // Lo extraído suele estar dentro de la carpeta /TopPorts del juego: no contarlo dos veces.
+        val all = entries(item)
+        val outer = all.filter { e -> all.none { o -> o !== e && e.file.path.startsWith(o.file.path + File.separator) } }
+        apks + outer.sumOf { it.size }
+    }
+
     /** Borra esos datos y los archivos del juego bajados de Telegram. Devuelve lo liberado. */
     suspend fun clean(item: InstalledGame, entries: List<Entry>): Long {
         val freed = withContext(Dispatchers.IO) {
