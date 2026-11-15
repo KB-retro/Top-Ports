@@ -95,14 +95,12 @@ fun CatalogScreen(vm: AppViewModel) {
     val savedVersion by vm.graph.tasks.savedVersion.collectAsStateWithLifecycle()
     val taskList by vm.tasks.collectAsStateWithLifecycle()
     val finishedTasks = taskList.count { !it.running }
-    val downloadedIds = remember(state.games, savedVersion, finishedTasks) {
-        val files = vm.files.value
-        state.games.filter { game ->
-            game.packages.any { pkg ->
-                vm.graph.installs.savedDir(pkg.key) != null || vm.graph.installs.unpackedDir(pkg.key) != null ||
-                    pkg.parts.all { files[it.id]?.local?.isDownloadingCompleted == true }
-            }
-        }.map { it.id }.toSet()
+    // Se comprueba en el disco (en segundo plano), no solo lo apuntado: si se borró la carpeta
+    // a mano, la marca se va.
+    val downloadedIds by produceState(emptySet<Long>(), state.games, savedVersion, finishedTasks) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { vm.graph.tasks.downloadedGameIds(state.games, vm.files.value) }.getOrDefault(emptySet())
+        }
     }
     // "Más corazones" ordena con los corazones de cuando se eligió el orden (o se recargó el
     // catálogo): si se reordenara con cada corazón nuevo del canal, el cursor saltaría de sitio.
