@@ -89,19 +89,6 @@ fun CatalogScreen(vm: AppViewModel) {
     val query = vm.search.trim()
     val favorites = vm.favorites
     val freeSpace = rememberFreeSpace(vm)
-    // Juegos con algo ya descargado (guardado, extraído o completo en la caché), para la marca
-    // DESCARGADO. Se recalcula al cambiar lo guardado o al terminar una tarea, no con cada
-    // aviso de progreso de las descargas.
-    val savedVersion by vm.graph.tasks.savedVersion.collectAsStateWithLifecycle()
-    val taskList by vm.tasks.collectAsStateWithLifecycle()
-    val finishedTasks = taskList.count { !it.running }
-    // Se comprueba en el disco (en segundo plano), no solo lo apuntado: si se borró la carpeta
-    // a mano, la marca se va.
-    val downloadedIds by produceState(emptySet<Long>(), state.games, savedVersion, finishedTasks) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { vm.graph.tasks.downloadedGameIds(state.games, vm.files.value) }.getOrDefault(emptySet())
-        }
-    }
     // "Más corazones" ordena con los corazones de cuando se eligió el orden (o se recargó el
     // catálogo): si se reordenara con cada corazón nuevo del canal, el cursor saltaría de sitio.
     val heartsForSort = remember(vm.sortMode, state.games) { if (vm.sortMode == SortMode.POPULAR) hearts else null }
@@ -370,7 +357,6 @@ fun CatalogScreen(vm: AppViewModel) {
                 GameCard(
                     game,
                     installed = game.id in installedIds,
-                    downloaded = game.id in downloadedIds,
                     favorite = game.id in favorites,
                     hearts = vm.graph.channel.heartsOf(game, hearts).second,
                     onClick = { vm.openGame(game.id) },
@@ -399,7 +385,6 @@ fun CatalogScreen(vm: AppViewModel) {
 private fun GameCard(
     game: Game,
     installed: Boolean,
-    downloaded: Boolean,
     favorite: Boolean,
     hearts: Hearts,
     onClick: () -> Unit,
@@ -420,7 +405,6 @@ private fun GameCard(
                 Text("?", style = PxText.title.copy(color = Px.darkGrey), modifier = Modifier.align(Alignment.Center))
             }
             if (installed) PixelTag("INSTALADO", Px.green, Modifier.align(Alignment.TopEnd).padding(4.dp))
-            else if (downloaded) PixelTag("DESCARGADO", Px.blue, Modifier.align(Alignment.TopEnd).padding(4.dp))
             if (recentlyUpdated(game)) PixelTag("ACTUALIZADO", Px.yellow, Modifier.align(Alignment.TopStart).padding(4.dp))
             if (favorite) PixelTag("★", Px.yellow, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         }

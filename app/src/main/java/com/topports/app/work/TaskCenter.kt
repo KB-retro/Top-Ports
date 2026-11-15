@@ -195,27 +195,6 @@ class TaskCenter(
         return cached?.second
     }
 
-    /**
-     * Juegos con algún archivo de verdad en el móvil (marca DESCARGADO de la tienda): guardado en
-     * su carpeta con su tamaño, extraído (la carpeta existe y tiene algo) o completo en la caché de
-     * Telegram con el archivo en el disco. No basta con lo apuntado: el usuario puede haber borrado
-     * la carpeta a mano. Mira el disco: llamar fuera del hilo principal.
-     */
-    fun downloadedGameIds(games: List<Game>, files: Map<Int, TdApi.File>): Set<Long> =
-        games.filter { game -> game.packages.any { isOnDevice(it, files) } }.map { it.id }.toSet()
-
-    private fun isOnDevice(pkg: GamePackage, files: Map<Int, TdApi.File>): Boolean {
-        if (checkSavedFiles(pkg) != null) return true
-        installs.unpackedDir(pkg.key, pkg.name)?.let { dir ->
-            if (File(dir).listFiles()?.isNotEmpty() == true) return true
-        }
-        return pkg.parts.all { part ->
-            val f = files[part.id] ?: return@all false
-            val expected = if (f.size > 0) f.size else part.size
-            f.local.isDownloadingCompleted && f.local.path.isNotEmpty() && File(f.local.path).length() == expected
-        }
-    }
-
     private fun checkSavedFiles(pkg: GamePackage): List<Pair<String, File>>? {
         val dir = installs.savedDir(pkg.key) ?: return null
         val files = pkg.parts.map { it.name to File(dir, it.name) }
