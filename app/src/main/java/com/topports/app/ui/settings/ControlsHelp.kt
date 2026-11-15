@@ -15,7 +15,7 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 
 /**
- * Controles del mando (Ajustes → Versión → Controles): la imagen del mando y, al lado, qué hace
+ * Controles del mando (Ajustes → Mando → Controles): la imagen del mando y, al lado, qué hace
  * cada botón, como en el menú de opciones de un videojuego. Con [swapAB] (Ajustes → Mando) la
  * lista dice A y B intercambiados.
  */

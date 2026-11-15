@@ -127,7 +127,7 @@ fun SettingsScreen(vm: AppViewModel) {
     }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { vm.descriptionStick = 0f } }
 
-    // Permisos plegados dentro de Versión (se abren con su botón).
+    // Permisos plegados dentro de Almacenamiento (se abren con su botón).
     var permissionsOpen by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -259,129 +259,8 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
-        // --- Permisos (dentro de Versión, plegados) ---
+        // Copia de ajustes y, lo último de Versión, restablecer ajustes.
         if (vm.settingsSection == SettingsSection.VERSION) {
-            item {
-                val missing = listOf(
-                    ApkInstaller.canInstall(context),
-                    Storage.hasAllFilesAccess(context),
-                    NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                    isIgnoringBattery(context),
-                ).count { !it }
-                key(refresh) {
-                    PixelButton(
-                        (if (permissionsOpen) "▲ Permisos" else "▼ Permisos") +
-                            if (missing > 0) " (faltan $missing)" else " (todos dados)",
-                        onClick = { permissionsOpen = !permissionsOpen },
-                        color = if (missing > 0) Px.yellow else Px.navyDark,
-                        textColor = if (missing > 0) Px.black else Px.white,
-                        small = true,
-                    )
-                }
-            }
-        }
-        if (vm.settingsSection == SettingsSection.VERSION && permissionsOpen) {
-            item {
-                key(refresh) {
-                    PermissionRow(
-                        "Instalar apps",
-                        "Para instalar los APK de los ports.",
-                        ApkInstaller.canInstall(context),
-                    ) { context.startActivity(ApkInstaller.unknownSourcesIntent(context)) }
-                }
-            }
-            item {
-                key(refresh) {
-                    PermissionRow(
-                        "Archivos",
-                        "Explorador, extraer en la raíz o /TopPorts y copiar OBB.",
-                        Storage.hasAllFilesAccess(context),
-                    ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
-                        } else {
-                            storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        }
-                    }
-                }
-            }
-            item {
-                key(refresh) {
-                    PermissionRow(
-                        "Notificaciones",
-                        "Ver el progreso de descargas y extracciones.",
-                        NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                    ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                key(refresh) {
-                    PermissionRow(
-                        "Sin límite de batería",
-                        "Evita que Android corte las descargas largas en segundo plano.",
-                        isIgnoringBattery(context),
-                    ) { requestIgnoreBattery(context) }
-                }
-            }
-
-        }
-
-        // Controles del mando (dentro de Versión, plegados), con su dibujo.
-        if (vm.settingsSection == SettingsSection.VERSION) {
-            item {
-                var open by remember { mutableStateOf(false) }
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PixelButton(
-                        if (open) "▲ Controles" else "▼ Controles",
-                        onClick = { open = !open },
-                        color = Px.navyDark,
-                        textColor = Px.white,
-                        small = true,
-                    )
-                    if (open) {
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            val wide = maxWidth >= 560.dp
-                            PixelPanel(Modifier.fillMaxWidth()) { ControlsHelp(vm.swapAB, wide) }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Restablecer ajustes, al final del todo de Versión.
-        if (vm.settingsSection == SettingsSection.VERSION) {
-            item {
-                var confirmReset by remember { mutableStateOf(false) }
-                PixelButton("Restablecer ajustes", onClick = { confirmReset = true }, color = Px.red, textColor = Px.white, small = true)
-                if (confirmReset) {
-                    PixelDialog("¿Restablecer ajustes?", onDismiss = { confirmReset = false }) {
-                        Text(
-                            "Vuelven a como vienen de serie el tema, la paleta, las animaciones, el sonido, la música, " +
-                                "el mando, las descargas y el orden de la tienda. Tus favoritos, tus descargas y tu " +
-                                "sesión de Telegram no se tocan.",
-                            style = PxText.body,
-                        )
-                        DialogButtons {
-                            PixelButton("No", onClick = { confirmReset = false }, color = Px.grey, small = true)
-                            PixelButton("Restablecer", onClick = {
-                                confirmReset = false
-                                vm.resetSettings()
-                                toast("Ajustes restablecidos")
-                            }, color = Px.red, textColor = Px.white, small = true)
-                        }
-                    }
-                }
-            }
             // Copia de los ajustes en /TopPorts, para pasarlos a otra consola.
             item {
                 var confirmImport by remember { mutableStateOf(false) }
@@ -425,25 +304,24 @@ fun SettingsScreen(vm: AppViewModel) {
                     }
                 }
             }
-            // Cerrar la app del todo (no solo minimizarla), lo último de Versión.
+            // Restablecer ajustes, lo último de Versión.
             item {
-                var confirmClose by remember { mutableStateOf(false) }
-                PixelButton("Cerrar la app", onClick = { confirmClose = true }, color = Px.darkGrey, textColor = Px.white, small = true)
-                if (confirmClose) {
-                    val working = vm.graph.tasks.hasRunningTasks ||
-                        vm.files.value.values.any { it.local.isDownloadingActive }
-                    PixelDialog("¿Cerrar Top Ports?", onDismiss = { confirmClose = false }) {
+                var confirmReset by remember { mutableStateOf(false) }
+                PixelButton("Restablecer ajustes", onClick = { confirmReset = true }, color = Px.red, textColor = Px.white, small = true)
+                if (confirmReset) {
+                    PixelDialog("¿Restablecer ajustes?", onDismiss = { confirmReset = false }) {
                         Text(
-                            if (working) "Hay descargas o tareas en marcha: se pararán. Las descargas siguen " +
-                                "donde se quedaron al volver a abrir la app; una extracción a medias habrá que repetirla."
-                            else "La app se cierra del todo, música incluida.",
+                            "Vuelven a como vienen de serie el tema, la paleta, las animaciones, el sonido, la música, " +
+                                "el mando, las descargas y el orden de la tienda. Tus favoritos, tus descargas y tu " +
+                                "sesión de Telegram no se tocan.",
                             style = PxText.body,
                         )
                         DialogButtons {
-                            PixelButton("No", onClick = { confirmClose = false }, color = Px.grey, small = true)
-                            PixelButton("Cerrar", onClick = {
-                                confirmClose = false
-                                closeApp(context)
+                            PixelButton("No", onClick = { confirmReset = false }, color = Px.grey, small = true)
+                            PixelButton("Restablecer", onClick = {
+                                confirmReset = false
+                                vm.resetSettings()
+                                toast("Ajustes restablecidos")
                             }, color = Px.red, textColor = Px.white, small = true)
                         }
                     }
@@ -566,6 +444,83 @@ fun SettingsScreen(vm: AppViewModel) {
 
         }
 
+        // --- Permisos (en Almacenamiento, plegados) ---
+        if (vm.settingsSection == SettingsSection.STORAGE) {
+            item {
+                val missing = listOf(
+                    ApkInstaller.canInstall(context),
+                    Storage.hasAllFilesAccess(context),
+                    NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                    isIgnoringBattery(context),
+                ).count { !it }
+                key(refresh) {
+                    PixelButton(
+                        (if (permissionsOpen) "▲ Permisos" else "▼ Permisos") +
+                            if (missing > 0) " (faltan $missing)" else " (todos dados)",
+                        onClick = { permissionsOpen = !permissionsOpen },
+                        color = if (missing > 0) Px.yellow else Px.navyDark,
+                        textColor = if (missing > 0) Px.black else Px.white,
+                        small = true,
+                    )
+                }
+            }
+        }
+        if (vm.settingsSection == SettingsSection.STORAGE && permissionsOpen) {
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Instalar apps",
+                        "Para instalar los APK de los ports.",
+                        ApkInstaller.canInstall(context),
+                    ) { context.startActivity(ApkInstaller.unknownSourcesIntent(context)) }
+                }
+            }
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Archivos",
+                        "Explorador, extraer en la raíz o /TopPorts y copiar OBB.",
+                        Storage.hasAllFilesAccess(context),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
+                        } else {
+                            storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        }
+                    }
+                }
+            }
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Notificaciones",
+                        "Ver el progreso de descargas y extracciones.",
+                        NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                key(refresh) {
+                    PermissionRow(
+                        "Sin límite de batería",
+                        "Evita que Android corte las descargas largas en segundo plano.",
+                        isIgnoringBattery(context),
+                    ) { requestIgnoreBattery(context) }
+                }
+            }
+
+        }
+
         // --- Apariencia ---
         if (vm.settingsSection == SettingsSection.THEME) {
             item { SectionTitle("Temas", Px.blue) }
@@ -634,15 +589,21 @@ fun SettingsScreen(vm: AppViewModel) {
                                 small = true,
                             )
                         }
-                        Text(
-                            "${if (vm.swapAB) "B" else "A"} aceptar · ${if (vm.swapAB) "A" else "B"} inicio · " +
-                                "L1/R1 fila o texto · stick derecho texto · L2/R2 pestaña · Y buscar · X ordenar · SELECT sistema",
-                            style = PxText.small,
-                        )
                     }
                 }
             }
 
+        }
+
+        // Controles del mando, con su dibujo (en Mando).
+        if (vm.settingsSection == SettingsSection.GAMEPAD) {
+            item { SectionTitle("Controles", Px.yellow) }
+            item {
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val wide = maxWidth >= 560.dp
+                    PixelPanel(Modifier.fillMaxWidth()) { ControlsHelp(vm.swapAB, wide) }
+                }
+            }
         }
 
         // --- Aviso legal y privacidad (en Legal, plegados como las licencias) ---
@@ -940,16 +901,6 @@ private fun requestIgnoreBattery(context: Context) {
  * Reinicia la app: abre de nuevo la pantalla principal en una tarea nueva y cierra el proceso
  * actual, para que TDLib arranque de cero (si no, sigue usando la caché que se acaba de borrar).
  */
-/** Cierra la app del todo: para el servicio de descargas, quita la ventana y termina el proceso. */
-private fun closeApp(context: Context) {
-    context.stopService(Intent(context, com.topports.app.work.WorkService::class.java))
-    var c: Context? = context
-    while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
-    (c as? android.app.Activity)?.finishAndRemoveTask()
-    // Un momento para que la ventana se cierre antes de terminar el proceso.
-    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ Runtime.getRuntime().exit(0) }, 300)
-}
-
 private fun restartApp(context: Context) {
     val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
     context.startActivity(Intent.makeRestartActivityTask(launch.component))

@@ -50,6 +50,17 @@ import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import com.topports.core.FileNames
 import com.topports.core.InstalledGame
+import com.topports.core.UpdateItem
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import kotlinx.coroutines.launch
 import com.topports.app.ui.theme.pxCaps
 
@@ -57,7 +68,19 @@ import com.topports.app.ui.theme.pxCaps
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InstalledScreen(vm: AppViewModel) {
-    val installed by vm.installed.collectAsStateWithLifecycle()
+    val installedRaw by vm.installed.collectAsStateWithLifecycle()
+    // Actualizaciones (antes en su propia pestaña): van con su juego instalado, y los juegos con
+    // actualización salen primero, en amarillo y con la carátula iluminada.
+    val updates by vm.updates.collectAsStateWithLifecycle()
+    fun updateOf(item: InstalledGame): UpdateItem? =
+        updates.firstOrNull { u -> item.apps.any { it.packageName == u.packageName } }
+    val installed = remember(installedRaw, updates) {
+        installedRaw.sortedBy { if (updateOf(it) != null) 0 else 1 }
+    }
+    // Actualizaciones de apps que no se han podido unir a un juego instalado: se ven igual, sueltas.
+    val looseUpdates = remember(installedRaw, updates) {
+        updates.filter { u -> installedRaw.none { item -> item.apps.any { it.packageName == u.packageName } } }
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // Al volver de desinstalar (o de cualquier otra app), comprobar otra vez.
@@ -79,14 +102,19 @@ fun InstalledScreen(vm: AppViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     SectionTitle(
-                        if (installed.isEmpty()) "Nada instalado" else "${installed.size} instalados",
-                        Px.green,
+                        when {
+                            installed.isEmpty() && updates.isEmpty() -> "Nada instalado"
+                            updates.isEmpty() -> "${installed.size} instalados · todo al día"
+                            else -> "${installed.size} instalados · ${updates.size} con actualización"
+                        },
+                        if (updates.isEmpty()) Px.green else Px.yellow,
                     )
                 }
                 PixelButton("Comprobar", onClick = { vm.graph.updates.refresh() }, color = Px.blue, small = true)
             }
         }
-        if (installed.isEmpty()) {
+        items(looseUpdates, key = { "u" + it.packageName }) { update -> LooseUpdateCard(vm, update) }
+        if (installed.isEmpty() && looseUpdates.isEmpty()) {
             item {
                 Text(
                     "Aquí aparecen los juegos del canal que tienes instalados: los instalados desde Top Ports " +
@@ -96,9 +124,15 @@ fun InstalledScreen(vm: AppViewModel) {
             }
         }
         items(installed, key = { it.game.id }) { item ->
-            PixelPanel(Modifier.fillMaxWidth(), border = Px.green) { Column {
+            val update = updateOf(item)
+            PixelPanel(Modifier.fillMaxWidth(), border = if (update != null) Px.yellow else Px.green) { Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(width = 96.dp, height = 54.dp).background(Px.black)) {
+                    Box(
+                        Modifier
+                            .size(width = 96.dp, height = 54.dp)
+                            .then(if (update != null) Modifier.updateGlow() else Modifier)
+                            .background(Px.black),
+                    ) {
                         item.game.images.firstOrNull()?.let { TdImage(it.thumbFileId, Modifier.fillMaxSize()) }
                     }
                     Spacer(Modifier.width(10.dp))
@@ -110,6 +144,12 @@ fun InstalledScreen(vm: AppViewModel) {
                                 style = PxText.small,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        update?.let { u ->
+                            Text(
+                                "ACTUALIZACIÓN: ${u.installedVersion ?: "instalada"} → ${u.newVersion ?: "nueva versión"}",
+                                style = PxText.small.copy(color = Px.yellow),
                             )
                         }
                         // Lo que ocupa (app, OBB, datos y lo extraído), medido en segundo plano.
@@ -125,6 +165,18 @@ fun InstalledScreen(vm: AppViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    if (update != null) {
+                        // Abre la ficha del post nuevo, donde está el archivo para descargar.
+                        PixelButton("Actualizar", onClick = {
+                            vm.tab = Tab.STORE
+                            vm.openGame(update.game.id)
+                        }, color = Px.yellow, small = true)
+                        // Por si el aviso no es correcto: no volver a avisar de este archivo.
+                        PixelButton("Ignorar", onClick = {
+                            vm.graph.installs.ignoreUpdate(update.packageName, update.pkg)
+                            vm.graph.updates.refresh()
+                        }, color = Px.darkGrey, textColor = Px.white, small = true)
+                    }
                     PixelButton("Jugar", onClick = {
                         val launch = context.packageManager.getLaunchIntentForPackage(item.apps.first().packageName)
                         if (launch != null) context.startActivity(launch) else toast("Esta app no se puede abrir")
@@ -195,6 +247,60 @@ fun InstalledScreen(vm: AppViewModel) {
                         }
                     }
                 }, color = Px.red, textColor = Px.white, small = true)
+            }
+        }
+    }
+}
+
+/** Carátula de un juego con actualización: un halo amarillo que late. */
+@Composable
+private fun Modifier.updateGlow(): Modifier {
+    val pulse by rememberInfiniteTransition(label = "halo").animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "halo",
+    )
+    return this
+        .drawBehind {
+            val grow = 5.dp.toPx()
+            drawRect(
+                Px.yellow.copy(alpha = 0.45f * pulse),
+                topLeft = Offset(-grow, -grow),
+                size = Size(size.width + grow * 2, size.height + grow * 2),
+            )
+        }
+        .border(2.dp, Px.yellow.copy(alpha = 0.5f + 0.5f * pulse))
+}
+
+/** Actualización de una app que no se ha podido unir a ningún juego instalado. */
+@Composable
+private fun LooseUpdateCard(vm: AppViewModel, update: UpdateItem) {
+    PixelPanel(Modifier.fillMaxWidth(), border = Px.yellow) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 96.dp, height = 54.dp).updateGlow().background(Px.black)) {
+                update.game.images.firstOrNull()?.let { TdImage(it.thumbFileId, Modifier.fillMaxSize()) }
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(update.game.title.pxCaps(), style = PxText.label, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${update.appLabel}: ${update.installedVersion ?: "instalada"} → ${update.newVersion ?: "nueva versión"}",
+                    style = PxText.small.copy(color = Px.yellow),
+                )
+                Text("${update.pkg.name} · ${FileNames.formatSize(update.pkg.size)}", style = PxText.small)
+            }
+            Spacer(Modifier.width(8.dp))
+            // Tan ancha como el botón más largo: si no, el texto de la izquierda se queda sin sitio.
+            Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                PixelButton("Actualizar", onClick = {
+                    vm.tab = Tab.STORE
+                    vm.openGame(update.game.id)
+                }, color = Px.yellow, small = true, modifier = Modifier.fillMaxWidth())
+                PixelButton("Ignorar", onClick = {
+                    vm.graph.installs.ignoreUpdate(update.packageName, update.pkg)
+                    vm.graph.updates.refresh()
+                }, color = Px.darkGrey, textColor = Px.white, small = true, modifier = Modifier.fillMaxWidth())
             }
         }
     }

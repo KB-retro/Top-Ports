@@ -153,7 +153,10 @@ Probado solo en CI y en el emulador. Falta que el usuario confirme:
 5. Cancelar descargas, y volver a la ficha al salir de TAREAS.
 6. Logo y ayuda de botones en el menú lateral de la Odin 2 Portal.
 7. Seguir al encender (Android 15 no deja el servicio tras el arranque), entrar con correo y
-   reenviar código, copia de ajustes y "Cerrar la app" (Ajustes → Versión, lo último).
+   reenviar código, copia de ajustes (Ajustes → Versión) y "Salir" (última opción del menú).
+8. Actualizaciones dentro de Instalados (ya no hay pestaña Actualizar): los juegos con versión
+   nueva van primero, en amarillo y con la carátula iluminada. Controles en Ajustes → Mando;
+   Permisos en Ajustes → Almacenamiento; Restablecer ajustes, lo último de Versión.
 
 ## Ideas descartadas por ahora (el usuario dijo que no, de momento)
 

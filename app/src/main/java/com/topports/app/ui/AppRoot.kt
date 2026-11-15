@@ -69,7 +69,6 @@ import com.topports.app.ui.store.CatalogScreen
 import com.topports.app.ui.store.GameScreen
 import com.topports.app.ui.tasks.TasksScreen
 import com.topports.app.ui.settings.SettingsScreen
-import com.topports.app.ui.updates.UpdatesScreen
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.PxText
 import org.drinkless.tdlib.TdApi
@@ -158,7 +157,6 @@ private fun MainScreen(vm: AppViewModel) {
                     if (id == null) CatalogScreen(vm) else GameScreen(vm, id)
                 }
                 Tab.INSTALLED -> InstalledScreen(vm)
-                Tab.UPDATES -> UpdatesScreen(vm)
                 Tab.FILES -> FileBrowserScreen(vm)
                 Tab.TASKS -> TasksScreen(vm)
                 Tab.SETTINGS -> SettingsScreen(vm)
@@ -168,7 +166,8 @@ private fun MainScreen(vm: AppViewModel) {
     val tabButton: @Composable (Tab, Modifier) -> Unit = { tab, modifier ->
         val running = when (tab) {
             Tab.TASKS -> tasks.count { it.running }
-            Tab.UPDATES -> updates.size
+            // Juegos instalados con actualización: la pestaña lo dice y se marca en verde.
+            Tab.INSTALLED -> updates.size
             // Versión nueva de la propia app: se avisa en Ajustes.
             Tab.SETTINGS -> if (catalogState.appUpdate != null) 1 else 0
             else -> 0
@@ -182,14 +181,22 @@ private fun MainScreen(vm: AppViewModel) {
             // Con actualizaciones pendientes, la pestaña se marca en verde.
             color = when {
                 vm.tab == tab -> Px.orange
-                (tab == Tab.UPDATES || tab == Tab.SETTINGS) && running > 0 -> Px.green
+                (tab == Tab.INSTALLED || tab == Tab.SETTINGS) && running > 0 -> Px.green
                 else -> Px.navyDark
             },
-            textColor = if (vm.tab == tab || ((tab == Tab.UPDATES || tab == Tab.SETTINGS) && running > 0)) Px.black else Px.grey,
+            textColor = if (vm.tab == tab || ((tab == Tab.INSTALLED || tab == Tab.SETTINGS) && running > 0)) Px.black else Px.grey,
             small = true,
             modifier = modifier,
         )
     }
+
+    // "Salir", la última opción del menú: cierra la app del todo (pide confirmar).
+    var confirmExit by remember { mutableStateOf(false) }
+    val exitButton: @Composable (Modifier) -> Unit = { modifier ->
+        PixelButton("Salir", onClick = { confirmExit = true }, color = Px.darkGrey, textColor = Px.white, small = true, modifier = modifier)
+    }
+    // Pestañas más el botón Salir: lo que cuenta para repartir el alto del menú.
+    val menuItems = Tab.entries.size + 1
 
     // Se vuelve a mirar al conectar o quitar un mando (cambia la configuración, sin reiniciar la app).
     val hasGamepad = remember(LocalConfiguration.current) { Gamepad.hasGamepad() }
@@ -215,12 +222,12 @@ private fun MainScreen(vm: AppViewModel) {
             val tabHeight = if (maxHeight >= 600.dp) 42.dp else 38.dp
             // Logo igual de grande en todos los formatos (16:9, 16:10, 4:3): siempre el máximo (el
             // ancho del menú) y las pestañas se reparten el alto que sobre; solo si de verdad no
-            // cabe, encoge. La ayuda de controles está en Ajustes → Versión → Controles.
+            // cabe, encoge. La ayuda de controles está en Ajustes → Mando.
             val logoMax = minOf(140.dp, railWidth - railMargin - 12.dp - railPadding * 2)
-            val tabsBlock = tabHeight * Tab.entries.size + 12.dp
+            val tabsBlock = tabHeight * menuItems + 12.dp
             val available = screenHeight - railPadding * 2 - railMargin * 2 - 12.dp - 16.dp
-            val logoSize = (available - tabsBlock - 4.dp * (Tab.entries.size - 1)).coerceIn(44.dp, logoMax)
-            val tabSpacing = ((available - tabsBlock - logoSize) / Tab.entries.size).coerceIn(4.dp, 14.dp)
+            val logoSize = (available - tabsBlock - 4.dp * (menuItems - 1)).coerceIn(44.dp, logoMax)
+            val tabSpacing = ((available - tabsBlock - logoSize) / menuItems).coerceIn(4.dp, 14.dp)
             val density = LocalDensity.current
             var tabsHeight by remember { mutableStateOf(0.dp) }
             Row(Modifier.fillMaxSize()) {
@@ -247,6 +254,7 @@ private fun MainScreen(vm: AppViewModel) {
                             verticalArrangement = Arrangement.spacedBy(tabSpacing),
                         ) {
                             Tab.entries.forEach { tab -> tabButton(tab, Modifier.fillMaxWidth().height(tabHeight)) }
+                            exitButton(Modifier.fillMaxWidth().height(tabHeight))
                         }
                     }
                 }
@@ -307,10 +315,13 @@ private fun MainScreen(vm: AppViewModel) {
                             },
                         )
                     }
+                    exitButton(Modifier)
                 }
             }
         }
     }
+
+    if (confirmExit) ExitDialog(vm, context, onDismiss = { confirmExit = false })
 
     // Aviso de novedades del canal: una vez por aviso nuevo (o a mano desde Ajustes → Versión).
     catalogState.announcement?.let { announcement ->

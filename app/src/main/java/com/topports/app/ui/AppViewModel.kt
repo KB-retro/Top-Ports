@@ -21,12 +21,13 @@ import com.topports.app.ui.theme.UiStyle
 import com.topports.app.ui.theme.UiAnim
 
 enum class Tab(val label: String) {
-    STORE("Tienda"), INSTALLED("Instalados"), UPDATES("Actualizar"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
+    // Las actualizaciones van dentro de Instalados (antes tenían su pestaña).
+    STORE("Tienda"), INSTALLED("Instalados"), FILES("Archivos"), TASKS("Tareas"), SETTINGS("Ajustes"),
 }
 
 /** Secciones de Ajustes. */
 enum class SettingsSection(val label: String) {
-    // Los permisos van dentro de Versión y la privacidad dentro de Legal, plegados.
+    // Los permisos van dentro de Almacenamiento y la privacidad dentro de Legal, plegados.
     VERSION("Versión"), STORAGE("Almacenamiento"), SOUND("Sonido"), THEME("Temas"), GAMEPAD("Mando"),
     ACCOUNT("Cuenta"), LEGAL("Legal"),
 }
