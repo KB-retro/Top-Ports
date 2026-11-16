@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** Objetos compartidos por toda la app. */
 class AppGraph(app: Application) {
@@ -31,6 +33,28 @@ class AppGraph(app: Application) {
     val updates = UpdateService(app, installs, channel, scope)
     val storage = StorageTools(app, telegram, installs) { tasks.hasRunningTasks }
     val gameData = GameData(app, telegram, installs)
+
+    init {
+        // Las descargas pendientes se guardan sin ids de archivo (cambian al reiniciar la app): el
+        // catálogo, según se lee, les pone los de ahora y entonces la cola puede seguir.
+        scope.launch {
+            channel.state.collect { state ->
+                if (installs.resolvePending(state.games, complete = state.complete && state.games.isNotEmpty())) {
+                    tasks.pendingResolved()
+                }
+            }
+        }
+    }
+
+    /** Lee el canal sin que haya pantalla (al encender la consola), cuando Telegram esté listo. */
+    fun loadCatalogWhenReady() {
+        scope.launch {
+            kotlinx.coroutines.withTimeoutOrNull(60_000) {
+                telegram.authState.first { it is org.drinkless.tdlib.TdApi.AuthorizationStateReady }
+            } ?: return@launch
+            if (channel.state.value.games.isEmpty() && !channel.state.value.loading) channel.refresh()
+        }
+    }
 }
 
 class TopPortsApp : Application() {

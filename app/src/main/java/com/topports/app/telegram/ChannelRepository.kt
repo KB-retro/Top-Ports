@@ -31,6 +31,8 @@ data class CatalogState(
     val channelTitle: String = "",
     val chatId: Long = 0,
     val error: String? = null,
+    /** El canal se ha leído entero en esta sesión (no solo las primeras páginas). */
+    val complete: Boolean = false,
     /** APK de Top Ports más nuevo que el instalado, si se ha publicado en el canal. */
     val appUpdate: AppRelease? = null,
     /** Último aviso de novedades ("ACTUALIZACIÓN DE PORTS") del canal. */
@@ -144,6 +146,7 @@ class ChannelRepository(
             publish()
             return
         }
+        _state.update { it.copy(complete = false) }
         // Lo nuevo primero, aunque la lectura completa siga en marcha.
         syncRecent(force = true)
         if (loadJob?.isActive == true) return
@@ -155,7 +158,7 @@ class ChannelRepository(
                 runCatching { tg.send(TdApi.OpenChat(chat.id)) }
                 listenForNewPosts(chat.id)
                 loadHistory(chat.id)
-                _state.update { it.copy(loading = false) }
+                _state.update { it.copy(loading = false, complete = true) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: e.toString()) }
             }
@@ -168,6 +171,16 @@ class ChannelRepository(
         scope.launch {
             var wasReady = false
             tg.authState.collect { state ->
+                if (state is TdApi.AuthorizationStateClosed) {
+                    // TDLib se cierra (reinicio o fin de sesión): los mensajes leídos llevan ids de
+                    // archivo que ya no valen (pedirían otro archivo). Fuera ya, antes de que
+                    // nadie los use; al volver a estar listo se lee el canal otra vez.
+                    loadJob?.cancel()
+                    synchronized(messages) { messages.clear() }
+                    _hearts.value = emptyMap()
+                    _state.update { it.copy(complete = false) }
+                    publish()
+                }
                 val ready = state is TdApi.AuthorizationStateReady
                 if (ready && !wasReady) tg.setOnline(true)
                 if (ready && !wasReady && _state.value.chatId != 0L) {
@@ -469,6 +482,7 @@ internal fun TdApi.Message.toChannelMessage(): ChannelMessage? {
                 id = file.id,
                 name = c.document.fileName.ifBlank { "archivo_${file.id}" },
                 size = if (file.size > 0) file.size else file.expectedSize,
+                messageId = id,
             )
         }
         is TdApi.MessageVideo -> {

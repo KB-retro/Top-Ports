@@ -130,6 +130,13 @@ A 7-Zip hay que darle el nombre **sin** `.001`: con `.001` elige el formato "Spl
 las partes en un `.7z`. Además, si una extracción por partes devuelve un único comprimido, se
 extrae también y se borra.
 
+**Ids de archivo de TDLib: nunca a disco.** `TdApi.File.id` solo vale mientras ese TDLib sigue
+abierto; al reiniciar la app (o TDLib) se reparten de nuevo. Por eso `GamePackage.key` va con los
+ids de mensaje (`m123-m124`) y `PendingSave` se guarda sin ids: `InstallRegistry.resolvePending`
+se los pone desde el catálogo (lo llama `AppGraph` con cada cambio) y hasta entonces la pendiente
+no se usa. Al cerrarse TDLib, `ChannelRepository` vacía los mensajes y las pendientes vuelven a
+esperar. Guardar ids de archivo fue la causa de apuntes que señalaban a otro juego.
+
 ## Convenciones
 
 - Rama de trabajo: `claude/gallant-wozniak-duisak`. Antes de subir:

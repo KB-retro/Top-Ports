@@ -437,22 +437,39 @@ class TaskCenter(
         // Si la app se cerró justo al terminar una descarga (o a mitad de extraerla), TDLib no
         // vuelve a avisar de esas partes y se quedarían sin mover. Al conectar se pregunta por
         // ellas: las ya completas se mueven o extraen solas.
-        // Al cerrar sesión (desde la app o desde otro dispositivo) los ids de archivo dejan de valer.
+        // Los ids de archivo de TDLib solo valen mientras ese TDLib sigue abierto. Al cerrar
+        // sesión las descargas pendientes se olvidan (lo bajado se borra con la sesión); si TDLib
+        // solo se reinicia (p. ej. al dar el permiso de archivos), esperan a que el catálogo se
+        // lea otra vez y les ponga los ids nuevos ([pendingResolved]).
         scope.launch {
             tg.authState.collect { state ->
-                if (state is TdApi.AuthorizationStateLoggingOut) {
-                    installs.forgetFileIdRecords()
-                    _downloadErrors.value = emptyMap()
-                    _queued.value = emptySet()
-                    savedCache.clear()
-                    _savedVersion.update { it + 1 }
+                when (state) {
+                    is TdApi.AuthorizationStateLoggingOut -> {
+                        installs.invalidatePending(forget = true)
+                        _downloadErrors.value = emptyMap()
+                        _queued.value = emptySet()
+                    }
+                    is TdApi.AuthorizationStateClosed -> {
+                        installs.invalidatePending(forget = false)
+                        startedAt.clear()
+                        _queued.value = emptySet()
+                    }
+                    else -> Unit
                 }
             }
         }
+    }
+
+    /**
+     * El catálogo ha puesto a las descargas pendientes sus ids de archivo de ahora (al arrancar la
+     * app o tras reiniciarse TDLib): se pregunta por sus partes —las ya completas se mueven o
+     * extraen solas, por si la app se cerró justo al terminar— y la cola sigue.
+     */
+    fun pendingResolved() {
         scope.launch {
-            tg.authState.map { it is TdApi.AuthorizationStateReady }.distinctUntilChanged().filter { it }.collect {
-                installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }
-            }
+            installs.pendingSaves().flatMap { it.parts }.forEach { (id, _) -> runCatching { tg.refreshFile(id) } }
+            requestSchedule()
+            if (installs.pendingSaves().any { !it.paused }) WorkService.start(context)
         }
     }
 

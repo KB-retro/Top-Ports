@@ -2,9 +2,15 @@ package com.topports.core
 
 /** Archivo alojado en Telegram (id de archivo de TDLib). */
 data class RemoteFile(
+    /**
+     * Id de archivo de TDLib. Solo vale mientras TDLib sigue abierto: al reiniciar la app los ids
+     * se reparten de nuevo, así que nunca se guarda en disco (para eso está [messageId]).
+     */
     val id: Int,
     val name: String,
     val size: Long,
+    /** Mensaje del canal que trae el archivo: no cambia nunca (0 en pruebas y en el modo demo). */
+    val messageId: Long = 0,
 )
 
 /** Foto de un post: miniatura para listas y versión grande para la ficha. */
@@ -61,8 +67,12 @@ data class GamePackage(
     val size: Long get() = parts.sumOf { it.size }
     val isMultiPart: Boolean get() = parts.size > 1
 
-    /** Clave estable para guardar el estado de descarga / instalación. */
-    val key: String get() = parts.joinToString("-") { it.id.toString() }
+    /**
+     * Clave estable para guardar el estado de descarga / instalación: los mensajes del canal de
+     * sus partes. (No los ids de archivo de TDLib, que cambian al reiniciar la app: con ellos, lo
+     * apuntado de un juego acababa señalando a otro.)
+     */
+    val key: String get() = parts.joinToString("-") { if (it.messageId != 0L) "m${it.messageId}" else it.id.toString() }
 }
 
 data class Game(

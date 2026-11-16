@@ -78,8 +78,7 @@ class InstallRegistry(context: Context) {
 
     /**
      * Carpeta donde se extrajo solo un comprimido al terminar de descargarse. Se guarda también el
-     * nombre del archivo: la clave son ids de archivo de TDLib, que vuelven a empezar si se cierra
-     * la sesión, y sin el nombre un apunte viejo marcaba como descargado otro juego cualquiera.
+     * nombre del archivo, y solo vale si coincide.
      */
     fun recordUnpacked(pkgKey: String, dir: String, name: String) {
         prefs.edit().putString("unpacked_$pkgKey", JSONObject().put("dir", dir).put("name", name).toString()).apply()
@@ -90,20 +89,6 @@ class InstallRegistry(context: Context) {
         val raw = prefs.getString("unpacked_$pkgKey", null) ?: return null
         val json = runCatching { JSONObject(raw) }.getOrNull() ?: return null
         return json.optString("dir").takeIf { it.isNotEmpty() && json.optString("name").equals(name, ignoreCase = true) }
-    }
-
-    /**
-     * Al cerrar sesión TDLib borra su base de datos y los ids de archivo vuelven a empezar: lo
-     * apuntado con ids (descargas pendientes, extraídos, instalaciones a medio confirmar) ya no
-     * señala al mismo archivo. Una descarga pendiente bajaría otro juego a la carpeta equivocada.
-     */
-    @Synchronized
-    fun forgetFileIdRecords() {
-        val edit = prefs.edit()
-        prefs.all.keys.filter { k -> listOf("pending_", "unpacked_", "session_").any { k.startsWith(it) } }
-            .forEach { edit.remove(it) }
-        edit.apply()
-        pending = emptyList()
     }
 
     fun forgetUnpacked(pkgKey: String) {
@@ -122,46 +107,141 @@ class InstallRegistry(context: Context) {
         val paused: Boolean = false,
     )
 
-    // En memoria: se consulta con cada aviso de progreso de TDLib.
-    @Volatile
-    private var pending: List<PendingSave> = loadPending()
+    /**
+     * Todas las descargas pendientes, también las que aún no se pueden usar: al arrancar la app
+     * los ids de archivo de TDLib son otros, y hasta que el catálogo vuelve a leerse no se sabe
+     * cuáles son los de ahora ([resolvePending]). En disco solo van los nombres; los ids, no.
+     */
+    private var allPending: List<PendingSave> = loadPending()
 
+    /** Claves de las pendientes que esperan a que el catálogo diga sus ids de archivo de ahora. */
+    private var unresolved: Set<String> = allPending.map { it.pkgKey }.toSet()
+
+    // Las ya utilizables, en memoria: se consulta con cada aviso de progreso de TDLib.
+    @Volatile
+    private var pending: List<PendingSave> = emptyList()
+
+    /** Descargas pendientes con sus ids de archivo al día (las únicas que se pueden pedir a TDLib). */
     fun pendingSaves(): List<PendingSave> = pending
+
+    /** ¿Queda alguna descarga sin pausar, aunque aún no se sepan sus ids? (Al encender la consola.) */
+    @Synchronized
+    fun hasPendingToResume(): Boolean = allPending.any { !it.paused }
+
+    private fun publishPending() {
+        pending = allPending.filter { it.pkgKey !in unresolved }
+    }
 
     @Synchronized
     fun addPendingSave(save: PendingSave) {
-        val parts = org.json.JSONArray(save.parts.map { (id, name) -> JSONObject().put("id", id).put("name", name) })
+        val parts = org.json.JSONArray(save.parts.map { (_, name) -> JSONObject().put("name", name) })
         val json = JSONObject().put("gameId", save.gameId).put("dir", save.dir).put("parts", parts)
             .put("addedAt", save.addedAt).put("paused", save.paused)
         prefs.edit().putString("pending_${save.pkgKey}", json.toString()).apply()
-        pending = pending.filter { it.pkgKey != save.pkgKey } + save
+        allPending = allPending.filter { it.pkgKey != save.pkgKey } + save
+        unresolved = unresolved - save.pkgKey
+        publishPending()
     }
 
     /** Marca una descarga pendiente como pausada a mano (o no). */
     @Synchronized
     fun setPendingPaused(pkgKey: String, paused: Boolean) {
-        pending.firstOrNull { it.pkgKey == pkgKey }?.let { addPendingSave(it.copy(paused = paused)) }
+        val current = allPending.firstOrNull { it.pkgKey == pkgKey } ?: return
+        val waiting = pkgKey in unresolved
+        addPendingSave(current.copy(paused = paused))
+        if (waiting) {
+            unresolved = unresolved + pkgKey
+            publishPending()
+        }
     }
 
     @Synchronized
     fun removePendingSave(pkgKey: String) {
         prefs.edit().remove("pending_$pkgKey").apply()
-        pending = pending.filter { it.pkgKey != pkgKey }
+        allPending = allPending.filter { it.pkgKey != pkgKey }
+        unresolved = unresolved - pkgKey
+        publishPending()
     }
 
-    private fun loadPending(): List<PendingSave> = prefs.all.filterKeys { it.startsWith("pending_") }.mapNotNull { (key, value) ->
-        runCatching {
-            val json = JSONObject(value as String)
-            val arr = json.getJSONArray("parts")
-            PendingSave(
-                key.removePrefix("pending_"),
-                json.getLong("gameId"),
-                json.getString("dir"),
-                List(arr.length()) { arr.getJSONObject(it).let { p -> p.getInt("id") to p.getString("name") } },
-                addedAt = json.optLong("addedAt", 0),
-                paused = json.optBoolean("paused", false),
-            )
-        }.getOrNull()
+    /**
+     * Pone a las descargas pendientes los ids de archivo que tienen ahora en el catálogo. Se llama
+     * cada vez que cambia el catálogo. Con [complete] (canal leído entero), las que siguen sin
+     * aparecer se olvidan: su post se borró o cambió de archivos. Devuelve true si algo cambió.
+     */
+    @Synchronized
+    fun resolvePending(games: List<com.topports.core.Game>, complete: Boolean): Boolean {
+        if (allPending.isEmpty()) return false
+        val byKey = HashMap<String, GamePackage>()
+        games.forEach { g -> g.packages.forEach { byKey[it.key] = it } }
+        var changed = false
+        val edit = prefs.edit()
+        allPending = allPending.mapNotNull { p ->
+            val pkg = byKey[p.pkgKey]
+            when {
+                pkg != null -> {
+                    val parts = pkg.parts.map { it.id to it.name }
+                    if (parts != p.parts || p.pkgKey in unresolved) {
+                        changed = true
+                        unresolved = unresolved - p.pkgKey
+                        p.copy(parts = parts)
+                    } else p
+                }
+                complete && p.pkgKey in unresolved -> {
+                    changed = true
+                    unresolved = unresolved - p.pkgKey
+                    edit.remove("pending_${p.pkgKey}")
+                    null
+                }
+                else -> p
+            }
+        }
+        if (changed) {
+            edit.apply()
+            publishPending()
+        }
+        return changed
+    }
+
+    /**
+     * TDLib se ha reiniciado (o se ha cerrado sesión): los ids de archivo que había ya no valen.
+     * Las pendientes esperan a que el catálogo se lea otra vez; con [forget], se olvidan.
+     */
+    @Synchronized
+    fun invalidatePending(forget: Boolean) {
+        if (forget) {
+            val edit = prefs.edit()
+            allPending.forEach { edit.remove("pending_${it.pkgKey}") }
+            edit.apply()
+            allPending = emptyList()
+        }
+        unresolved = allPending.map { it.pkgKey }.toSet()
+        publishPending()
+    }
+
+    private fun loadPending(): List<PendingSave> {
+        // Versiones anteriores apuntaban con ids de archivo de TDLib, que cambian al reiniciar la
+        // app: esos apuntes pueden señalar a otro juego. Los de ahora empiezan por "m" (mensaje).
+        val stale = prefs.all.keys.filter { key ->
+            listOf("pending_", "saved_", "unpacked_").any { key.startsWith(it) && !key.removePrefix(it).startsWith("m") }
+        }
+        if (stale.isNotEmpty() && !com.topports.app.BuildConfig.DEMO) {
+            prefs.edit().apply { stale.forEach { remove(it) } }.apply()
+        }
+        return prefs.all.filterKeys { it.startsWith("pending_") && it !in stale }.mapNotNull { (key, value) ->
+            runCatching {
+                val json = JSONObject(value as String)
+                val arr = json.getJSONArray("parts")
+                PendingSave(
+                    key.removePrefix("pending_"),
+                    json.getLong("gameId"),
+                    json.getString("dir"),
+                    // Sin ids: los pone [resolvePending] cuando el catálogo esté leído.
+                    List(arr.length()) { 0 to arr.getJSONObject(it).getString("name") },
+                    addedAt = json.optLong("addedAt", 0),
+                    paused = json.optBoolean("paused", false),
+                )
+            }.getOrNull()
+        }
     }
 
     /** "No avisar de esta actualización": se recuerda el archivo concreto (nombre y tamaño). */

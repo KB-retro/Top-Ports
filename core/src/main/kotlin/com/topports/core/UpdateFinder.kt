@@ -85,7 +85,8 @@ object UpdateFinder {
             .flatMap { g -> g.packages.filter { normalize(it.name) == key }.map { g to it } }
             .maxByOrNull { it.first.id } ?: return null
         val (game, pkg) = newest
-        if (pkg.parts.first().id == record.fileId) return null
+        // (No se compara el id de archivo de TDLib: cambia al reiniciar la app y podía coincidir
+        // con el de otro archivo. El mismo archivo nunca sale "más nuevo" en lo de abajo.)
         val newV = version(pkg.name)
         val oldV = version(record.fileName)
         val isNewer = if (newV != null && oldV != null) {

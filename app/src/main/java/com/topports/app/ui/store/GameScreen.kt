@@ -467,7 +467,8 @@ private fun PackageRow(
     val partsOf = { all: Map<Int, org.drinkless.tdlib.TdApi.File> ->
         pkg.parts.mapNotNull { p -> all[p.id]?.let { p.id to it } }.toMap()
     }
-    val files by remember(pkg.key) { vm.files.map(partsOf).distinctUntilChanged() }
+    // (Con [pkg] entero y no solo su clave: tras reiniciarse TDLib los ids de las partes cambian.)
+    val files by remember(pkg) { vm.files.map(partsOf).distinctUntilChanged() }
         .collectAsStateWithLifecycle(partsOf(vm.files.value))
     val context = LocalContext.current
     val info = vm.graph.tasks.downloadInfo(pkg, files)
