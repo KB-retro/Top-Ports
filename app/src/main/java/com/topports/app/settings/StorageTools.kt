@@ -19,8 +19,12 @@ class StorageTools(
 
     private val tdFiles get() = tg.filesDir
 
-    /** Carpeta privada que usaba TDLib antes de tener permiso de archivos (puede quedar caché). */
-    private val tdFilesDirs get() = listOf(File(context.filesDir, "tdlib-files"), tg.filesDir).distinct()
+    /**
+     * Carpetas de caché de TDLib: la de ahora, la privada que usaba antes de tener permiso de
+     * archivos y las de carpetas de juegos anteriores (p. ej. antes de pasarse a la SD).
+     */
+    private val tdFilesDirs get() =
+        (listOf(File(context.filesDir, "tdlib-files"), tg.filesDir) + com.topports.app.storage.Storage.telegramDirs(context)).distinct()
 
     /** Carpetas de TDLib con imágenes y vídeos que se pueden volver a descargar. */
     private val cacheDirs get() = tdFilesDirs.flatMap { dir ->

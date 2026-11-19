@@ -53,7 +53,7 @@ art/, licenses/          Logo y licencias de terceros (se muestran en Ajustes �
 | `install/ApkInstaller.kt`, `InstallResultReceiver.kt` | PackageInstaller (APK, partido, split, XAPK). Si la app está en segundo plano, notificación "Listo para instalar". |
 | `updates/Updates.kt` (`InstallRegistry`) | SharedPreferences `installs`: instalados, extraídos por juego, guardados (`saved_`), extraídos solos (`unpacked_`), descargas pendientes de mover (`pending_`), avisos ignorados, carpeta de cada juego (`gamedir_`, "Juego (2)" si se repite el título) y APK partidos esperando a que Android confirme su paquete (`session_`). |
 | `settings/StorageTools.kt` | Uso de espacio, borrar caché (`OptimizeStorage` de TDLib), huérfanos. |
-| `storage/Storage.kt` | Rutas: `/TopPorts` si hay permiso de todos los archivos; si no, carpeta privada. |
+| `storage/Storage.kt` | Rutas. `topPortsDir` es la **carpeta de juegos**: la elegida en Ajustes → Almacenamiento (cualquier carpeta, también en la SD; prefs `storage`, `gamesDir`) o `/TopPorts` (`defaultTopPortsDir`; sin permiso, carpeta privada). `checkGamesDir` no deja elegir la raíz de una memoria, `Android/` ni carpetas del sistema, y prueba a escribir. `gamesDirProblem` dice si falta la SD o el permiso. `volumes()` lista memoria interna y SD; `displayPath` da "/TopPorts/Juego" o "SD:/Ports/Juego". `isSafeToDelete` protege también las raíces de las SD y la carpeta de juegos entera. |
 | `ui/AppRoot.kt` | Menú lateral (horizontal y pantallas casi cuadradas) o barra inferior (vertical). |
 | `ui/AppViewModel.kt` (tienda) | Favoritos (`favorites`, prefs `ui`; botón ★ junto a Buscar o filtro `FAVORITES_FILTER`; en Favoritos, SELECT o mantener pulsada la carátula lo quita, con confirmación), órdenes (`SortMode`: nuevos, actualizados, A-Z, sistema, más corazones, más ligeros, más pesados) y botón "Al azar" en la tienda. |
 | `ui/AppViewModel.kt` | Estado de la UI, pestañas con historial, vuelta a la ficha al salir de TAREAS (`switchTab`). |
@@ -110,6 +110,15 @@ Android en local.
 
 ## Flujo de descarga (lo más delicado)
 
+**Carpeta de juegos.** TDLib descarga en `<carpeta de juegos>/.telegram` (`TelegramClient.chooseFilesDir`),
+así descarga y extracción van a la misma memoria (p. ej. la SD) y mover es renombrar. Cambiarla
+(`TaskCenter.setGamesDir`) no se deja con descargas pendientes ni tareas en marcha, y reinicia
+TDLib (`applyStorageLocation`). Si la carpeta no está (SD fuera, sin permiso) o TDLib aún no se ha
+pasado a ella, la cola no arranca nada (`storageProblem`, se reintenta cada 5 s) y TDLib usa la
+carpeta privada. Lo ya bajado se queda donde estaba: `InstallRegistry.gameDirs` recuerda todas las
+rutas de cada juego (`gamepaths_`) para Instalados. OBB y Android/data van siempre a la memoria
+interna. La copia de ajustes sigue en `/TopPorts`.
+
 1. `TaskCenter.download()`:
    - Comprueba el espacio libre, sumando el tamaño del comprimido si hay que extraerlo y el de la parte más grande si hay que copiarla.
    - Registra un `PendingSave` y pide la descarga a TDLib.
@@ -164,6 +173,9 @@ Probado solo en CI y en el emulador. Falta que el usuario confirme:
 8. Actualizaciones dentro de Instalados (ya no hay pestaña Actualizar): los juegos con versión
    nueva van primero, en amarillo y con la carátula iluminada. Controles en Ajustes → Mando;
    Permisos en Ajustes → Almacenamiento; Restablecer ajustes, lo último de Versión.
+9. Carpeta de juegos en la SD (Ajustes → Almacenamiento → Cambiar carpeta): que se pueda escribir
+   en la SD con el permiso de todos los archivos, descargar y extraer allí, y que al sacar la
+   tarjeta las descargas esperen y sigan al volver a meterla.
 
 ## Ideas descartadas por ahora (el usuario dijo que no, de momento)
 

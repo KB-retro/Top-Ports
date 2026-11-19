@@ -332,6 +332,45 @@ fun SettingsScreen(vm: AppViewModel) {
         // --- Almacenamiento ---
         if (vm.settingsSection == SettingsSection.STORAGE) {
             item { SectionTitle("Almacenamiento", Px.blue) }
+            // Carpeta de juegos: dónde se descargan y se extraen (puede estar en la SD).
+            item {
+                val gamesDir = remember(refresh) {
+                    val dir = Storage.topPortsDir(context)
+                    Triple(Storage.displayPath(context, dir), Storage.freeBytes(dir), Storage.gamesDirProblem(context))
+                }
+                val custom = remember(refresh) { Storage.customGamesDir(context) != null }
+                PixelPanel(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Carpeta de juegos", style = PxText.body)
+                        val (path, free, problem) = gamesDir
+                        Text(
+                            path + if (problem == null) " · ${FileNames.formatSize(free)} libres" else "",
+                            style = PxText.small.copy(color = Px.yellow),
+                        )
+                        problem?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
+                        Text(
+                            "Ahí se descargan y se extraen los juegos; puede estar en la tarjeta SD. Los OBB y " +
+                                "Android/data van siempre a la memoria interna. Lo ya bajado se queda donde estaba. " +
+                                "Una SD en FAT32 no admite archivos de más de 4 GB.",
+                            style = PxText.small,
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PixelButton("Cambiar carpeta", onClick = {
+                                if (!Storage.hasAllFilesAccess(context)) {
+                                    toast("Primero da el permiso de todos los archivos (Permisos, más abajo)")
+                                } else {
+                                    vm.pickGamesDir()
+                                }
+                            }, color = Px.blue, small = true, enabled = !busy)
+                            PixelButton("Por defecto", onClick = {
+                                val error = vm.graph.tasks.setGamesDir(null)
+                                toast(error ?: "Carpeta de juegos: /TopPorts")
+                                refresh++
+                            }, color = Px.grey, small = true, enabled = custom && !busy)
+                        }
+                    }
+                }
+            }
             item {
                 PixelPanel(Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -339,7 +378,7 @@ fun SettingsScreen(vm: AppViewModel) {
                         if (u == null) {
                             PixelProgress(null, Modifier.fillMaxWidth(), color = Px.blue)
                         } else {
-                            Text("Descargas terminadas sin pasar a /TopPorts: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
+                            Text("Descargas terminadas sin pasar a la carpeta del juego: ${FileNames.formatSize(u.downloads)}", style = PxText.body)
                             Text("Caché de imágenes y vídeos: ${FileNames.formatSize(u.cache)}", style = PxText.body)
                             Text("Descargas a medias (sin terminar): ${FileNames.formatSize(u.partial)}", style = PxText.body)
                         }
@@ -347,7 +386,7 @@ fun SettingsScreen(vm: AppViewModel) {
                             Column(Modifier.weight(1f)) {
                                 Text("Extraer al descargar", style = PxText.body)
                                 Text(
-                                    "Los comprimidos en partes (.7z.001, .part1.rar…) se extraen solos en /TopPorts/<juego> " +
+                                    "Los comprimidos en partes (.7z.001, .part1.rar…) se extraen solos en la carpeta del juego " +
                                         "y se borra el comprimido. Los archivos sueltos se guardan tal cual.",
                                     style = PxText.small,
                                 )
@@ -759,7 +798,7 @@ fun SettingsScreen(vm: AppViewModel) {
         PixelDialog("¿Borrar descargas de la caché?", onDismiss = { confirmDeleteAll = false }) {
             Text(
                 "Se borrarán las descargas que siguen en la caché de Telegram (a medias o sin pasar a " +
-                    "/TopPorts). Los juegos ya guardados en /TopPorts, lo instalado y lo extraído no se " +
+                    "la carpeta del juego). Los juegos ya guardados en su carpeta, lo instalado y lo extraído no se " +
                     "tocan: esos se borran desde la ficha del juego o desde Instalados.",
                 style = PxText.body,
             )

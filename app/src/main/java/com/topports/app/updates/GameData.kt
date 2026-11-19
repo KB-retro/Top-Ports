@@ -16,7 +16,7 @@ class GameData(
 ) {
     data class Entry(val label: String, val file: File, val size: Long)
 
-    /** OBB, Android/data, lo extraído y la carpeta /TopPorts del juego que existan. */
+    /** OBB, Android/data, lo extraído y las carpetas del juego que existan. */
     suspend fun entries(item: InstalledGame): List<Entry> = withContext(Dispatchers.IO) {
         val files = mutableListOf<Pair<String, File>>()
         item.apps.forEach { app ->
@@ -30,7 +30,10 @@ class GameData(
         }
         // La carpeta que se le dio a este juego: con dos juegos del mismo título, la del otro es
         // "<juego> (2)" y no se debe tocar.
-        files += "Carpeta TopPorts" to File(Storage.topPortsDir(context), registry.gameFolderName(item.game.id, item.game.title))
+        // Puede haber más de una si se cambió la carpeta de juegos (p. ej. de la memoria a la SD).
+        registry.gameDirs(context, item.game.id, item.game.title).forEach { dir ->
+            files += "Carpeta ${Storage.displayPath(context, dir)}" to dir
+        }
         files.distinctBy { it.second.path }
             .filter { it.second.exists() && Storage.isSafeToDelete(it.second) }
             .map { (label, f) -> Entry(label, f, sizeOf(f)) }

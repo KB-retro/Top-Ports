@@ -260,7 +260,23 @@ class InstallRegistry(context: Context) {
     fun gameDir(context: Context, gameId: Long, title: String): File {
         val name = gameFolderName(gameId, title)
         if (prefs.getString("gamedir_$gameId", null) != name) prefs.edit().putString("gamedir_$gameId", name).apply()
-        return File(Storage.topPortsDir(context), name).apply { mkdirs() }
+        val dir = File(Storage.topPortsDir(context), name).apply { mkdirs() }
+        // Y la ruta entera: al cambiar la carpeta de juegos (p. ej. a la SD), lo ya bajado se queda
+        // en la de antes y hay que poder encontrarlo para verlo o borrarlo desde Instalados.
+        val paths = prefs.getStringSet("gamepaths_$gameId", emptySet()).orEmpty()
+        if (dir.path !in paths) prefs.edit().putStringSet("gamepaths_$gameId", paths + dir.path).apply()
+        return dir
+    }
+
+    /** Todas las carpetas que ha tenido un juego (la de la carpeta de juegos de ahora incluida). */
+    fun gameDirs(context: Context, gameId: Long, title: String): List<File> {
+        val name = gameFolderName(gameId, title)
+        return (
+            prefs.getStringSet("gamepaths_$gameId", emptySet()).orEmpty().map(::File) +
+                File(Storage.topPortsDir(context), name) +
+                // Lo bajado antes de que se apuntaran las rutas estaba en /TopPorts.
+                File(Storage.defaultTopPortsDir(context), name)
+            ).distinctBy { it.path }
     }
 
     /** Nombre de la carpeta de [gameDir] sin crearla (para enseñarla en la interfaz). */
@@ -307,7 +323,7 @@ class InstallRegistry(context: Context) {
         prefs.edit().remove("session_$sessionId").apply()
     }
 
-    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_", "gamedir_", "session_")
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_", "gamedir_", "gamepaths_", "session_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {

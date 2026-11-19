@@ -55,6 +55,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var currentTab by mutableStateOf(Tab.STORE)
     private val tabHistory = ArrayDeque<Tab>()
 
+    /** El explorador de archivos está eligiendo la carpeta de juegos (Ajustes → Almacenamiento). */
+    var pickingGamesDir by mutableStateOf(false)
+
     /** Pestaña visible. Cada cambio se recuerda para que "atrás" vuelva a la anterior. */
     var tab: Tab
         get() = currentTab
@@ -85,6 +88,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         // Ajustes siempre se abre por su primera sección (no recuerda dónde se quedó).
         if (value == Tab.SETTINGS && currentTab != Tab.SETTINGS) settingsSection = SettingsSection.VERSION
+        // Al salir del explorador eligiendo la carpeta de juegos, de vuelta a Almacenamiento.
+        if (currentTab == Tab.FILES && pickingGamesDir) {
+            pickingGamesDir = false
+            if (value == Tab.SETTINGS) settingsSection = SettingsSection.STORAGE
+        }
         currentTab = value
     }
 
@@ -261,7 +269,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * paleta, sonido, mando, descargas, favoritos y últimas búsquedas. Nada de la sesión de Telegram.
      */
     fun settingsFile(): java.io.File =
-        java.io.File(com.topports.app.storage.Storage.topPortsDir(getApplication()), "topports-ajustes.json")
+        java.io.File(com.topports.app.storage.Storage.defaultTopPortsDir(getApplication()), "topports-ajustes.json")
 
     fun exportSettings(): java.io.File {
         val json = org.json.JSONObject().put("version", 1)
@@ -473,6 +481,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             graph.channel.checkAppUpdate()?.let { onError("No se pudo comprobar: $it") }
         }
+    }
+
+    fun pickGamesDir() {
+        pickingGamesDir = true
+        browserDir = com.topports.app.storage.Storage.topPortsDir(getApplication()).takeIf { it.isDirectory }?.path
+        tab = Tab.FILES
     }
 
     fun openFolder(path: String) {

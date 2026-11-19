@@ -113,6 +113,8 @@ class TaskCenter(
         for (p in installs.pendingSaves()) {
             if (p.pkgKey in _saving.value) continue
             if (!p.parts.all { (id, _) -> files[id]?.local?.isDownloadingCompleted == true }) continue
+            // Carpeta del juego en una tarjeta que no está: espera a que vuelva.
+            if (!File(p.dir).let { it.isDirectory || it.mkdirs() }) continue
             _saving.update { it + p.pkgKey }
             val unpack = autoExtract && shouldAutoExtract(p.parts.map { it.second })
             launchTask((if (unpack) "Extrayendo " else "Guardando ") + p.parts.first().second) { taskId, password ->
@@ -265,12 +267,13 @@ class TaskCenter(
         return (pkg.size - downloaded).coerceAtLeast(0) + extra + queuedRemaining(except = pkg.key)
     }
 
-    /** Espacio libre donde se descargan los juegos. */
-    fun freeSpace(): Long = Storage.freeBytes(tg.filesDir)
+    /** Espacio libre en la carpeta de juegos (donde se descargan y se extraen). */
+    fun freeSpace(): Long = Storage.freeBytes(Storage.topPortsDir(context))
 
     fun download(game: Game, pkg: GamePackage, onError: (String) -> Unit) {
         scope.launch {
             try {
+                Storage.gamesDirProblem(context)?.let { throw java.io.IOException(it) }
                 val files = pkg.parts.map { tg.refreshFile(it.id) }
                 val remaining = files.sumOf { f ->
                     val size = if (f.size > 0) f.size else f.expectedSize
@@ -282,7 +285,7 @@ class TaskCenter(
                 val copyNeeded = tg.filesDir.startsWith(context.filesDir)
                 val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
                 val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
-                val free = Storage.freeBytes(tg.filesDir) - queuedRemaining(except = pkg.key)
+                val free = freeSpace() - queuedRemaining(except = pkg.key)
                 if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
 
                 val dir = installs.gameDir(context, game.id, game.title)
@@ -411,6 +414,13 @@ class TaskCenter(
     private val _waitingWifi = MutableStateFlow(false)
     val waitingWifi: StateFlow<Boolean> = _waitingWifi.asStateFlow()
 
+    /**
+     * Por qué no puede arrancar ninguna descarga aunque haya cola: la carpeta de juegos elegida no
+     * está (tarjeta SD fuera, sin permiso) o TDLib aún no se ha pasado a ella. null si todo bien.
+     */
+    private val _storageProblem = MutableStateFlow<String?>(null)
+    val storageProblem: StateFlow<String?> = _storageProblem.asStateFlow()
+
     private val onWifi = MutableStateFlow(true)
     private val scheduleRequests = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
 
@@ -428,6 +438,14 @@ class TaskCenter(
         }
         // La cola: se revisa al cambiar las descargas, la red o los ajustes (como mucho 2 veces por segundo).
         watchNetwork()
+        // Esperando a la tarjeta SD (p. ej. al encender, que se monta tarde): nadie avisa de que
+        // ha vuelto, así que se mira cada pocos segundos.
+        scope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(5_000)
+                if (_storageProblem.value != null) requestSchedule()
+            }
+        }
         scope.launch {
             for (request in scheduleRequests) {
                 runCatching { schedule() }
@@ -515,13 +533,21 @@ class TaskCenter(
             .filter { !it.paused && it.pkgKey !in busy && !complete(it) }
             .sortedBy { it.addedAt }
 
-        if (wifiOnly && !onWifi.value) {
+        // Sin la carpeta de juegos (o con TDLib aún descargando en otra) no se descarga nada:
+        // bajaría a otra memoria y no se podría pasar a la carpeta del juego.
+        val problem = Storage.gamesDirProblem(context)
+            ?: if (tg.filesDir != tg.chooseFilesDir()) "Cambiando la carpeta de descargas…" else null
+        _storageProblem.value = problem
+        if (problem != null || (wifiOnly && !onWifi.value)) {
             waiting.filter { active(it) }.forEach { p ->
                 startedAt.remove(p.pkgKey)
                 p.parts.forEach { (id, _) -> runCatching { tg.pauseDownload(id) } }
             }
-            _waitingWifi.value = waiting.isNotEmpty()
+            _waitingWifi.value = problem == null && waiting.isNotEmpty()
             _queued.value = waiting.map { it.pkgKey }.toSet()
+            // Ha vuelto la tarjeta o se ha cambiado de carpeta: TDLib se reinicia en la buena
+            // en cuanto no haya nada descargándose.
+            if (problem != null && Storage.gamesDirProblem(context) == null) tg.applyStorageLocation()
             return
         }
         _waitingWifi.value = false
@@ -553,6 +579,24 @@ class TaskCenter(
             running += p
         }
         _queued.value = (waiting - running.toSet() - failed).map { it.pkgKey }.toSet()
+    }
+
+    /**
+     * Cambia la carpeta de juegos (null = /TopPorts de siempre). Devuelve el motivo si no se puede:
+     * con descargas a medias o tareas en marcha no se cambia, porque sus archivos están en la
+     * carpeta de ahora. Los juegos ya bajados se quedan donde están.
+     */
+    fun setGamesDir(dir: File?): String? {
+        if (installs.pendingSaves().isNotEmpty()) return "Antes termina o cancela las descargas de TAREAS"
+        if (_tasks.value.any { it.running }) return "Espera a que terminen las tareas en marcha"
+        if (tg.files.value.values.any { it.local.isDownloadingActive }) return "Espera a que termine la descarga en curso"
+        if (dir != null) Storage.checkGamesDir(context, dir)?.let { return it }
+        // Volver a /TopPorts es como no haber elegido nada.
+        val chosen = dir?.takeIf { it.absolutePath != File(Storage.externalRoot, "TopPorts").absolutePath }
+        Storage.setCustomGamesDir(context, chosen)
+        tg.applyStorageLocation()
+        requestSchedule()
+        return null
     }
 
     fun deleteDownload(pkg: GamePackage) {

@@ -50,6 +50,7 @@ fun TasksScreen(vm: AppViewModel) {
     var confirmCancel by remember { mutableStateOf<InstallRegistry.PendingSave?>(null) }
     val queuedKeys by vm.graph.tasks.queued.collectAsStateWithLifecycle()
     val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
+    val storageProblem by vm.graph.tasks.storageProblem.collectAsStateWithLifecycle()
     val downloadErrors by vm.graph.tasks.downloadErrors.collectAsStateWithLifecycle()
 
     // Descargas de la tienda, una por paquete (todas sus partes juntas) con sus botones.
@@ -67,6 +68,10 @@ fun TasksScreen(vm: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item { SectionTitle("Descargas", Px.blue) }
+        // La carpeta de juegos no está (tarjeta SD fuera, sin permiso): la cola espera.
+        if (pending.any { !it.paused }) storageProblem?.let { problem ->
+            item { Text(problem, style = PxText.small.copy(color = Px.red)) }
+        }
         if (downloads.isEmpty() && pending.isEmpty()) {
             item { Text("No hay descargas en curso.", style = PxText.small) }
         }
@@ -90,6 +95,7 @@ fun TasksScreen(vm: AppViewModel) {
                         "${FileNames.formatSize(done)} / ${FileNames.formatSize(total)}" + when {
                             active -> ""
                             error != null -> " · error"
+                            queued && storageProblem != null -> " · esperando la carpeta de juegos"
                             queued && waitingWifi -> " · esperando WiFi"
                             queued -> " · en cola"
                             else -> " · en pausa"

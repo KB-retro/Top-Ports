@@ -95,10 +95,17 @@ fun FileBrowserScreen(vm: AppViewModel) {
         hasAccess = Storage.hasAllFilesAccess(context)
     }
 
-    val root = remember(hasAccess) {
+    val home = remember(hasAccess) {
         if (hasAccess) Storage.externalRoot else Storage.topPortsDir(context).parentFile ?: context.filesDir
     }
-    val dir = vm.browserDir?.let(::File)?.takeIf { it.isDirectory } ?: root
+    // Memorias montadas (interna y tarjetas SD); se vuelven a mirar al volver a la app.
+    var volumesVersion by remember { mutableIntStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { volumesVersion++ }
+    val volumes = remember(hasAccess, volumesVersion) { if (hasAccess) Storage.volumes(context) else emptyList() }
+    val sdCards = volumes.filter { it.removable }
+    val dir = vm.browserDir?.let(::File)?.takeIf { it.isDirectory } ?: home
+    // La raíz es la de la memoria en la que se está (no se sube más allá de la tarjeta SD).
+    val root = volumes.firstOrNull { dir.path == it.root.path || dir.path.startsWith(it.root.path + "/") }?.root ?: home
     val tasks by vm.tasks.collectAsStateWithLifecycle()
     var reload by remember { mutableIntStateOf(0) }
     val finishedTasks = tasks.count { !it.running }
@@ -121,6 +128,31 @@ fun FileBrowserScreen(vm: AppViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
+        // Eligiendo la carpeta de juegos desde Ajustes → Almacenamiento.
+        if (vm.pickingGamesDir) {
+            PixelPanel(Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp).fillMaxWidth(), border = Px.green) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ELIGE LA CARPETA DE JUEGOS", style = PxText.label.copy(color = Px.green))
+                    Text(
+                        "Entra en la carpeta (o créala con Nueva carpeta) y pulsa Usar esta carpeta. " +
+                            "Ahí se descargarán y extraerán los juegos.",
+                        style = PxText.small,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PixelButton("Usar esta carpeta", onClick = {
+                            val error = vm.graph.tasks.setGamesDir(dir)
+                            if (error != null) {
+                                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Carpeta de juegos: ${Storage.displayPath(context, dir)}", Toast.LENGTH_SHORT).show()
+                                if (!vm.goBackTab()) vm.tab = Tab.SETTINGS
+                            }
+                        }, color = Px.green, small = true)
+                        PixelButton("Cancelar", onClick = { if (!vm.goBackTab()) vm.tab = Tab.SETTINGS }, color = Px.grey, small = true)
+                    }
+                }
+            }
+        }
         if (!hasAccess) {
             PixelPanel(Modifier.padding(12.dp).fillMaxWidth(), border = Px.yellow) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -146,7 +178,12 @@ fun FileBrowserScreen(vm: AppViewModel) {
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PixelButton("Inicio", onClick = { vm.browserDir = root.path }, color = Px.blue, small = true)
+            PixelButton("Inicio", onClick = { vm.browserDir = home.path }, color = Px.blue, small = true)
+            // Una por tarjeta SD (o memoria USB) montada.
+            sdCards.forEachIndexed { i, v ->
+                PixelButton(if (sdCards.size > 1) "SD${i + 1}" else "SD", onClick = { vm.browserDir = v.root.path },
+                    color = Px.lavender, small = true)
+            }
             PixelButton("TopPorts", onClick = { vm.browserDir = Storage.topPortsDir(context).path }, color = Px.orange, small = true)
             if (hasAccess) {
                 PixelButton("Descargas", onClick = {
@@ -161,7 +198,7 @@ fun FileBrowserScreen(vm: AppViewModel) {
         // Ruta y espacio libre
         Column(Modifier.padding(horizontal = 12.dp)) {
             Text(
-                dir.path.removePrefix(root.parent ?: "").ifEmpty { "/" },
+                if (hasAccess) Storage.displayPath(context, dir) else dir.path.removePrefix(root.parent ?: "").ifEmpty { "/" },
                 style = PxText.small.copy(color = Px.yellow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

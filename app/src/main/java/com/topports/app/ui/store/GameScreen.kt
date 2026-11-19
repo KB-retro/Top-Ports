@@ -308,7 +308,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
             Text(
-                "Las descargas se guardan en /TopPorts/<juego>. Los comprimidos en partes se extraen " +
+                "Las descargas se guardan en la carpeta de juegos (/TopPorts o la elegida en Ajustes > " +
+                    "Almacenamiento), en una carpeta para cada juego. Los comprimidos en partes se extraen " +
                     "solos al terminar (se puede quitar en Ajustes > Almacenamiento); los sueltos se guardan " +
                     "tal cual. Los APK " +
                     "se instalan directamente y los OBB se copian a Android/obb.",
@@ -483,8 +484,13 @@ private fun PackageRow(
     // En la cola de descargas, esperando su turno (o la WiFi).
     val queuedKeys by vm.graph.tasks.queued.collectAsStateWithLifecycle()
     val waitingWifi by vm.graph.tasks.waitingWifi.collectAsStateWithLifecycle()
+    val storageProblem by vm.graph.tasks.storageProblem.collectAsStateWithLifecycle()
     val queued = pkg.key in queuedKeys && !info.active && !info.complete
-    val queueLabel = if (waitingWifi) "Esperando WiFi" else "En cola"
+    val queueLabel = when {
+        storageProblem != null -> "Esperando carpeta"
+        waitingWifi -> "Esperando WiFi"
+        else -> "En cola"
+    }
     // Se mira el disco en segundo plano; [savedVersion] avisa cuando cambia.
     val savedVersion by vm.graph.tasks.savedVersion.collectAsStateWithLifecycle()
     val savedDir = remember(info.complete, files, moving, savedVersion) {
@@ -544,8 +550,10 @@ private fun PackageRow(
                 }
             }
             downloadError?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
+            // Tarjeta SD fuera o sin permiso: la descarga espera (ver Ajustes → Almacenamiento).
+            if (queued) storageProblem?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
             if (moving) {
-                Text("Pasando a /TopPorts…", style = PxText.small.copy(color = Px.yellow))
+                Text("Pasando a la carpeta del juego…", style = PxText.small.copy(color = Px.yellow))
             } else if (savedDir != null) {
                 Text("En $savedDir", style = PxText.small.copy(color = Px.green))
             } else if (unpackedDir != null) {
@@ -681,13 +689,13 @@ private fun startInstall(vm: AppViewModel, context: Context, game: Game, pkg: Ga
     vm.tab = Tab.TASKS
 }
 
-/** Dónde extraer/guardar: raíz de la memoria interna o /TopPorts/<juego>. [save]: copiar sin extraer. */
+/** Dónde extraer/guardar: raíz de la memoria interna o la carpeta del juego (en la carpeta de juegos). [save]: copiar sin extraer. */
 @Composable
 private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, save: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val wantsRoot = !save && CatalogBuilder.wantsStorageRoot(game.description)
     val hasAccess = Storage.hasAllFilesAccess(context)
-    val gameDir = "/TopPorts/${vm.graph.installs.gameFolderName(game.id, game.title)}"
+    val gameDir = Storage.displayPath(context, File(Storage.topPortsDir(context), vm.graph.installs.gameFolderName(game.id, game.title)))
     val verb = if (save) "guardar" else "extraer"
     PixelDialog("¿Dónde $verb?", onDismiss = onDismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

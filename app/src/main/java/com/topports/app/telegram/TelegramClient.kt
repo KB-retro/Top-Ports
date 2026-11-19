@@ -105,16 +105,19 @@ class TelegramClient(private val context: Context) {
         private set
 
     /**
-     * Con permiso de archivos, las descargas van a /TopPorts/.telegram, en la misma memoria que las
-     * carpetas de los juegos: al terminar, el archivo se mueve (renombrar) sin copiarlo ni escribirlo
-     * otra vez. Sin permiso, a la carpeta privada de la app.
+     * Con permiso de archivos, las descargas van a <carpeta de juegos>/.telegram (/TopPorts o la
+     * elegida en Ajustes, p. ej. en la SD), en la misma memoria que las carpetas de los juegos: al
+     * terminar, el archivo se mueve (renombrar) sin copiarlo ni escribirlo otra vez. Sin permiso, o
+     * si la carpeta elegida no está (tarjeta fuera), a la carpeta privada de la app; la cola no
+     * arranca descargas mientras tanto ([TaskCenter]).
      */
-    private fun chooseFilesDir(): File {
-        if (Storage.hasAllFilesAccess(context)) {
-            val dir = File(Storage.externalRoot, "TopPorts/.telegram")
+    fun chooseFilesDir(): File {
+        if (Storage.hasAllFilesAccess(context) && Storage.gamesDirProblem(context) == null) {
+            val dir = File(Storage.topPortsDir(context), ".telegram")
             if (dir.isDirectory || dir.mkdirs()) {
                 // Que la galería no muestre las carátulas y vídeos de la caché.
                 runCatching { File(dir, ".nomedia").createNewFile() }
+                Storage.rememberTelegramDir(context, dir)
                 return dir
             }
         }
@@ -122,8 +125,9 @@ class TelegramClient(private val context: Context) {
     }
 
     /**
-     * Tras dar el permiso de archivos: reinicia TDLib (la sesión se conserva) para que las
-     * descargas vayan ya a /TopPorts/.telegram. No se hace con descargas en marcha.
+     * Tras dar el permiso de archivos o cambiar la carpeta de juegos: reinicia TDLib (la sesión se
+     * conserva) para que las descargas vayan ya a la carpeta nueva. No se hace con descargas en
+     * marcha.
      */
     fun applyStorageLocation() {
         if (_authState.value !is TdApi.AuthorizationStateReady) return
