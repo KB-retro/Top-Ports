@@ -120,17 +120,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("ui", Context.MODE_PRIVATE)
 
-    /** Orden de la tienda; se recuerda entre sesiones. */
-    var sortMode by mutableStateOf(
-        SortMode.entries.firstOrNull { it.name == prefs.getString("sort", null) } ?: SortMode.NEWEST,
-    )
+    /** Orden de la tienda. No se recuerda: al abrir la app, siempre "Más nuevos". */
+    var sortMode by mutableStateOf(SortMode.NEWEST)
         private set
 
     /** Botón ORDEN o X del mando: pasa al siguiente orden (ver [SortMode]). */
     fun toggleSort() {
         val modes = SortMode.entries
         sortMode = modes[(sortMode.ordinal + 1) % modes.size]
-        prefs.edit().putString("sort", sortMode.name).apply()
     }
 
     /** L1 / R1 en Ajustes: sección anterior o siguiente (da la vuelta al llegar al final). */
@@ -320,7 +317,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val backupKeys = mapOf(
         "theme" to "string", "uiStyle" to "string", "anim" to "string", "sounds" to "bool",
-        "soundType" to "string", "music" to "int", "swapAB" to "bool", "sort" to "string",
+        "soundType" to "string", "music" to "int", "swapAB" to "bool",
         "autoExtract" to "bool", "maxParallel" to "int", "wifiOnly" to "bool", "hideInstalled" to "bool",
         "resumeOnBoot" to "bool", "keepScreenOn" to "bool", "favorites" to "set", "favoriteTitles" to "set", "searchHistory" to "string",
         "seenAnnouncement" to "long",
