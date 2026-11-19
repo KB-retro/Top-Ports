@@ -55,8 +55,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var currentTab by mutableStateOf(Tab.STORE)
     private val tabHistory = ArrayDeque<Tab>()
 
-    /** El explorador de archivos está eligiendo la carpeta de juegos (Ajustes → Almacenamiento). */
-    var pickingGamesDir by mutableStateOf(false)
+    /**
+     * El explorador de archivos está eligiendo una carpeta: la de juegos (Ajustes → Almacenamiento)
+     * o dónde extraer un juego ("Otra carpeta…"). [onPick] devuelve el motivo si no vale.
+     */
+    class FolderPick(
+        val title: String,
+        val hint: String,
+        /** Al terminar, volver a Ajustes → Almacenamiento (y no a su primera sección). */
+        val fromStorageSettings: Boolean = false,
+        val onPick: (java.io.File) -> String?,
+    )
+
+    var folderPick by mutableStateOf<FolderPick?>(null)
 
     /** Pestaña visible. Cada cambio se recuerda para que "atrás" vuelva a la anterior. */
     var tab: Tab
@@ -89,9 +100,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Ajustes siempre se abre por su primera sección (no recuerda dónde se quedó).
         if (value == Tab.SETTINGS && currentTab != Tab.SETTINGS) settingsSection = SettingsSection.VERSION
         // Al salir del explorador eligiendo la carpeta de juegos, de vuelta a Almacenamiento.
-        if (currentTab == Tab.FILES && pickingGamesDir) {
-            pickingGamesDir = false
-            if (value == Tab.SETTINGS) settingsSection = SettingsSection.STORAGE
+        folderPick?.let { pick ->
+            if (currentTab == Tab.FILES) {
+                folderPick = null
+                if (value == Tab.SETTINGS && pick.fromStorageSettings) settingsSection = SettingsSection.STORAGE
+            }
         }
         currentTab = value
     }
@@ -483,10 +496,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun pickGamesDir() {
-        pickingGamesDir = true
-        browserDir = com.topports.app.storage.Storage.topPortsDir(getApplication()).takeIf { it.isDirectory }?.path
+    /** Abre el explorador para elegir una carpeta, empezando en [start]. */
+    fun pickFolder(pick: FolderPick, start: java.io.File?) {
+        folderPick = pick
+        browserDir = start?.takeIf { it.isDirectory }?.path
         tab = Tab.FILES
+    }
+
+    fun pickGamesDir() {
+        pickFolder(
+            FolderPick(
+                "ELIGE LA CARPETA DE JUEGOS",
+                "Entra en la carpeta (o créala con Nueva carpeta) y pulsa Usar esta carpeta. " +
+                    "Ahí se descargarán y extraerán los juegos.",
+                fromStorageSettings = true,
+            ) { dir ->
+                graph.tasks.setGamesDir(dir).also { error ->
+                    if (error == null) {
+                        val app = getApplication<android.app.Application>()
+                        android.widget.Toast.makeText(
+                            app, "Carpeta de juegos: ${com.topports.app.storage.Storage.displayPath(app, dir)}",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
+            },
+            com.topports.app.storage.Storage.topPortsDir(getApplication()),
+        )
     }
 
     fun openFolder(path: String) {

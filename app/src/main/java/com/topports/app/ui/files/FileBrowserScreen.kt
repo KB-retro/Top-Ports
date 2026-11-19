@@ -128,27 +128,25 @@ fun FileBrowserScreen(vm: AppViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Eligiendo la carpeta de juegos desde Ajustes → Almacenamiento.
-        if (vm.pickingGamesDir) {
+        // Eligiendo una carpeta (la de juegos, o dónde extraer un juego).
+        vm.folderPick?.let { pick ->
             PixelPanel(Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp).fillMaxWidth(), border = Px.green) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("ELIGE LA CARPETA DE JUEGOS", style = PxText.label.copy(color = Px.green))
-                    Text(
-                        "Entra en la carpeta (o créala con Nueva carpeta) y pulsa Usar esta carpeta. " +
-                            "Ahí se descargarán y extraerán los juegos.",
-                        style = PxText.small,
-                    )
+                    Text(pick.title, style = PxText.label.copy(color = Px.green))
+                    Text(pick.hint, style = PxText.small)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PixelButton("Usar esta carpeta", onClick = {
-                            val error = vm.graph.tasks.setGamesDir(dir)
+                            val error = pick.onPick(dir)
                             if (error != null) {
                                 Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(context, "Carpeta de juegos: ${Storage.displayPath(context, dir)}", Toast.LENGTH_SHORT).show()
-                                if (!vm.goBackTab()) vm.tab = Tab.SETTINGS
+                            } else if (vm.tab == Tab.FILES) {
+                                // Si [onPick] ya ha cambiado de pestaña (p. ej. a TAREAS), se queda ahí.
+                                if (!vm.goBackTab()) vm.tab = Tab.STORE
                             }
                         }, color = Px.green, small = true)
-                        PixelButton("Cancelar", onClick = { if (!vm.goBackTab()) vm.tab = Tab.SETTINGS }, color = Px.grey, small = true)
+                        PixelButton("Cancelar", onClick = {
+                            if (!vm.goBackTab()) vm.tab = Tab.STORE
+                        }, color = Px.grey, small = true)
                     }
                 }
             }
@@ -322,15 +320,15 @@ fun FileBrowserScreen(vm: AppViewModel) {
             val target = File(dir, FileNames.safeFolderName(archiveFolderName(d.file.name)))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(d.file.name, style = PxText.body)
-                Text("Se extraerá en: ${target.name}/", style = PxText.small)
+                Text("Se extraerá en: ${target.name}/ (o en la carpeta que ya traiga dentro)", style = PxText.small)
                 PixelButton("Extraer aquí", onClick = {
                     dialog = null
-                    vm.graph.tasks.extractLocal(d.file, target, installAfter = false)
+                    vm.graph.tasks.extractLocal(d.file, target, installAfter = false, wrapper = true)
                     Toast.makeText(context, "Extrayendo… mira TAREAS", Toast.LENGTH_SHORT).show()
                 }, modifier = Modifier.fillMaxWidth(), small = true)
                 PixelButton("Extraer e instalar", onClick = {
                     dialog = null
-                    vm.graph.tasks.extractLocal(d.file, target, installAfter = true)
+                    vm.graph.tasks.extractLocal(d.file, target, installAfter = true, wrapper = true)
                     vm.tab = Tab.TASKS
                 }, color = Px.green, modifier = Modifier.fillMaxWidth(), small = true)
                 PixelButton("Ver contenido", onClick = { dialog = FileDialog.Contents(d.file) },

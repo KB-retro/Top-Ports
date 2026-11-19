@@ -136,6 +136,10 @@ object Storage {
     fun volumeOf(context: Context, file: File): Volume? =
         volumes(context).firstOrNull { relativePath(it.root, file) != null }
 
+    /** ¿Están [a] y [b] en la misma memoria? (Las carpetas privadas de la app cuentan como una.) */
+    fun sameVolume(context: Context, a: File, b: File): Boolean =
+        volumeOf(context, a)?.root?.path == volumeOf(context, b)?.root?.path
+
     /** Ruta de [file] dentro de [root] ("" si es la propia raíz), o null si está fuera. */
     private fun relativePath(root: File, file: File): String? {
         val r = root.absolutePath.trimEnd('/')

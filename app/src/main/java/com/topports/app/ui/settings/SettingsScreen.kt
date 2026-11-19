@@ -386,7 +386,7 @@ fun SettingsScreen(vm: AppViewModel) {
                             Column(Modifier.weight(1f)) {
                                 Text("Extraer al descargar", style = PxText.body)
                                 Text(
-                                    "Los comprimidos en partes (.7z.001, .part1.rar…) se extraen solos en la carpeta del juego " +
+                                    "Los comprimidos en partes (.7z.001, .part1.rar…) se extraen solos donde elijas al descargar " +
                                         "y se borra el comprimido. Los archivos sueltos se guardan tal cual.",
                                     style = PxText.small,
                                 )

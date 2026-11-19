@@ -153,8 +153,12 @@ class TaskCenter(
      * Telegram. Si falla, el comprimido se queda y se puede extraer o guardar a mano.
      */
     private suspend fun extractDownloaded(taskId: Int, p: InstallRegistry.PendingSave, parts: List<Pair<String, File>>, password: String?) {
-        extractAndInstall(taskId, VolumeSet.ofParts(parts), File(p.dir), password, gameId = p.gameId)
-        installs.recordUnpacked(p.pkgKey, p.dir, FileNames.volumeOf(p.parts.first().second).baseName)
+        // Donde se eligió al descargar (raíz u otra carpeta, tal cual) o en la carpeta del juego.
+        val chosen = p.extractTo?.let(::File)
+        val dest = extractAndInstall(
+            taskId, VolumeSet.ofParts(parts), chosen ?: File(p.dir), password, gameId = p.gameId, wrapper = chosen == null,
+        )
+        installs.recordUnpacked(p.pkgKey, dest.path, FileNames.volumeOf(p.parts.first().second).baseName)
         p.parts.forEach { (id, _) -> runCatching { tg.deleteFile(id) } }
     }
 
@@ -270,7 +274,21 @@ class TaskCenter(
     /** Espacio libre en la carpeta de juegos (donde se descargan y se extraen). */
     fun freeSpace(): Long = Storage.freeBytes(Storage.topPortsDir(context))
 
-    fun download(game: Game, pkg: GamePackage, onError: (String) -> Unit) {
+    /**
+     * Dónde se extraerá sola una descarga pendiente al terminar (null si no se extrae sola). Si es
+     * la carpeta del juego, puede acabar en la que traiga el comprimido ([unwrapDest]).
+     */
+    fun extractTarget(p: InstallRegistry.PendingSave): File? =
+        if (autoExtract && shouldAutoExtract(p.parts.map { it.second })) File(p.extractTo ?: p.dir) else null
+
+    /** ¿Se extraerá sola al terminar la descarga? (Comprimido en partes y "Extraer al descargar".) */
+    fun willAutoExtract(pkg: GamePackage): Boolean = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
+
+    /**
+     * Pone [pkg] en la cola. [extractTo]: dónde extraerlo al terminar si se eligió al descargar
+     * (null: en la carpeta del juego, o donde se eligió la primera vez si ya estaba empezada).
+     */
+    fun download(game: Game, pkg: GamePackage, extractTo: File? = null, onError: (String) -> Unit) {
         scope.launch {
             try {
                 Storage.gamesDirProblem(context)?.let { throw java.io.IOException(it) }
@@ -286,17 +304,29 @@ class TaskCenter(
                 val extracts = autoExtract && shouldAutoExtract(pkg.parts.map { it.name })
                 val extra = (if (extracts) pkg.size else 0L) + (if (copyNeeded) pkg.parts.maxOf { it.size } else 0L)
                 val free = freeSpace() - queuedRemaining(except = pkg.key)
-                if (remaining + extra > free) throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
+                val previous = installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
+                val target = extractTo ?: previous?.extractTo?.let(::File)
+                if (extracts && target != null && !Storage.sameVolume(context, target, Storage.topPortsDir(context))) {
+                    // Se descarga en la carpeta de juegos (p. ej. la SD) y se extrae en otra memoria
+                    // (p. ej. la raíz de la interna): cada sitio necesita lo suyo.
+                    if (remaining + extra - pkg.size > free) throw NotEnoughSpaceException(remaining + extra - pkg.size, free.coerceAtLeast(0))
+                    val freeThere = Storage.freeBytes(target)
+                    if (pkg.size > freeThere) throw NotEnoughSpaceException(pkg.size, freeThere)
+                } else if (remaining + extra > free) {
+                    throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
+                }
 
-                val dir = installs.gameDir(context, game.id, game.title)
+                // Si se extrae en otro sitio, la carpeta del juego no se crea: se quedaría vacía.
+                val dir = if (extracts && target != null) File(Storage.topPortsDir(context), installs.gameFolderName(game.id, game.title))
+                else installs.gameDir(context, game.id, game.title)
                 _downloadErrors.update { it - pkg.key }
                 // A la cola: la descarga empieza cuando le toque (ver [schedule]).
-                val previous = installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
                 installs.addPendingSave(
                     InstallRegistry.PendingSave(
                         pkg.key, game.id, dir.path, pkg.parts.map { it.id to it.name },
                         addedAt = previous?.addedAt ?: System.currentTimeMillis(),
                         paused = false,
+                        extractTo = target?.path,
                     ),
                 )
                 _downloadNames.update { names -> names + pkg.parts.associate { it.id to it.name } }
@@ -617,8 +647,11 @@ class TaskCenter(
 
     // --- Instalar desde la tienda ---
 
-    /** [dest]: carpeta donde extraer o guardar (raíz de la memoria o /TopPorts/<juego>). */
-    fun installPackage(game: Game, pkg: GamePackage, dest: File) {
+    /**
+     * [dest]: carpeta donde extraer o guardar (raíz de la memoria, la carpeta del juego u otra).
+     * [wrapper]: [dest] es la carpeta del juego, que se salta si el comprimido ya trae la suya.
+     */
+    fun installPackage(game: Game, pkg: GamePackage, dest: File, wrapper: Boolean = false) {
         launchTask(game.title) { taskId, password ->
             val parts = localParts(pkg)
             when (pkg.kind) {
@@ -639,7 +672,7 @@ class TaskCenter(
                     finish(taskId, "OBB copiado en $dest", dest)
                 }
                 PackageKind.ARCHIVE, PackageKind.APK_BUNDLE -> {
-                    extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password, game, pkg)
+                    extractAndInstall(taskId, VolumeSet.ofParts(parts), dest, password, game, pkg, wrapper = wrapper)
                 }
                 PackageKind.OTHER -> saveParts(taskId, game.id, pkg.key, pkg.parts.map { it.id }, parts, dest)
             }
@@ -709,17 +742,20 @@ class TaskCenter(
 
     // --- Explorador de archivos ---
 
-    fun extractLocal(archive: File, dest: File, installAfter: Boolean) {
+    /** [wrapper]: [target] es una carpeta nueva con el nombre del comprimido (ver [unwrapDest]). */
+    fun extractLocal(archive: File, target: File, installAfter: Boolean, wrapper: Boolean = false) {
         launchTask(archive.name) { taskId, password ->
             val volumes = VolumeSet.local(archive)
             if (installAfter) {
-                extractAndInstall(taskId, volumes, dest, password)
+                extractAndInstall(taskId, volumes, target, password, wrapper = wrapper)
             } else {
+                val dest = if (wrapper) unwrapDest(volumes, target, password) else target
                 val result = extract(taskId, volumes, dest, password)
+                val folder = resultFolder(target, dest, result.files)
                 finish(
                     taskId,
-                    "Extraídos ${result.files.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${dest.path}",
-                    dest.path,
+                    "Extraídos ${result.files.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${folder.path}",
+                    folder.path,
                 )
             }
         }
@@ -895,19 +931,54 @@ class TaskCenter(
         installs.record(InstallRecord(packageName, pkg.name, pkg.parts.first().id, game.id, pkg.size))
     }
 
+    /**
+     * Si todo el comprimido cuelga de una sola carpeta (lo normal: "DKC/…"), se extrae al lado de
+     * [dest] y no dentro, para que no queden dos niveles (/TopPorts/<juego>/DKC): queda
+     * /TopPorts/DKC, con el nombre que traiga, que es el que suelen pedir las instrucciones. Con
+     * nombres genéricos (data, files…) se deja dentro de [dest]: dos juegos podrían compartirlos.
+     */
+    private suspend fun unwrapDest(volumes: VolumeSet, dest: File, password: String?): File {
+        val parent = dest.parentFile ?: return dest
+        // Con contraseña puede no dejar ver el contenido: se extrae como siempre.
+        val entries = withContext(Dispatchers.IO) { runCatching { extractor.list(volumes, password) }.getOrNull() }
+            ?: return dest
+        fun clean(path: String) = path.replace('\\', '/').removePrefix("./").trim('/')
+        val paths = entries.map { clean(it.path) }.filter { it.isNotEmpty() }
+        val top = paths.map { it.substringBefore('/') }.distinct().singleOrNull() ?: return dest
+        val isFolder = paths.any { it.startsWith("$top/") } || entries.any { it.isDirectory && clean(it.path) == top }
+        if (!isFolder || top == ".." || top.startsWith(".") || top.lowercase() in genericFolders) return dest
+        // La carpeta del juego, recién creada y vacía, ya no hace falta.
+        if (dest.isDirectory && dest.list().isNullOrEmpty()) dest.delete()
+        return parent
+    }
+
+    /** Carpetas que traen muchos comprimidos: sacarlas fuera mezclaría juegos distintos. */
+    private val genericFolders = setOf(
+        "data", "datos", "files", "archivos", "assets", "game", "games", "juego", "juegos", "bin", "content",
+        "contents", "resources", "res", "src", "output", "extracted", "new folder", "nueva carpeta",
+        "android", "obb", "install", "port", "ports", "topports",
+    )
+
+    /**
+     * Extrae en [target] (o al lado, ver [unwrapDest], si [wrapper]), mueve OBB y datos e instala
+     * los APK. Devuelve la carpeta que ha salido (la que traía el comprimido, si se sacó fuera).
+     */
     private suspend fun extractAndInstall(
         taskId: Int,
         volumes: VolumeSet,
-        dest: File,
+        target: File,
         password: String?,
         game: Game? = null,
         pkg: GamePackage? = null,
         gameId: Long? = game?.id,
-    ) {
+        wrapper: Boolean = false,
+    ): File {
+        val dest = if (wrapper) unwrapDest(volumes, target, password) else target
         dest.mkdirs()
         // Solo lo recién extraído: el destino puede ser la raíz de la memoria, con otras cosas.
         val result = extract(taskId, volumes, dest, password)
         val extracted = result.files
+        val folder = resultFolder(target, dest, extracted)
         // Recordar qué se extrajo de este juego (primer nivel) para poder borrarlo en Instalados.
         if (gameId != null) {
             installs.recordExtracted(
@@ -920,7 +991,7 @@ class TaskCenter(
         }
         val plan = InstallPlanner.plan(extracted)
         val notes = mutableListOf(
-            "Extraídos ${extracted.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${dest.path}",
+            "Extraídos ${extracted.size} archivos (${FileNames.formatSize(result.writtenBytes)}) en ${folder.path}",
         )
 
         for (obb in plan.obbs) {
@@ -962,8 +1033,14 @@ class TaskCenter(
             notes += "Instalación lanzada (${plan.apks.size} APK)"
         }
         if (plan.isEmpty) notes += "No hay APK ni OBB: los archivos están en la carpeta"
-        finish(taskId, notes.joinToString("\n"), dest.path, notify = plan.apks.isEmpty())
+        finish(taskId, notes.joinToString("\n"), folder.path, notify = plan.apks.isEmpty())
+        return folder
     }
+
+    /** La carpeta que ha salido: la que traía el comprimido si se sacó fuera ([unwrapDest]), si no [dest]. */
+    private fun resultFolder(target: File, dest: File, files: List<String>): File =
+        if (dest == target) dest
+        else files.firstOrNull()?.let { File(dest, it.replace('\\', '/').trimStart('/').substringBefore('/')) } ?: dest
 
     private suspend fun installApks(
         taskId: Int,

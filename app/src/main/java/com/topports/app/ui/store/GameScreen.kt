@@ -316,7 +316,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                 Text(
                     "Las descargas se guardan en la carpeta de juegos (/TopPorts o la elegida en Ajustes > " +
                         "Almacenamiento), en una carpeta para cada juego. Los comprimidos en partes se extraen " +
-                        "solos al terminar (se puede quitar en Ajustes > Almacenamiento); los sueltos se guardan " +
+                        "solos al terminar donde elijas al descargar (se puede quitar en Ajustes > Almacenamiento), " +
+                        "sin repetir la carpeta si ya traen una; los sueltos se guardan " +
                         "tal cual. Los APK " +
                         "se instalan directamente y los OBB se copian a Android/obb.",
                     style = PxText.small,
@@ -485,6 +486,8 @@ private fun PackageRow(
     var chooseDest by remember { mutableStateOf(false) }
     // Elegir destino para guardar el archivo tal cual (sin extraer).
     var chooseSaveDest by remember { mutableStateOf(false) }
+    // Comprimido en partes que se extrae solo: dónde, se elige al pulsar Descargar.
+    var chooseDownloadDest by remember { mutableStateOf(false) }
     // Dónde se guardó la última vez (si los archivos siguen ahí).
     val saving by vm.graph.tasks.saving.collectAsStateWithLifecycle()
     val moving = pkg.key in saving
@@ -557,6 +560,12 @@ private fun PackageRow(
                 }
             }
             downloadError?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
+            // Dónde se extraerá al terminar (elegido al pulsar Descargar).
+            if (info.started && !info.complete) {
+                vm.graph.installs.pendingSaves().firstOrNull { it.pkgKey == pkg.key }
+                    ?.let { vm.graph.tasks.extractTarget(it) }
+                    ?.let { Text("Se extraerá en: ${Storage.displayPath(context, it)}", style = PxText.small.copy(color = Px.yellow)) }
+            }
             // Tarjeta SD fuera o sin permiso: la descarga espera (ver Ajustes → Almacenamiento).
             if (queued) storageProblem?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
             if (moving) {
@@ -593,6 +602,8 @@ private fun PackageRow(
                             chooseDest = true
                         }
                         info.active || queued -> vm.graph.tasks.pause(pkg)
+                        // La primera vez: dónde extraerlo al terminar. Al continuar, donde se dijo.
+                        !info.started && vm.graph.tasks.willAutoExtract(pkg) -> chooseDownloadDest = true
                         else -> download(vm, context, game, pkg)
                     }
                 }, color = mainColor, small = true, modifier = primary)
@@ -615,10 +626,21 @@ private fun PackageRow(
     }
 
     if (chooseDest) {
-        DestinationDialog(vm, game, pkg, save = pkg.kind == PackageKind.OTHER, onDismiss = { chooseDest = false })
+        val save = pkg.kind == PackageKind.OTHER
+        DestinationDialog(vm, game, pkg, save = save, onDismiss = { chooseDest = false }) { dest, wrapper ->
+            startInstall(vm, context, game, pkg, dest, save, wrapper)
+        }
     }
     if (chooseSaveDest) {
-        DestinationDialog(vm, game, pkg, save = true, onDismiss = { chooseSaveDest = false })
+        DestinationDialog(vm, game, pkg, save = true, onDismiss = { chooseSaveDest = false }) { dest, wrapper ->
+            startInstall(vm, context, game, pkg, dest, save = true, wrapper = wrapper)
+        }
+    }
+    if (chooseDownloadDest) {
+        DestinationDialog(vm, game, pkg, save = false, atDownload = true, onDismiss = { chooseDownloadDest = false }) { dest, wrapper ->
+            // En la carpeta del juego no se apunta nada: es lo de siempre (y sigue a la carpeta de juegos).
+            download(vm, context, game, pkg, extractTo = if (wrapper) null else dest)
+        }
     }
 
     if (confirmDelete) {
@@ -690,15 +712,30 @@ private fun VideoRow(vm: AppViewModel, video: VideoRef, onFocused: (top: Float, 
     }
 }
 
-private fun startInstall(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, dest: File, save: Boolean = false) {
-    if (save) vm.graph.tasks.savePackage(game, pkg, dest) else vm.graph.tasks.installPackage(game, pkg, dest)
+private fun startInstall(
+    vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, dest: File, save: Boolean = false, wrapper: Boolean = false,
+) {
+    if (save) vm.graph.tasks.savePackage(game, pkg, dest) else vm.graph.tasks.installPackage(game, pkg, dest, wrapper)
     Toast.makeText(context, "Mira el progreso en TAREAS", Toast.LENGTH_SHORT).show()
     vm.tab = Tab.TASKS
 }
 
-/** Dónde extraer/guardar: raíz de la memoria interna o la carpeta del juego (en la carpeta de juegos). [save]: copiar sin extraer. */
+/**
+ * Dónde extraer/guardar: la carpeta del juego (en la carpeta de juegos), la raíz de la memoria
+ * interna u otra carpeta elegida con el explorador. [save]: copiar sin extraer. [atDownload]: se
+ * pregunta al pulsar Descargar y se extrae ahí al terminar. [onPick] recibe la carpeta y si es la
+ * del juego (que se salta si el comprimido ya trae la suya).
+ */
 @Composable
-private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, save: Boolean, onDismiss: () -> Unit) {
+private fun DestinationDialog(
+    vm: AppViewModel,
+    game: Game,
+    pkg: GamePackage,
+    save: Boolean,
+    atDownload: Boolean = false,
+    onDismiss: () -> Unit,
+    onPick: (dest: File, gameFolder: Boolean) -> Unit,
+) {
     val context = LocalContext.current
     val wantsRoot = !save && CatalogBuilder.wantsStorageRoot(game.description)
     val hasAccess = Storage.hasAllFilesAccess(context)
@@ -709,33 +746,53 @@ private fun DestinationDialog(vm: AppViewModel, game: Game, pkg: GamePackage, sa
             if (wantsRoot) {
                 Text("Las instrucciones del post piden la raíz de la memoria interna.", style = PxText.body.copy(color = Px.yellow))
             }
+            if (atDownload) {
+                Text("Se extraerá ahí al terminar la descarga. Mira antes las instrucciones del post.", style = PxText.small)
+            }
+            if (!save) {
+                Text("Si el comprimido ya trae su carpeta, se usa esa (sin carpetas repetidas).", style = PxText.small)
+            }
             if (!hasAccess) {
-                Text("Para usar la raíz o /TopPorts, da permiso de acceso a todos los archivos.", style = PxText.small)
+                Text("Para usar la raíz o elegir otra carpeta, da permiso de acceso a todos los archivos.", style = PxText.small)
                 PixelButton("Dar permiso", onClick = {
                     runCatching { context.startActivity(Storage.allFilesAccessIntent(context)) }
                 }, color = Px.yellow, small = true, modifier = Modifier.fillMaxWidth())
             }
             val rootButton: @Composable () -> Unit = {
-                PixelButton("Raíz de la memoria", onClick = {
+                PixelButton("Raíz de la memoria interna", onClick = {
                     onDismiss()
-                    startInstall(vm, context, game, pkg, Storage.externalRoot, save)
+                    onPick(Storage.externalRoot, false)
                 }, color = if (wantsRoot) Px.green else Px.blue, enabled = hasAccess, small = true, modifier = Modifier.fillMaxWidth())
             }
             val folderButton: @Composable () -> Unit = {
                 PixelButton(gameDir, onClick = {
                     onDismiss()
-                    startInstall(vm, context, game, pkg, vm.graph.installs.gameDir(context, game.id, game.title), save)
+                    onPick(vm.graph.installs.gameDir(context, game.id, game.title), true)
                 }, color = if (wantsRoot) Px.blue else Px.green, small = true, modifier = Modifier.fillMaxWidth())
             }
             // La opción recomendada va primero.
             if (wantsRoot) { rootButton(); folderButton() } else { folderButton(); rootButton() }
+            PixelButton("Otra carpeta…", onClick = {
+                onDismiss()
+                vm.pickFolder(
+                    AppViewModel.FolderPick(
+                        if (save) "ELIGE DÓNDE GUARDAR" else "ELIGE DÓNDE EXTRAER",
+                        "${pkg.name}: entra en la carpeta (o créala con Nueva carpeta) y pulsa Usar esta carpeta. " +
+                            "Se $verb tal cual, sin crear otra carpeta.",
+                    ) { dir ->
+                        if (!dir.canWrite()) "Android no deja escribir en esta carpeta"
+                        else { onPick(dir, false); null }
+                    },
+                    Storage.topPortsDir(context),
+                )
+            }, color = Px.blue, enabled = hasAccess, small = true, modifier = Modifier.fillMaxWidth())
             PixelButton("Cancelar", onClick = onDismiss, color = Px.grey, small = true, modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
-private fun download(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage) {
-    vm.graph.tasks.download(game, pkg) { error ->
+private fun download(vm: AppViewModel, context: Context, game: Game, pkg: GamePackage, extractTo: File? = null) {
+    vm.graph.tasks.download(game, pkg, extractTo) { error ->
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
         }

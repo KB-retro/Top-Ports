@@ -23,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import com.topports.app.storage.Storage
 import com.topports.app.ui.AppViewModel
 import com.topports.app.updates.InstallRegistry
 import com.topports.app.ui.components.DialogButtons
@@ -41,6 +43,7 @@ import com.topports.app.ui.theme.pxCaps
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TasksScreen(vm: AppViewModel) {
+    val context = LocalContext.current
     val tasks by vm.tasks.collectAsStateWithLifecycle()
     val files by vm.files.collectAsStateWithLifecycle()
     val names by vm.graph.tasks.downloadNames.collectAsStateWithLifecycle()
@@ -102,6 +105,9 @@ fun TasksScreen(vm: AppViewModel) {
                         },
                         style = PxText.small,
                     )
+                    vm.graph.tasks.extractTarget(p)?.let { dest ->
+                        Text("Se extraerá en: ${Storage.displayPath(context, dest)}", style = PxText.small.copy(color = Px.yellow))
+                    }
                     error?.let { Text(it, style = PxText.small.copy(color = Px.red)) }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (active || queued) {

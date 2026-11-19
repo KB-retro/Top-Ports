@@ -105,6 +105,11 @@ class InstallRegistry(context: Context) {
         val addedAt: Long = 0,
         /** Pausada a mano: la cola no la vuelve a arrancar sola. */
         val paused: Boolean = false,
+        /**
+         * Dónde extraerla al terminar, si se eligió al descargar (raíz de la memoria u otra
+         * carpeta, tal cual). null: en la carpeta del juego ([dir]).
+         */
+        val extractTo: String? = null,
     )
 
     /**
@@ -137,6 +142,7 @@ class InstallRegistry(context: Context) {
         val parts = org.json.JSONArray(save.parts.map { (_, name) -> JSONObject().put("name", name) })
         val json = JSONObject().put("gameId", save.gameId).put("dir", save.dir).put("parts", parts)
             .put("addedAt", save.addedAt).put("paused", save.paused)
+        save.extractTo?.let { json.put("extractTo", it) }
         prefs.edit().putString("pending_${save.pkgKey}", json.toString()).apply()
         allPending = allPending.filter { it.pkgKey != save.pkgKey } + save
         unresolved = unresolved - save.pkgKey
@@ -239,6 +245,7 @@ class InstallRegistry(context: Context) {
                     List(arr.length()) { 0 to arr.getJSONObject(it).getString("name") },
                     addedAt = json.optLong("addedAt", 0),
                     paused = json.optBoolean("paused", false),
+                    extractTo = json.optString("extractTo").ifEmpty { null },
                 )
             }.getOrNull()
         }

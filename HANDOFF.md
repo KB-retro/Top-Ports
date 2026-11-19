@@ -129,6 +129,14 @@ interna. La copia de ajustes sigue en `/TopPorts`.
 4. **Errores**: si TDLib rechaza `DownloadFile` (no un reinicio, código -1), la descarga queda en
    pausa y el motivo va a `downloadErrors` (se ve en TAREAS y en la ficha).
 5. Antes de mover o extraer, `checkParts` comprueba el tamaño de cada parte.
+5b. **Dónde extraer.** Al pulsar Descargar en un comprimido que se extraerá solo, la ficha pregunta
+   dónde (carpeta del juego, raíz de la memoria interna u "Otra carpeta…" con el explorador,
+   `AppViewModel.FolderPick`); va en `PendingSave.extractTo` (null = carpeta del juego) y se ve
+   en TAREAS y la ficha ("Se extraerá en"). Lo mismo al extraer a mano.
+5c. **Sin carpetas repetidas.** Al extraer en la carpeta del juego (o "Extraer aquí" del
+   explorador), si todo el comprimido cuelga de una sola carpeta (`DKC/…`) se extrae al lado
+   (`unwrapDest`): queda `/TopPorts/DKC` y no `/TopPorts/<juego>/DKC`. Con nombres genéricos
+   (`data`, `files`, `android`…, `genericFolders`) se deja dentro para no mezclar juegos.
 6. Al terminar una tarea con la app fuera de pantalla, `DoneNotifier` avisa (las instalaciones no:
    ya avisa Android). `BootReceiver` reanuda la cola al encender si `resumeOnBoot`.
 7. Copiar Android/obb o Android/data encima de sí mismos (extraer en la raíz) los borraría:
@@ -176,6 +184,8 @@ Probado solo en CI y en el emulador. Falta que el usuario confirme:
 9. Carpeta de juegos en la SD (Ajustes → Almacenamiento → Cambiar carpeta): que se pueda escribir
    en la SD con el permiso de todos los archivos, descargar y extraer allí, y que al sacar la
    tarjeta las descargas esperen y sigan al volver a meterla.
+10. Diálogo "¿Dónde extraer?" al descargar un comprimido en partes (también "Otra carpeta…"), y que
+    un comprimido con su propia carpeta dentro quede sin carpetas repetidas.
 
 ## Ideas descartadas por ahora (el usuario dijo que no, de momento)
 
