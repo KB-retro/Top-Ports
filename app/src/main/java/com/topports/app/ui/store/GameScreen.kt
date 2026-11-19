@@ -307,14 +307,21 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
             }
         }
         PixelPanel(Modifier.fillMaxWidth(), fill = Px.navyDark, border = Px.darkGrey) {
-            Text(
-                "Las descargas se guardan en la carpeta de juegos (/TopPorts o la elegida en Ajustes > " +
-                    "Almacenamiento), en una carpeta para cada juego. Los comprimidos en partes se extraen " +
-                    "solos al terminar (se puede quitar en Ajustes > Almacenamiento); los sueltos se guardan " +
-                    "tal cual. Los APK " +
-                    "se instalan directamente y los OBB se copian a Android/obb.",
-                style = PxText.small,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Lo primero: cada port pide los datos en un sitio (raíz, una carpeta concreta…).
+                Text(
+                    "Lee las instrucciones de instalación: hay juegos que usan rutas diferentes para los datos.",
+                    style = PxText.small.copy(color = Px.yellow),
+                )
+                Text(
+                    "Las descargas se guardan en la carpeta de juegos (/TopPorts o la elegida en Ajustes > " +
+                        "Almacenamiento), en una carpeta para cada juego. Los comprimidos en partes se extraen " +
+                        "solos al terminar (se puede quitar en Ajustes > Almacenamiento); los sueltos se guardan " +
+                        "tal cual. Los APK " +
+                        "se instalan directamente y los OBB se copian a Android/obb.",
+                    style = PxText.small,
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text(
