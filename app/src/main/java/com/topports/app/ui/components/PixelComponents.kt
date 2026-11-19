@@ -755,7 +755,7 @@ fun PixelTag(text: String, color: Color, modifier: Modifier = Modifier, textColo
     val spec = Px.style.spec
     // En Terminal, como en un menú de texto: [APK] en su color, sin fondo.
     if (spec.frame == FrameKind.DOUBLE_LINE) {
-        Text("[$text]", style = PxText.tiny.copy(color = color), modifier = modifier)
+        Text("[$text]", style = PxText.tiny.copy(color = color), modifier = modifier, maxLines = 1, softWrap = false)
         return
     }
     Box(
@@ -764,7 +764,8 @@ fun PixelTag(text: String, color: Color, modifier: Modifier = Modifier, textColo
             .padding(horizontal = 5.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = PxText.tiny.copy(color = textColor))
+        // Siempre en una línea: estrechada, partía el texto letra a letra (en vertical).
+        Text(text, style = PxText.tiny.copy(color = textColor), maxLines = 1, softWrap = false)
     }
 }
 

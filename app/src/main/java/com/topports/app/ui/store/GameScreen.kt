@@ -125,6 +125,7 @@ private fun linkify(text: String): AnnotatedString = buildAnnotatedString {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun GameScreen(vm: AppViewModel, gameId: Long) {
     val catalog by vm.catalog.collectAsStateWithLifecycle()
     val game = catalog.games.firstOrNull { it.id == gameId }
@@ -241,7 +242,10 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
         Text(game.title.pxCaps(), style = PxText.title.copy(color = Px.yellow))
         if (game.tags.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { game.tags.forEach { SystemTag(it) } }
+            // Si no caben en una línea, siguen en la siguiente (no se estrechan).
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                game.tags.forEach { SystemTag(it) }
+            }
         }
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {

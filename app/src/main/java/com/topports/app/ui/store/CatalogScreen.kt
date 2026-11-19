@@ -411,7 +411,9 @@ private fun GameCard(
         Spacer(Modifier.height(6.dp))
         // Etiquetas de sistema junto al título; la fila ocupa siempre lo mismo para que las
         // carátulas queden alineadas.
-        Row(Modifier.heightIn(min = 18.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // En una sola línea: las que no caben enteras no se ponen (si no, se estrujaban y el
+        // texto salía en vertical, descuadrando la carátula).
+        OneLineTags(Modifier.fillMaxWidth().heightIn(min = 18.dp)) {
             game.tags.take(3).forEach { SystemTag(it) }
         }
         Spacer(Modifier.height(4.dp))
@@ -453,6 +455,32 @@ private object CatalogColumns : GridCells {
 fun recentlyUpdated(game: Game): Boolean {
     val now = System.currentTimeMillis() / 1000
     return game.updated - game.date > 86_400 && now - game.updated < 14 * 86_400
+}
+
+/**
+ * Fila de etiquetas en una sola línea: pone las que caben enteras, por orden, y deja fuera las
+ * demás en vez de estrecharlas.
+ */
+@Composable
+private fun OneLineTags(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    androidx.compose.ui.layout.Layout(content, modifier) { measurables, constraints ->
+        val gap = 4.dp.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity)
+        val placeables = measurables.map { it.measure(loose) }
+        val shown = mutableListOf<androidx.compose.ui.layout.Placeable>()
+        var used = 0
+        for (p in placeables) {
+            val needed = if (shown.isEmpty()) p.width else used + gap + p.width
+            if (needed > constraints.maxWidth) break
+            shown += p
+            used = needed
+        }
+        val height = maxOf(constraints.minHeight, shown.maxOfOrNull { it.height } ?: 0)
+        layout(constraints.maxWidth, height) {
+            var x = 0
+            shown.forEach { p -> p.placeRelative(x, 0); x += p.width + gap }
+        }
+    }
 }
 
 /** Etiqueta de sistema ("#N64"), con un color fijo para cada sistema. */
