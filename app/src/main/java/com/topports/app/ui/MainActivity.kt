@@ -12,6 +12,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import com.topports.app.ui.theme.AppTheme
 import com.topports.app.ui.theme.Px
 import com.topports.app.ui.theme.TopPortsTheme
@@ -43,6 +46,15 @@ class MainActivity : ComponentActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         if (BuildConfig.DEMO) openDemoScreen()
+        // Pantalla encendida mientras haya una extracción, copia o instalación (si está activado).
+        lifecycleScope.launch {
+            combine(vm.graph.tasks.tasks, vm.graph.tasks.keepScreenOnFlow) { tasks, keep ->
+                keep && tasks.any { it.running }
+            }.collect { on ->
+                if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
         setContent {
             TopPortsTheme {
                 AppRoot(vm)

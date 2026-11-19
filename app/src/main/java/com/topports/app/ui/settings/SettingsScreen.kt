@@ -444,6 +444,20 @@ fun SettingsScreen(vm: AppViewModel) {
                                 small = true,
                             )
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Pantalla encendida al extraer", style = PxText.body)
+                                Text("La pantalla no se apaga mientras se extrae, se copia o se instala con la app abierta.", style = PxText.small)
+                            }
+                            var screen by remember(vm.settingsResets) { mutableStateOf(vm.graph.tasks.keepScreenOn) }
+                            PixelButton(
+                                if (screen) "Sí" else "No",
+                                onClick = { screen = !screen; vm.graph.tasks.keepScreenOn = screen },
+                                color = if (screen) Px.green else Px.darkGrey,
+                                textColor = if (screen) Px.black else Px.white,
+                                small = true,
+                            )
+                        }
                         if (busy) PixelProgress(null, Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Pide confirmar: hay que reiniciar la app para que TDLib suelte la caché.

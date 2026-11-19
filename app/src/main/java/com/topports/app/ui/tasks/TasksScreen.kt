@@ -44,6 +44,7 @@ import com.topports.app.ui.theme.pxCaps
 @Composable
 fun TasksScreen(vm: AppViewModel) {
     val context = LocalContext.current
+    val hasSdCard = remember { Storage.volumes(context).any { it.removable } }
     val tasks by vm.tasks.collectAsStateWithLifecycle()
     val files by vm.files.collectAsStateWithLifecycle()
     val names by vm.graph.tasks.downloadNames.collectAsStateWithLifecycle()
@@ -175,6 +176,15 @@ fun TasksScreen(vm: AppViewModel) {
                         }
                     }
                 }
+            }
+        }
+        // Pie: con una tarjeta SD puesta, avisar de que ahí se extrae más despacio.
+        if (hasSdCard) {
+            item {
+                Text(
+                    "Las extracciones en la tarjeta SD son más lentas, ten paciencia.",
+                    style = PxText.small.copy(color = Px.grey),
+                )
             }
         }
         item { Spacer(Modifier.padding(8.dp)) }

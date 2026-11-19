@@ -28,6 +28,12 @@ class WorkService : LifecycleService() {
 
     private var observing = false
 
+    /**
+     * La CPU sigue aunque se apague la pantalla: sin esto, con la pantalla apagada Android
+     * duerme el procesador y las descargas y extracciones se paran o van a trompicones.
+     */
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+
     /** Espera mínima antes de pararse sin trabajo: más larga al encender la consola. */
     @Volatile
     private var grace = 3000L
@@ -50,11 +56,24 @@ class WorkService : LifecycleService() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (wakeLock == null) {
+            wakeLock = runCatching {
+                getSystemService(android.os.PowerManager::class.java)
+                    .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "TopPorts:trabajo")
+                    .apply { setReferenceCounted(false); acquire(8 * 60 * 60 * 1000L) }
+            }.getOrNull()
+        }
         if (!observing) {
             observing = true
             observe()
         }
         return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        runCatching { wakeLock?.takeIf { it.isHeld }?.release() }
+        wakeLock = null
+        super.onDestroy()
     }
 
     /**

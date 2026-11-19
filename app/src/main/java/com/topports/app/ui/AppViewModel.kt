@@ -254,7 +254,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().apply {
             listOf(
                 "theme", "uiStyle", "anim", "sounds", "soundSoft", "soundType", "music", "swapAB", "sort",
-                "autoExtract", "maxParallel", "wifiOnly", "hideInstalled", "resumeOnBoot",
+                "autoExtract", "maxParallel", "wifiOnly", "hideInstalled", "resumeOnBoot", "keepScreenOn",
             ).forEach { remove(it) }
         }.apply()
         Px.theme = AppTheme.fromName(null)
@@ -274,6 +274,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         graph.tasks.maxParallel = 2
         graph.tasks.wifiOnly = false
         graph.tasks.resumeOnBoot = true
+        graph.tasks.keepScreenOn = true
         settingsResets++
     }
 
@@ -321,7 +322,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         "theme" to "string", "uiStyle" to "string", "anim" to "string", "sounds" to "bool",
         "soundType" to "string", "music" to "int", "swapAB" to "bool", "sort" to "string",
         "autoExtract" to "bool", "maxParallel" to "int", "wifiOnly" to "bool", "hideInstalled" to "bool",
-        "resumeOnBoot" to "bool", "favorites" to "set", "favoriteTitles" to "set", "searchHistory" to "string",
+        "resumeOnBoot" to "bool", "keepScreenOn" to "bool", "favorites" to "set", "favoriteTitles" to "set", "searchHistory" to "string",
         "seenAnnouncement" to "long",
     )
 

@@ -428,6 +428,19 @@ class TaskCenter(
             prefs.edit().putBoolean("resumeOnBoot", value).apply()
         }
 
+    /**
+     * Que no se apague la pantalla mientras se extrae, se copia o se instala con la app abierta
+     * ([MainActivity] lo aplica). Ajustes → Almacenamiento.
+     */
+    private val _keepScreenOn = MutableStateFlow(prefs.getBoolean("keepScreenOn", true))
+    val keepScreenOnFlow: StateFlow<Boolean> = _keepScreenOn.asStateFlow()
+    var keepScreenOn: Boolean
+        get() = _keepScreenOn.value
+        set(value) {
+            _keepScreenOn.value = value
+            prefs.edit().putBoolean("keepScreenOn", value).apply()
+        }
+
     /** Descargar solo con WiFi (o cable). Ajustes → Almacenamiento. */
     var wifiOnly: Boolean = prefs.getBoolean("wifiOnly", false)
         set(value) {
