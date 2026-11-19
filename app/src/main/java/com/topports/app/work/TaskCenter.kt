@@ -316,9 +316,13 @@ class TaskCenter(
                     throw NotEnoughSpaceException(remaining + extra, free.coerceAtLeast(0))
                 }
 
-                // Si se extrae en otro sitio, la carpeta del juego no se crea: se quedaría vacía.
-                val dir = if (extracts && target != null) File(Storage.topPortsDir(context), installs.gameFolderName(game.id, game.title))
-                else installs.gameDir(context, game.id, game.title)
+                val dir = when {
+                    // Los APK, todos juntos en la carpeta APK (se borran al instalarse).
+                    pkg.kind == PackageKind.APK -> Storage.apkDir(context).apply { mkdirs() }
+                    // Si se extrae en otro sitio, la carpeta del juego no se crea: se quedaría vacía.
+                    extracts && target != null -> File(Storage.topPortsDir(context), installs.gameFolderName(game.id, game.title))
+                    else -> installs.gameDir(context, game.id, game.title)
+                }
                 _downloadErrors.update { it - pkg.key }
                 // A la cola: la descarga empieza cuando le toque (ver [schedule]).
                 installs.addPendingSave(
@@ -625,6 +629,20 @@ class TaskCenter(
     }
 
     /**
+     * Android ha confirmado la instalación [sessionId]: se borran los APK descargados que se
+     * instalaron (solo los de la carpeta APK; los datos no se tocan). Si falló o se canceló, se
+     * quedan para volver a intentarlo ([installed] = false).
+     */
+    fun apkInstallFinished(sessionId: Int, installed: Boolean) {
+        val (pkgKey, files) = installs.takeApkCleanup(sessionId) ?: return
+        if (!installed) return
+        files.filter { it.isFile && FileNames.isApk(FileNames.volumeOf(it.name).baseName) }.forEach { it.delete() }
+        installs.forgetSaved(pkgKey)
+        savedCache.remove(pkgKey)
+        _savedVersion.update { it + 1 }
+    }
+
+    /**
      * Cambia la carpeta de juegos (null = /TopPorts de siempre). Devuelve el motivo si no se puede:
      * con descargas a medias o tareas en marcha no se cambia, porque sus archivos están en la
      * carpeta de ahora. Los juegos ya bajados se quedan donde están.
@@ -677,6 +695,12 @@ class TaskCenter(
                         if (parts.size > 1) {
                             installs.rememberSession(sessionId, InstallRecord("", pkg.name, pkg.parts.first().id, game.id, pkg.size))
                         }
+                        // El APK descargado (el que se guardó al bajarlo, en la carpeta APK o, en
+                        // descargas de antes, en la del juego) se borra cuando Android confirme la
+                        // instalación. Los APK sacados de un comprimido u otros archivos, no.
+                        val savedDir = installs.savedDir(pkg.key)?.let { File(it).absolutePath }
+                        val downloaded = parts.map { it.second }.filter { it.parentFile?.absolutePath == savedDir }
+                        if (downloaded.isNotEmpty()) installs.rememberApkCleanup(sessionId, pkg.key, downloaded)
                     }
                     finish(taskId, "Instalación lanzada. Acepta el aviso de Android.", notify = false)
                 }

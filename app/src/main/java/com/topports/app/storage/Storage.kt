@@ -53,6 +53,9 @@ object Storage {
         return custom
     }
 
+    /** Carpeta APK de la carpeta de juegos: ahí van todos los APK descargados, sin una carpeta por juego. */
+    fun apkDir(context: Context): File = File(topPortsDir(context), "APK")
+
     private fun prefs(context: Context) = context.getSharedPreferences("storage", Context.MODE_PRIVATE)
 
     /** Carpeta de juegos elegida a mano (null = /TopPorts). */

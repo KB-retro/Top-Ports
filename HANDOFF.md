@@ -133,6 +133,10 @@ interna. La copia de ajustes sigue en `/TopPorts`.
    dónde (carpeta del juego, raíz de la memoria interna u "Otra carpeta…" con el explorador,
    `AppViewModel.FolderPick`); va en `PendingSave.extractTo` (null = carpeta del juego) y se ve
    en TAREAS y la ficha ("Se extraerá en"). Lo mismo al extraer a mano.
+5d. **APK.** Los paquetes APK se descargan todos a `<carpeta de juegos>/APK` (`Storage.apkDir`),
+   sin carpeta por juego. Al instalar, el APK guardado se apunta (`rememberApkCleanup`) y se borra
+   cuando Android confirma la instalación (`InstallResultReceiver` → `apkInstallFinished`); si se
+   cancela, se queda. Los APK sacados de un comprimido no se borran.
 5c. **Sin carpetas repetidas.** Al extraer en la carpeta del juego (o "Extraer aquí" del
    explorador), si todo el comprimido cuelga de una sola carpeta (`DKC/…`) se extrae al lado
    (`unwrapDest`): queda `/TopPorts/DKC` y no `/TopPorts/<juego>/DKC`. Con nombres genéricos
@@ -184,6 +188,8 @@ Probado solo en CI y en el emulador. Falta que el usuario confirme:
 9. Carpeta de juegos en la SD (Ajustes → Almacenamiento → Cambiar carpeta): que se pueda escribir
    en la SD con el permiso de todos los archivos, descargar y extraer allí, y que al sacar la
    tarjeta las descargas esperen y sigan al volver a meterla.
+11. APK descargados en /TopPorts/APK y borrados al instalarse; pantalla encendida al extraer;
+    "Por defecto" con memoria interna o SD:/TopPorts.
 10. Diálogo "¿Dónde extraer?" al descargar un comprimido en partes (también "Otra carpeta…"), y que
     un comprimido con su propia carpeta dentro quede sin carpetas repetidas.
 

@@ -593,7 +593,8 @@ private fun PackageRow(
                     when {
                         moving -> Unit
                         info.complete -> if (pkg.kind == PackageKind.APK || pkg.kind == PackageKind.OBB) {
-                            startInstall(vm, context, game, pkg, vm.graph.installs.gameDir(context, game.id, game.title))
+                            // El APK y el OBB no usan la carpeta del juego: no se crea vacía.
+                            startInstall(vm, context, game, pkg, Storage.topPortsDir(context))
                         } else {
                             chooseDest = true
                         }

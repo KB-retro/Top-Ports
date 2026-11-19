@@ -330,7 +330,27 @@ class InstallRegistry(context: Context) {
         prefs.edit().remove("session_$sessionId").apply()
     }
 
-    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_", "gamedir_", "gamepaths_", "session_")
+    /**
+     * APK descargados (en la carpeta APK) que se están instalando en [sessionId]: se borran cuando
+     * Android confirme la instalación ([takeApkCleanup]). Si se cancela, se quedan.
+     */
+    fun rememberApkCleanup(sessionId: Int, pkgKey: String, files: List<File>) {
+        val json = JSONObject().put("pkgKey", pkgKey).put("files", org.json.JSONArray(files.map { it.path }))
+        prefs.edit().putString("apkclean_$sessionId", json.toString()).apply()
+    }
+
+    /** Lo apuntado con [rememberApkCleanup] (y se olvida): clave del paquete y archivos. */
+    fun takeApkCleanup(sessionId: Int): Pair<String, List<File>>? {
+        val raw = prefs.getString("apkclean_$sessionId", null) ?: return null
+        prefs.edit().remove("apkclean_$sessionId").apply()
+        return runCatching {
+            val json = JSONObject(raw)
+            val arr = json.getJSONArray("files")
+            json.getString("pkgKey") to List(arr.length()) { File(arr.getString(it)) }
+        }.getOrNull()
+    }
+
+    private val internalPrefixes = listOf("extracted_", "saved_", "pending_", "ignored_", "unpacked_", "gamedir_", "gamepaths_", "session_", "apkclean_")
 
     /** Nombre del paquete de un APK aún sin instalar (null si no se puede leer). */
     fun packageNameOf(context: Context, apk: File): String? = runCatching {
