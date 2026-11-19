@@ -88,6 +88,8 @@ fun SettingsScreen(vm: AppViewModel) {
     var orphans by remember { mutableStateOf<StorageTools.Orphans?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
+    // "Por defecto" de la carpeta de juegos: /TopPorts en la memoria interna o en una SD.
+    var chooseDefaultDir by remember { mutableStateOf(false) }
     var confirmClearCache by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
 
@@ -338,7 +340,6 @@ fun SettingsScreen(vm: AppViewModel) {
                     val dir = Storage.topPortsDir(context)
                     Triple(Storage.displayPath(context, dir), Storage.freeBytes(dir), Storage.gamesDirProblem(context))
                 }
-                val custom = remember(refresh) { Storage.customGamesDir(context) != null }
                 PixelPanel(Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Carpeta de juegos", style = PxText.body)
@@ -363,10 +364,12 @@ fun SettingsScreen(vm: AppViewModel) {
                                 }
                             }, color = Px.blue, small = true, enabled = !busy)
                             PixelButton("Por defecto", onClick = {
-                                val error = vm.graph.tasks.setGamesDir(null)
-                                toast(error ?: "Carpeta de juegos: /TopPorts")
-                                refresh++
-                            }, color = Px.grey, small = true, enabled = custom && !busy)
+                                if (!Storage.hasAllFilesAccess(context)) {
+                                    toast("Primero da el permiso de todos los archivos (Permisos, más abajo)")
+                                } else {
+                                    chooseDefaultDir = true
+                                }
+                            }, color = Px.grey, small = true, enabled = !busy)
                         }
                     }
                 }
@@ -804,6 +807,41 @@ fun SettingsScreen(vm: AppViewModel) {
                         restartApp(context)
                     }
                 }, color = Px.blue, small = true)
+            }
+        }
+    }
+
+    if (chooseDefaultDir) {
+        val sdCards = remember { Storage.volumes(context).filter { it.removable } }
+        fun use(dir: java.io.File?) {
+            chooseDefaultDir = false
+            val error = vm.graph.tasks.setGamesDir(dir)
+            toast(error ?: "Carpeta de juegos: ${Storage.displayPath(context, dir ?: Storage.defaultTopPortsDir(context))}")
+            refresh++
+        }
+        PixelDialog("Carpeta por defecto", onDismiss = { chooseDefaultDir = false }) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Los juegos irán a una carpeta TopPorts en:", style = PxText.body)
+                PixelButton("Memoria interna (/TopPorts)", onClick = { use(null) },
+                    color = Px.green, small = true, modifier = Modifier.fillMaxWidth())
+                sdCards.forEachIndexed { i, v ->
+                    val name = if (sdCards.size > 1) "SD${i + 1}" else "SD"
+                    PixelButton("Tarjeta $name ($name:/TopPorts)", onClick = {
+                        // Se crea si no está: la SD solo trae lo que haya puesto el usuario.
+                        val dir = java.io.File(v.root, "TopPorts")
+                        if (!dir.isDirectory && !dir.mkdirs()) {
+                            chooseDefaultDir = false
+                            toast("No se pudo crear $name:/TopPorts")
+                        } else {
+                            use(dir)
+                        }
+                    }, color = Px.lavender, small = true, modifier = Modifier.fillMaxWidth())
+                }
+                if (sdCards.isEmpty()) {
+                    Text("No hay ninguna tarjeta SD puesta.", style = PxText.small)
+                }
+                PixelButton("Cancelar", onClick = { chooseDefaultDir = false }, color = Px.grey, small = true,
+                    modifier = Modifier.fillMaxWidth())
             }
         }
     }
