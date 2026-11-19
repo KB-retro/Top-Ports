@@ -411,11 +411,9 @@ private fun GameCard(
         Spacer(Modifier.height(6.dp))
         // Etiquetas de sistema junto al título; la fila ocupa siempre lo mismo para que las
         // carátulas queden alineadas.
-        // En una sola línea: las que no caben enteras no se ponen (si no, se estrujaban y el
-        // texto salía en vertical, descuadrando la carátula).
-        OneLineTags(Modifier.fillMaxWidth().heightIn(min = 18.dp)) {
-            game.tags.take(3).forEach { SystemTag(it) }
-        }
+        // En una sola línea: si una no cabe, abreviada (#PORTSDA); si ni así, no se pone (si no,
+        // se estrujaba y el texto salía en vertical, descuadrando la carátula).
+        OneLineTags(game.tags.take(3), Modifier.fillMaxWidth().heightIn(min = 18.dp))
         Spacer(Modifier.height(4.dp))
         Text(
             game.title.pxCaps(),
@@ -458,22 +456,32 @@ fun recentlyUpdated(game: Game): Boolean {
 }
 
 /**
- * Fila de etiquetas en una sola línea: pone las que caben enteras, por orden, y deja fuera las
- * demás en vez de estrecharlas.
+ * Etiquetas de sistema en una sola línea, por orden: cada una entera si cabe; si no, abreviada
+ * ([shortTag]); y si ni así cabe, se salta. Nunca se estrechan.
  */
 @Composable
-private fun OneLineTags(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    androidx.compose.ui.layout.Layout(content, modifier) { measurables, constraints ->
+private fun OneLineTags(tags: List<String>, modifier: Modifier = Modifier) {
+    androidx.compose.ui.layout.Layout(
+        content = {
+            // Por cada etiqueta, la entera y la corta; la medida decide cuál se pone.
+            tags.forEach { tag ->
+                SystemTag(tag)
+                PixelTag("#${shortTag(tag)}", systemColor(tag))
+            }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
         val gap = 4.dp.roundToPx()
         val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity)
         val placeables = measurables.map { it.measure(loose) }
         val shown = mutableListOf<androidx.compose.ui.layout.Placeable>()
         var used = 0
-        for (p in placeables) {
-            val needed = if (shown.isEmpty()) p.width else used + gap + p.width
-            if (needed > constraints.maxWidth) break
-            shown += p
-            used = needed
+        for (i in tags.indices) {
+            val start = if (shown.isEmpty()) 0 else used + gap
+            val pick = listOf(placeables[2 * i], placeables[2 * i + 1])
+                .firstOrNull { start + it.width <= constraints.maxWidth } ?: continue
+            shown += pick
+            used = start + pick.width
         }
         val height = maxOf(constraints.minHeight, shown.maxOfOrNull { it.height } ?: 0)
         layout(constraints.maxWidth, height) {
@@ -481,6 +489,25 @@ private fun OneLineTags(modifier: Modifier = Modifier, content: @Composable () -
             shown.forEach { p -> p.placeRelative(x, 0); x += p.width + gap }
         }
     }
+}
+
+/** Abreviaturas de las etiquetas del canal para cuando no caben enteras. */
+private val tagShortNames = mapOf(
+    "PORTSDEAUTOR" to "PORTSDA",
+    "DUALSCREEN" to "DUAL",
+    "GAMECUBE" to "GC",
+    "NINTENDODS" to "NDS",
+    "PLAYSTATION2" to "PS2",
+    "PLAY4" to "PS4",
+    "SUPERNINTENDO" to "SNES",
+    "SWITCH" to "NSW",
+    "ARCADE" to "ARC",
+)
+
+/** "PORTSDEAUTOR" → "PORTSDA"; las que no están en la lista, cortadas a 6 letras si son largas. */
+private fun shortTag(tag: String): String {
+    tagShortNames[tag.uppercase()]?.let { return it }
+    return if (tag.length > 7) tag.take(6) else tag
 }
 
 /** Etiqueta de sistema ("#N64"), con un color fijo para cada sistema. */
