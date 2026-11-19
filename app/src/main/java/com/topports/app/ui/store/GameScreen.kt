@@ -314,12 +314,8 @@ fun GameScreen(vm: AppViewModel, gameId: Long) {
                     style = PxText.small.copy(color = Px.yellow),
                 )
                 Text(
-                    "Las descargas se guardan en la carpeta de juegos (/TopPorts o la elegida en Ajustes > " +
-                        "Almacenamiento), en una carpeta para cada juego. Los comprimidos en partes se extraen " +
-                        "solos al terminar donde elijas al descargar (se puede quitar en Ajustes > Almacenamiento), " +
-                        "sin repetir la carpeta si ya traen una; los sueltos se guardan " +
-                        "tal cual. Los APK " +
-                        "se instalan directamente y los OBB se copian a Android/obb.",
+                    "Los datos necesitan el doble de espacio la primera vez, porque se extraen " +
+                        "automáticamente: comprueba que tengas espacio suficiente.",
                     style = PxText.small,
                 )
             }
